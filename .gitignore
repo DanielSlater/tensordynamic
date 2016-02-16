@@ -1,0 +1,3 @@
+# ignore pycharm stuff
+.idea
+*.py[cod]
