@@ -19,10 +19,14 @@ class Net(object):
 
     @property
     def output_layer(self):
+        if self.first_layer is None:
+            raise Exception("No output layer")
         return self.first_layer.get_layers_list()[-1]
 
     @property
     def hidden_nodes(self):
+        if self.first_layer is None:
+            return []
         return [x.output_nodes for x in self.first_layer.get_layers_list()]
 
     @property
@@ -42,7 +46,6 @@ class Net(object):
         new_net = Net(self.input_p, self.target_p)
         last = self.input_p
         for i, x in enumerate(self.hidden_layers):
-            print i
             if x == hidden_layer:
                 cloned = x.add_output(session)
             else:

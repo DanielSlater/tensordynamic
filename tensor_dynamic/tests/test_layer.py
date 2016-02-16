@@ -28,6 +28,16 @@ class TestLayer(TestCase):
 
         self.assertEqual(layer._weights.get_shape().as_list(), [2, 2])
 
+    def test_create_extra_weight_dimensions_fail_case(self):
+        output_nodes = 2
+        input_p = tf.placeholder("float", (None, 4))
+        layer = Layer(input_p, output_nodes, session=self.session,
+                      weights=np.array([[10., 10.],
+                                        [10., 10.],
+                                        [10., 10.]], dtype=np.float32))
+
+        self.assertEqual(layer._weights.get_shape().as_list(), [4, 2])
+
     def test_add_output(self):
         output_nodes = 10
         input_p = tf.placeholder("float", (None, 10))
@@ -35,6 +45,7 @@ class TestLayer(TestCase):
         new_layer = layer.add_output(self.session)
 
         self.assertEqual(new_layer.activation.get_shape().as_list(), [None, output_nodes+1])
+        self.assertEquals(new_layer.output_nodes, output_nodes+1)
 
     def test_get_layers_list(self):
         input_p = tf.placeholder("float", (None, 10))

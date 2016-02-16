@@ -28,16 +28,20 @@ class Layer(object):
             self._weights = tf.Variable(xavier_init(self.input_nodes, self.output_nodes),
                                         trainable=trainable)
         else:
+            if weights.shape[1] != self.output_nodes:
+                raise Exception("Weight shape must equal output nodes")
+
             if self.input_nodes > weights.shape[0]:
                 weights = np.append(weights,
                                     np.random.normal(scale=1.0 / math.sqrt(float(weights.shape[1])),
-                                                     size=(self.input_nodes - weights.shape[1], weights.shape[1])).astype(
-                                        weights.dtype),
+                                                     size=(self.input_nodes - weights.shape[0], weights.shape[1]))
+                                    .astype(weights.dtype),
                                     axis=0)
             if self.output_nodes > weights.shape[1]:
                 weights = np.append(weights,
                                     np.random.normal(scale=1.0 / math.sqrt(float(weights.shape[0])),
-                                                     size=(weights.shape[0], 1)).astype(weights.dtype),
+                                                     size=(weights.shape[0], self.output_nodes - weights.shape[1]))
+                                    .astype(weights.dtype),
                                     axis=1)
 
             self._weights = tf.Variable(weights, trainable=trainable)
@@ -89,7 +93,21 @@ class Layer(object):
         bias = session.run(self._bias)
         bias = np.append(bias, 0.0).astype(bias.dtype)
 
-        return self.clone(session, self.input_layer_activation, weight=new_weights, bias=bias)
+        if self._back_bias is not None:
+            back_bias = session.run(self._back_bias)
+        else:
+            back_bias = None
+
+        new_self = Layer(self.input_layer_activation,
+                         self.output_nodes+1,
+                         weights=new_weights,
+                         bias=bias,
+                         back_bias=back_bias,
+                         bactivate=self.bactivate,
+                         freeze=self.freeze,
+                         session=session)
+
+        return new_self
 
     def clone(self, session, input_layer, bias=None, weight=None, back_bias=None):
         if bias is None:
@@ -99,7 +117,8 @@ class Layer(object):
         if back_bias is None and self._back_bias is not None:
             back_bias = session.run(self._back_bias)
 
-        new_self = Layer(input_layer, self.output_nodes,
+        new_self = Layer(input_layer,
+                         self.output_nodes,
                          weights=weight,
                          bias=bias,
                          back_bias=back_bias,
