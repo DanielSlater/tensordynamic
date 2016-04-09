@@ -1,132 +1,149 @@
 import tensorflow as tf
-import numpy as np
-import math
 
-from tensor_dynamic.utils import xavier_init
+from tensor_dynamic.base_layer import BaseLayer
+from tensor_dynamic.lazyprop import lazyprop, clear_all_lazyprops
+from tensor_dynamic.utils import xavier_init, tf_resize
+from tensor_dynamic.weight_functions import noise_weight_extender
 
 
-class Layer(object):
+class Layer(BaseLayer):
     def __init__(self, input_layer, output_nodes,
-                 session=None,
-                 bias=None, weights=None, back_bias=None,
+                 session,
+                 bias=None,
+                 weights=None,
+                 back_bias=None,
                  bactivate=False,
-                 freeze=False):
+                 freeze=False,
+                 non_liniarity=tf.nn.sigmoid,
+                 weight_extender_func=noise_weight_extender,
+                 name='Layer'):
+        super(Layer, self).__init__(input_layer, weight_extender_func=weight_extender_func, freeze=freeze, name=name)
 
-        if isinstance(input_layer, Layer):
-            input_layer.output_layer = self
-            self.input_layer_activation = input_layer.activation
-        else:
-            self.input_layer_activation = input_layer
-        self.input_nodes = int(self.input_layer_activation.get_shape()[-1])
-
-        self.output_layer = None
         self.output_nodes = output_nodes
-
-        self.freeze = freeze
-        trainable = not freeze
-        if weights is None:
-            self._weights = tf.Variable(xavier_init(self.input_nodes, self.output_nodes),
-                                        trainable=trainable)
-        else:
-            if weights.shape[1] != self.output_nodes:
-                raise Exception("Weight shape must equal output nodes")
-
-            if self.input_nodes > weights.shape[0]:
-                weights = np.append(weights,
-                                    np.random.normal(scale=1.0 / math.sqrt(float(weights.shape[1])),
-                                                     size=(self.input_nodes - weights.shape[0], weights.shape[1]))
-                                    .astype(weights.dtype),
-                                    axis=0)
-            if self.output_nodes > weights.shape[1]:
-                weights = np.append(weights,
-                                    np.random.normal(scale=1.0 / math.sqrt(float(weights.shape[0])),
-                                                     size=(weights.shape[0], self.output_nodes - weights.shape[1]))
-                                    .astype(weights.dtype),
-                                    axis=1)
-
-            self._weights = tf.Variable(weights, trainable=trainable)
-
-        if bias is None:
-            self._bias = tf.Variable(tf.zeros([self.output_nodes]), trainable=trainable)
-        else:
-            self._bias = tf.Variable(bias, trainable=trainable)
-
-        self.activation = tf.nn.sigmoid(tf.matmul(self.input_layer_activation, self._weights) + self._bias)
+        self._non_liniarity = non_liniarity
         self.bactivate = bactivate
-        if bactivate:
-            if back_bias is None:
-                self._back_bias = tf.Variable(tf.zeros([self.input_nodes]), trainable=trainable)
-            else:
-                if self.input_nodes > back_bias.shape[-1]:
-                    back_bias = np.append(back_bias, tf.zeros([self.input_nodes - back_bias.shape[-1]])) \
-                        .astype(back_bias.dtype)
-                self._back_bias = tf.Variable(back_bias, trainable=trainable)
 
-            self.bactivation = tf.nn.sigmoid(tf.matmul(self.activation, tf.transpose(self._weights)) + self._back_bias)
+        self.input_nodes = int(self.input_shape[-1])
+
+        self._weights = self._create_variable((self.input_nodes, self.output_nodes),
+                                              weights if weights is not None else xavier_init(self.input_nodes,
+                                                                                              self.output_nodes),
+                                              "weights")
+
+        self._bias = self._create_variable((self.output_nodes,),
+                                           bias if bias is not None else tf.zeros((self.output_nodes,)),
+                                           "bias")
+
+        if self.bactivate:
+            self._back_bias = self._create_variable((self.input_nodes,),
+                                                    back_bias if back_bias is not None else tf.zeros((self.input_nodes,)),
+                                                    "back_bias")
         else:
             self._back_bias = None
 
         if session:
+            session.run(tf.initialize_variables([self._bias, self._weights]))
             if self._back_bias:
-                session.run(tf.initialize_variables([self._bias, self._weights, self._back_bias]))
-            else:
-                session.run(tf.initialize_variables([self._bias, self._weights]))
+                session.run(tf.initialize_variables([self._back_bias]))
 
-    def get_output_layer_activation(self):
-        if self.output_layer is not None:
-            return self.output_layer.get_output_layer_activation()
-        return self.activation
+    @property
+    def kwargs(self):
+        kwargs = super(Layer, self).kargs()
+
+        kwargs['bactivate'] = self.bactivate
+        kwargs['non_liniarity'] = self._non_liniarity
+
+        return kwargs
+
+    @property
+    def has_bactivation(self):
+        return self.bactivate
+
+    @lazyprop
+    def activation(self):
+        return self._non_liniarity(tf.matmul(self.input_layer.activation, self._weights) + self._bias)
+
+    @lazyprop
+    def bactivation(self):
+        if self.bactivate:
+            return self._non_liniarity(
+                tf.matmul(self.activation, tf.transpose(self._weights)) + self._back_bias)
+        else:
+            return None
+
+    @property
+    def non_liniarity(self):
+        return self._non_liniarity
 
     def get_layers_list(self):
         result = [self]
-        if self.output_layer is not None:
-            result.extend(self.output_layer.get_layers_list())
+        if self.next_layer is not None:
+            result.extend(self.next_layer.get_layers_list())
         return result
 
-    def add_output(self, session):
-        weights = session.run(self._weights)
-
-        new_weights = np.append(weights,
-                                np.random.normal(scale=1.0 / math.sqrt(float(weights.shape[0])),
-                                                 size=(weights.shape[0], 1)).astype(weights.dtype),
-                                axis=1)
-        bias = session.run(self._bias)
-        bias = np.append(bias, 0.0).astype(bias.dtype)
-
-        if self._back_bias is not None:
-            back_bias = session.run(self._back_bias)
-        else:
-            back_bias = None
-
-        new_self = Layer(self.input_layer_activation,
-                         self.output_nodes+1,
-                         weights=new_weights,
-                         bias=bias,
-                         back_bias=back_bias,
-                         bactivate=self.bactivate,
-                         freeze=self.freeze,
-                         session=session)
-
-        return new_self
-
-    def clone(self, session, input_layer, bias=None, weight=None, back_bias=None):
+    def clone(self, input_layer, old_session, new_session=None, bias=None, weight=None, back_bias=None):
+        if new_session is None:
+            new_session = old_session
         if bias is None:
-            bias = session.run(self._bias)
+            bias = old_session.run(self._bias)
         if weight is None:
-            weight = session.run(self._weights)
+            weight = old_session.run(self._weights)
         if back_bias is None and self._back_bias is not None:
-            back_bias = session.run(self._back_bias)
+            back_bias = old_session.run(self._back_bias)
 
-        new_self = Layer(input_layer,
-                         self.output_nodes,
-                         weights=weight,
-                         bias=bias,
-                         back_bias=back_bias,
-                         bactivate=self.bactivate,
-                         freeze=self.freeze,
-                         session=session)
+        new_self = self.__class__(input_layer,
+                                  self.output_nodes,
+                                  weights=weight,
+                                  bias=bias,
+                                  back_bias=back_bias,
+                                  bactivate=self.bactivate,
+                                  freeze=self.freeze,
+                                  session=new_session,
+                                  non_liniarity=self._non_liniarity,
+                                  weight_extender_func=self._weight_extender_func)
 
         return new_self
+
+    def supervised_cost(self, targets):
+        if not self.next_layer:
+            return tf.reduce_sum(tf.square(self.activation - targets))
+        else:
+            return None
+
+    def unsupervised_cost(self):
+        if self.bactivate:
+            return tf.reduce_mean(tf.square(self.bactivation - self.input_layer.activation))
+        else:
+            return None
+
+    def resize_needed(self):
+        if self._input_layer.output_shape[-1] != self.input_nodes:
+            return True
+        return False
+
+    def resize(self, new_output_nodes, session):
+        new_input_nodes = int(self.input_shape[-1])
+
+        tf_resize(session, self._weights, (new_input_nodes, new_output_nodes),
+                  self._weight_extender_func(session.run(self._weights), (new_input_nodes, new_output_nodes)))
+
+        tf_resize(session, self._bias, (new_output_nodes,),
+                  self._weight_extender_func(session.run(self._bias), (new_output_nodes,)))
+
+        tf_resize(session, self.activation, (None, new_output_nodes))
+
+        if self.bactivate and new_input_nodes != self.input_nodes:
+            tf_resize(session, self._back_bias, (new_input_nodes,),
+                      self._weight_extender_func(session.run(self._back_bias),
+                                                 (self.input_nodes,)))
+
+            tf_resize(session, self.bactivation, (None, new_input_nodes))
+
+        self.output_nodes = new_output_nodes
+        self.input_nodes = new_input_nodes
+
+        if self._next_layer and self._next_layer.resize_needed():
+            self._next_layer.resize(None, session)
 
 
 if __name__ == '__main__':
