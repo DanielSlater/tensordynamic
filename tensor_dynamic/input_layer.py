@@ -6,6 +6,10 @@ from tensorflow.python import control_flow_ops
 
 class InputLayer(BaseLayer):
     def __init__(self, placeholder, name='Input'):
+        if isinstance(placeholder, tuple):
+            placeholder = tf.placeholder('float', placeholder)
+        elif isinstance(placeholder, int):
+            placeholder = tf.placeholder('float', (None, placeholder))
         self._name = name
         self._placeholder = placeholder
         self._next_layer = None
@@ -39,15 +43,14 @@ class NoisyInputLayer(InputLayer):
     def __init__(self, placeholder, session, noise_std=1.0, name='NoisyInput'):
         super(NoisyInputLayer, self).__init__(placeholder, name)
         self._noise_std_value = noise_std
-        self._noise_std = tf.Variable(noise_std, name='noise_std')
         self._session = session
         with tf.name_scope(name):
-            self._deterministic = tf.Variable(False, name='deterministic')
-        self._session.run(tf.initialize_variables([self._deterministic]))
+            self._noise_std = tf.Variable(noise_std, name='noise_std')
+        self._session.run(tf.initialize_variables([self._noise_std]))
 
     @property
     def deterministic(self):
-        return self._session.run(self._deterministic)
+        return self._session.run(self._noise_std) < 0.00001
 
     @deterministic.setter
     def deterministic(self, value):

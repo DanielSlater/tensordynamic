@@ -1,6 +1,7 @@
 import tensor_dynamic.data.input_data as mnist
 from tensor_dynamic.input_layer import NoisyInputLayer
-from tensor_dynamic.ladder_layer import LadderLayer, LadderOutputLayer, LadderGammaLayer
+from tensor_dynamic.ladder_layer import LadderLayer, LadderGammaLayer
+from tensor_dynamic.ladder_output_layer import LadderOutputLayer
 from tensor_dynamic.training import train_no_growth
 import tensorflow as tf
 
@@ -21,19 +22,19 @@ with tf.Session() as s:
     i = NoisyInputLayer(inputs, NOISE_STD, s)
     l1 = LadderLayer(i, 500, 1000.0, s)
     l2 = LadderGammaLayer(l1, 10, 10.0, s)
-    ladder = LadderOutputLayer(l2, 10, 0.1, s)
+    ladder = LadderOutputLayer(l2, 0.1, s)
     l3 = ladder
 
     assert int(i.z.get_shape()[-1]) == 784
-    assert int(l1.z.get_shape()[-1]) == 500
-    assert int(l2.z.get_shape()[-1]) == 10
+    assert int(l1.z_corrupted.get_shape()[-1]) == 500
+    assert int(l2.z_corrupted.get_shape()[-1]) == 10
 
     assert int(l3.z_est.get_shape()[-1]) == 10
     assert int(l2.z_est.get_shape()[-1]) == 500
     assert int(l1.z_est.get_shape()[-1]) == 784
 
-    assert int(l1.mean.get_shape()[0]) == 500
-    assert int(l2.mean.get_shape()[0]) == 10
+    assert int(l1.mean_corrupted.get_shape()[0]) == 500
+    assert int(l2.mean_corrupted.get_shape()[0]) == 10
 
     loss = ladder.cost_all_layers(targets)
     train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)

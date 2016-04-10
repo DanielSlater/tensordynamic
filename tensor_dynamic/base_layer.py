@@ -21,14 +21,20 @@ class BaseLayer(object):
         self._weight_extender_func = weight_extender_func
         self._freeze = freeze
         self._deterministic = deterministic
+        self._variables = []
         input_layer._attach_next_layer(self)
+
+    def initialize_variables(self, session):
+        session.run(tf.initialize_variables(self._variables))
 
     def _create_variable(self, dims, default_val, name):
         with tf.name_scope(self._name):
             if isinstance(default_val, np.ndarray):
                 default_val = self._weight_extender_func(default_val, dims)
 
-            return tf.Variable(default_val, trainable=not self._freeze, name=name)
+            var = tf.Variable(default_val, trainable=not self._freeze, name=name)
+            self._variables.append(var)
+            return var
 
     @property
     def deterministic(self):
@@ -43,7 +49,6 @@ class BaseLayer(object):
             return False
 
         return True
-
 
     @property
     def activation(self):
