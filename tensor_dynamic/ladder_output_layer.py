@@ -10,21 +10,16 @@ class LadderOutputLayer(BaseLayer):
     def __init__(self, input_layer,
                  denoising_cost,
                  session=None,
-                 beta=None,
-                 gamma=None,
-                 weights=None,
-                 back_weights=None,
                  freeze=False,
-                 non_liniarity=tf.nn.softmax,
                  weight_extender_func=noise_weight_extender,
                  name="ladderOutput"):
         super(LadderOutputLayer, self).__init__(input_layer,
+                                                input_layer.output_nodes,
+                                                session=session,
                                                 freeze=freeze,
                                                 weight_extender_func=weight_extender_func,
                                                 name=name)
-        self._session = session
         self._denoising_cost = denoising_cost
-        self.input_nodes = int(self.input_layer.activation.get_shape()[-1])
 
     @property
     def activation(self):
@@ -38,7 +33,7 @@ class LadderOutputLayer(BaseLayer):
     def z_est(self):
         u = self.input_layer.activation_corrupted
         u = LadderLayer.batch_normalization(u)
-        return self._g_gauss(self.input_layer.z_corrupted, u, self.input_nodes)
+        return self._g_gauss(self.input_layer.z_corrupted, u)
 
     @property
     def bactivation(self):
@@ -51,37 +46,31 @@ class LadderOutputLayer(BaseLayer):
         return (cost / self.input_nodes) * self._denoising_cost
 
     def supervised_cost(self, targets):
-        # todo may have to do something around the labelled vs unlabelled data
-        # num_unlabeled_items = tf.shape(self.activation)[0] - tf.shape(targets)[0]
-        # D.S todo remove hard coded 100...
-        tf.concat()
-        labeled_activations = tf.slice(self.activation, [0, 0], [100, -1])
-        return -tf.reduce_mean(tf.reduce_sum(targets * tf.log(labeled_activations), 1))
+        # todo may have to do something more around the labelled vs unlabelled data
 
-    def _g_gauss(self, z_c, u, size):
+        labeled_activations = tf.slice(self.activation, [0, 0], tf.shape(targets))
+        return -tf.reduce_mean(tf.reduce_sum(targets * tf.log(tf.clip_by_value(labeled_activations, 1e-10, 1.0)), 1))
+
+    # def train(self, unlabeled_input, labeled_input, labeled_targets):
+    #
+    # def predict(self, ):
+
+    def _g_gauss(self, z_c, u):
         """gaussian denoising function proposed in the original paper"""
-
-        def wi(inits, name):
-            return tf.Variable(inits * tf.ones([size]), name=name)
-
-        a1 = wi(0., 'a1')
-        a2 = wi(1., 'a2')
-        a3 = wi(0., 'a3')
-        a4 = wi(0., 'a4')
-        a5 = wi(0., 'a5')
-
-        a6 = wi(0., 'a6')
-        a7 = wi(1., 'a7')
-        a8 = wi(0., 'a8')
-        a9 = wi(0., 'a9')
-        a10 = wi(0., 'a10')
+        a1 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a1')
+        a2 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]), name='a2')
+        a3 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a3')
+        a4 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a4')
+        a5 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a5')
+        a6 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a6')
+        a7 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]), name='a7')
+        a8 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a8')
+        a9 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a9')
+        a10 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a10')
 
         mu = a1 * tf.sigmoid(a2 * u + a3) + a4 * u + a5
         v = a6 * tf.sigmoid(a7 * u + a8) + a9 * u + a10
 
         z_est = (z_c - mu) * v + mu
-
-        if self._session:
-            self._session.run(tf.initialize_variables([a1, a2, a3, a4, a5, a6, a7, a8, a9, a10]))
 
         return z_est

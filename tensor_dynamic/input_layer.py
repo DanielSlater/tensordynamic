@@ -10,6 +10,8 @@ class InputLayer(BaseLayer):
             placeholder = tf.placeholder('float', placeholder)
         elif isinstance(placeholder, int):
             placeholder = tf.placeholder('float', (None, placeholder))
+
+        self._output_nodes = int(placeholder.get_shape()[-1])
         self._name = name
         self._placeholder = placeholder
         self._next_layer = None

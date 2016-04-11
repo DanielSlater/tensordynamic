@@ -1,3 +1,5 @@
+from unittest import TestCase
+
 import tensorflow as tf
 import numpy as np
 
@@ -6,13 +8,11 @@ from tensor_dynamic.input_layer import InputLayer, NoisyInputLayer
 from tensor_dynamic.ladder_layer import LadderLayer, LadderGammaLayer
 from tensor_dynamic.ladder_output_layer import LadderOutputLayer
 from tensor_dynamic.net import Net
+from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
 from tensor_dynamic.tests.test_layer import TestLayer
 
 
-class TestLadderLayer(TestLayer):
-    def setUp(self):
-        super(TestLadderLayer, self).setUp()
-        self.LAYER_CLASS = LadderLayer
+class TestLadderLayer(BaseTfTestCase):
 
     def test_batch_normalize(self):
         inputs = tf.placeholder("float", (None, 2))
@@ -22,51 +22,11 @@ class TestLadderLayer(TestLayer):
         self.assertTrue(np.array_equal(self.session.run(batch_norm_op, feed_dict={inputs: [[1.0, 1.0], [0.0, -1.0]]}),
                                        [[1., 1.], [-1., -1.]]))
 
-    def test_train(self):
-        inputs = tf.placeholder("float", (None, 2))
-        targets = tf.placeholder("float", (None, 1))
-        input_layer = NoisyInputLayer(inputs, self.session)
-        layer = LadderLayer(input_layer, 1, session=self.session)
-        print layer.activation
-        inputs_vals = [[0.1, 1.0], [-0.2, 0.6]]
-
-        print("z_pre ", self.session.run(layer.z_pre, feed_dict={inputs: inputs_vals}))
-        print("z_bn ", self.session.run(layer.z_corrupted, feed_dict={inputs: inputs_vals}))
-        print("z clean ", self.session.run(layer.activation, feed_dict={inputs: inputs_vals}))
-        print("z corr ", self.session.run(layer.activation_corrupted, feed_dict={inputs: inputs_vals}))
-        result = self.session.run(layer.activation_corrupted, feed_dict={inputs: [[0.0, 1.0], [0.0, 0.0]]})
-        print("corrupted ", result)
-        result = self.session.run(layer.bactivation, feed_dict={inputs: [[0.0, 1.0], [0.0, 0.0]]})
-        print("bactivation ", result)
-
-        result = self.session.run(layer.z_est_bn, feed_dict={inputs: [[0.0, 1.0], [0.0, 0.0]]})
-        print("z_est_bn ", result)
-
-        result = self.session.run([layer.mean_corrupted, layer.variance_corrupted], feed_dict={inputs: [[0.0, 1.0], [0.5, 0.5]]})
-        print("mean, var ", result)
-
-        result = self.session.run(layer.unsupervised_cost(),
-                                  feed_dict={
-                                      inputs: [[0.0, 1.0], [0.0, 0.0]]})
-        print("cost ", result)
-
-        cost = layer.cost(targets)
-        adamOptimizer = tf.train.AdamOptimizer(0.1)
-        train_step = adamOptimizer.minimize(cost)
-
-        self.session.run(tf.initialize_all_variables())
-
-        for i in range(100):
-            _, cost_val, a, b = self.session.run([train_step, cost, layer.activation, layer.bactivation], feed_dict={
-                inputs: [[0.0, 1.0], [-1.0, 0.5]],
-                targets: [[1.0], [-1.0]]
-            })
-
-            print cost_val
-
     def test_bactivation(self):
         placeholder = tf.placeholder("float", (None, 4))
-        layer = LadderLayer(NoisyInputLayer(placeholder, self.session), 2, 0.1, self.session)
+        input = InputLayer(placeholder, self.session)
+        layer = LadderLayer(input, 2, 0.1, self.session)
+        layer2 = LadderOutputLayer(layer, 0.1, self.session)
         self.assertEquals([None, 4], layer.bactivation.get_shape().as_list())
 
     def test_train_xor(self):
@@ -80,13 +40,13 @@ class TestLadderLayer(TestLayer):
                    [-1.0, 0.0]]
         targets = tf.placeholder('float', (None, 2))
 
-        ladder = NoisyInputLayer(len(train_x[0]), self.session)
-        ladder = LadderLayer(ladder, 6, 1000.)
-        ladder = LadderLayer(ladder, 6, 10.)
-        ladder = LadderGammaLayer(ladder, 2, 0.1)
-        ladder = LadderOutputLayer(ladder, 0.1)
+        ladder = InputLayer(len(train_x[0]), self.session)
+        ladder = LadderLayer(ladder, 6, 1000., self.session)
+        ladder = LadderLayer(ladder, 6, 10., self.session)
+        ladder = LadderGammaLayer(ladder, 2, 0.1, self.session)
+        ladder = LadderOutputLayer(ladder, 0.1, self.session)
 
-        cost = ladder.cost(targets)
+        cost = ladder.cost_all_layers(targets)
         train = tf.train.AdamOptimizer(0.1).minimize(cost)
 
         self.session.run(tf.initialize_all_variables())
@@ -123,7 +83,7 @@ class TestLadderLayer(TestLayer):
 
             loss = ladder.cost_all_layers(targets)
             train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-            pred_cost = -tf.reduce_mean(tf.reduce_sum(targets * tf.log(ladder.activation), 1))  # cost used for prediction
+            pred_cost = -tf.reduce_mean(tf.reduce_sum(targets * tf.log(tf.clip_by_value(ladder.activation, 1e-10, 1.0)), 1))  # cost used for prediction
 
             correct_prediction = tf.equal(tf.argmax(ladder.activation, 1), tf.argmax(targets, 1))  # no of correct predictions
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float")) * tf.constant(100.0)
