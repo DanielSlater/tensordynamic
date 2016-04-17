@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from tensor_dynamic.base_layer import BaseLayer
-from tensor_dynamic.ladder_layer import LadderLayer
+from tensor_dynamic.ladder_layer import LadderLayer, unlabeled, labeled
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
@@ -23,37 +23,39 @@ class LadderOutputLayer(BaseLayer):
 
     @property
     def activation(self):
-        return self.input_layer.activation
-
-    @lazyprop
-    def z_est_bn(self):
-        return (self.z_est - self.input_layer.mean_clean) / self.input_layer.variance_clean
-
-    @lazyprop
-    def z_est(self):
-        u = self.input_layer.activation_corrupted
-        u = LadderLayer.batch_normalization(u)
-        return self._g_gauss(self.input_layer.z_corrupted, u)
+        return labeled(self.input_layer.activation)
 
     @property
     def bactivation(self):
         print "Layer ", self.layer_number, ": ", None, " -> ", self.input_nodes, ", denoising cost: ", self._denoising_cost
         return self.z_est_bn
 
+    @lazyprop
+    def z_est(self):
+        print "Layer ", self.layer_number, ": ", self.output_nodes, " -> ", self.input_nodes, ", denoising cost: ", self._denoising_cost
+        u = unlabeled(self.input_layer.activation_corrupted)
+        u = LadderLayer.batch_normalization(u, self.input_layer.mean_clean_unlabeled, self.input_layer.variance_clean_unlabeled)
+        return self._g_gauss(unlabeled(self.input_layer.z_corrupted), u)
+
+    @lazyprop
+    def z_est_bn(self):
+        return (self.z_est - self.input_layer.mean_clean_unlabeled) / self.input_layer.variance_clean_unlabeled
+
     def unsupervised_cost(self):
-        cost = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - self.input_layer.z_clean), 1))
+        cost = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - unlabeled(self.input_layer.z_clean)), 1))
         # TODO: input_nodes may change...
         return (cost / self.input_nodes) * self._denoising_cost
 
     def supervised_cost(self, targets):
         # todo may have to do something more around the labelled vs unlabelled data
 
-        labeled_activations = tf.slice(self.activation, [0, 0], tf.shape(targets))
-        return -tf.reduce_mean(tf.reduce_sum(targets * tf.log(tf.clip_by_value(labeled_activations, 1e-10, 1.0)), 1))
+        labeled_activations_corrupted = labeled(self.input_layer.activation_corrupted) #tf.slice(self.activation, [0, 0], tf.shape(targets))
+        return -tf.reduce_mean(tf.reduce_sum(targets * tf.log(labeled_activations_corrupted), 1))
 
     # def train(self, unlabeled_input, labeled_input, labeled_targets):
     #
-    # def predict(self, ):
+    # def prediction(self):
+    #
 
     def _g_gauss(self, z_c, u):
         """gaussian denoising function proposed in the original paper"""

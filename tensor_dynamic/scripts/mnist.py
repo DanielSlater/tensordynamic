@@ -33,8 +33,8 @@ with tf.Session() as s:
     assert int(l2.z_est.get_shape()[-1]) == 500
     assert int(l1.z_est.get_shape()[-1]) == 784
 
-    assert int(l1.mean_corrupted.get_shape()[0]) == 500
-    assert int(l2.mean_corrupted.get_shape()[0]) == 10
+    assert int(l1.mean_corrupted_unlabeled.get_shape()[0]) == 500
+    assert int(l2.mean_corrupted_unlabeled.get_shape()[0]) == 10
 
     loss = ladder.cost_all_layers(targets)
     train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)

@@ -4,6 +4,7 @@ import numpy as np
 
 import tensorflow as tf
 
+from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.utils import xavier_init, tf_resize
 from tensor_dynamic.weight_functions import noise_weight_extender
 
@@ -36,8 +37,17 @@ class BaseLayer(object):
         self._bound_variables = []
         input_layer._attach_next_layer(self)
 
-    def initialize_variables(self, session):
-        session.run(tf.initialize_variables(self._bound_variables))
+    def name_scope(self):
+        name = str(self.layer_number) + "_" + self._name
+        return tf.name_scope(name)
+
+    @property
+    def is_input_layer(self):
+        return False
+
+    @property
+    def is_output_layer(self):
+        return self._next_layer is None
 
     @property
     def output_nodes(self):
@@ -226,7 +236,7 @@ class BaseLayer(object):
     def _create_variable(self, bound_dimensions, default_val, name):
         int_dims = self._bound_dimsions_to_ints(bound_dimensions)
 
-        with tf.name_scope(self._name):
+        with self.name_scope():
             if isinstance(default_val, np.ndarray):
                 default_val = self._weight_extender_func(default_val, int_dims)
 

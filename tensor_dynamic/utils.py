@@ -21,8 +21,8 @@ def xavier_init(fan_in, fan_out, constant=1.0):
     -------
         A tensor of the specified shape filled with random uniform values.
     """
-    low = -constant*np.sqrt(6.0/(fan_in + fan_out))
-    high = constant*np.sqrt(6.0/(fan_in + fan_out))
+    low = 0.1#-constant*np.sqrt(6.0/(fan_in + fan_out))
+    high = -0.1#constant*np.sqrt(6.0/(fan_in + fan_out))
     return tf.random_uniform((fan_in, fan_out),
                              minval=low, maxval=high,
                              dtype="float")
@@ -43,3 +43,8 @@ def tf_resize(session, tensor, new_dims, new_values=None):
             tensor._shape = tf.python.framework.tensor_shape.TensorShape(new_dims)
         else:
             raise NotImplementedError('unrecognized type %s' % type(tensor))
+
+def tf_resize(session, tensor, new_dims, new_values=None):
+    assign = tf.assign(tensor, new_values, validate_shape=False)
+    session.run(assign)
+    tensor._variable._shape = tf.python.framework.tensor_shape.TensorShape(new_dims)

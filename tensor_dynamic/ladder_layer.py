@@ -5,9 +5,9 @@ from tensor_dynamic.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
-join = lambda l, u: tf.concat(0, [l, u])
-labeled = lambda x: tf.slice(x, [0, 0], [100, -1]) if x is not None else x
-unlabeled = lambda x: tf.slice(x, [100, 0], [-1, -1]) if x is not None else x
+join = lambda l, u: tf.concat(0, [l, u], name="join")
+labeled = lambda x: tf.slice(x, [0, 0], [100, -1], name="slice_unlabeled") if x is not None else x
+unlabeled = lambda x: tf.slice(x, [100, 0], [-1, -1], name="slice_labeled") if x is not None else x
 split_lu = lambda x: (labeled(x), unlabeled(x))
 
 
@@ -51,26 +51,38 @@ class LadderLayer(BaseLayer):
                                            "beta")
         """values generating mean of output"""
 
-        self._running_mean = tf.Variable(tf.constant(0.0, shape=[self.output_nodes]), trainable=False,
-                                         name="running_mean")
-        self._running_var = tf.Variable(tf.constant(1.0, shape=[self.output_nodes]), trainable=False,
-                                        name="running_var")
+        self.bn_assigns = []
 
-        self._ewma = tf.train.ExponentialMovingAverage(decay=0.99)
+        with tf.name_scope(str(self.layer_number) + "_" + self._name):
+            self._running_mean = tf.Variable(tf.constant(0.0, shape=[self.output_nodes]), trainable=False,
+                                             name="running_mean")
+            self._running_var = tf.Variable(tf.constant(1.0, shape=[self.output_nodes]), trainable=False,
+                                            name="running_var")
 
-        self.z_pre_corrupted = tf.matmul(self._input_corrupted, self._weights)
+            self._ewma = tf.train.ExponentialMovingAverage(decay=0.99)
 
-        self.z_pre_clean = tf.matmul(self.input_layer.activation, self._weights)
+            self.z_pre_corrupted = tf.matmul(self._input_corrupted, self._weights, name="z_pre_corrupted")
 
-        self.mean_corrupted, self.variance_corrupted = tf.nn.moments(self.z_pre_corrupted, axes=[0])
-        self.mean_clean, self.variance_clean = tf.nn.moments(self.z_pre_clean, axes=[0])
+            z_pre_corrupted_labeled, z_pre_corrupted_unlabeled = split_lu(self.z_pre_corrupted)
 
-        self.z_corrupted = self.batch_normalization(self.z_pre_corrupted, self.mean_corrupted,
-                                                    self.variance_corrupted) + \
-                           tf.random_normal(tf.shape(self.z_pre_corrupted),
-                                            stddev=self.NOISE_STD)
+            self.z_pre_clean = tf.matmul(self.input_layer.activation, self._weights, name="z_pre_clean")
 
-        self.z_clean = self._update_batch_normalization(self.z_pre_clean, self.mean_clean, self.variance_clean)
+            z_pre_clean_labeled, z_pre_clean_unlabeled = split_lu(self.z_pre_clean)
+
+            self.mean_corrupted_unlabeled, self.variance_corrupted_unlabeled = tf.nn.moments(z_pre_corrupted_unlabeled,
+                                                                                             axes=[0])
+
+            self.mean_clean_unlabeled, self.variance_clean_unlabeled = tf.nn.moments(z_pre_clean_unlabeled, axes=[0])
+
+            self.z_corrupted = join(self.batch_normalization(z_pre_corrupted_labeled),
+                                    self.batch_normalization(z_pre_corrupted_unlabeled, self.mean_corrupted_unlabeled,
+                                                             self.variance_corrupted_unlabeled)) + \
+                               tf.random_normal(tf.shape(self.z_pre_corrupted),
+                                                stddev=self.NOISE_STD)
+
+            self.z_clean = join(self._update_batch_normalization(z_pre_clean_labeled),
+                                self.batch_normalization(z_pre_clean_unlabeled, self.mean_clean_unlabeled,
+                                                         self.variance_clean_unlabeled))
 
         if session:
             session.run(tf.initialize_variables([self._running_mean,
@@ -100,14 +112,15 @@ class LadderLayer(BaseLayer):
     def z_est(self):
         print "Layer ", self.layer_number, ": ", self.output_nodes, " -> ", self.input_nodes, ", denoising cost: ", self._denoising_cost
 
-        u = tf.matmul(self.next_layer.z_est, self._back_weights)
+        u = tf.matmul(self.next_layer.z_est, self._back_weights, name="u")
         u = self.batch_normalization(u)
-        return self._g_gauss(self.input_z_corrupted, u)
+        # self._input_corrupted ?? this is changed?
+        return self._g_gauss(unlabeled(self.input_z_corrupted), u)
 
     @lazyprop
     def z_est_bn(self):
         if isinstance(self.input_layer, LadderLayer):
-            return (self.z_est - self.input_layer.mean_clean) / self.input_layer.variance_clean
+            return (self.z_est - self.input_layer.mean_clean_unlabeled) / self.input_layer.variance_clean_unlabeled
         else:
             # no norm that layer
             return self.z_est / 1 - 1e-10
@@ -119,16 +132,17 @@ class LadderLayer(BaseLayer):
     @staticmethod
     def batch_normalization(batch, mean=None, var=None):
         if mean is None or var is None:
-            mean, var = tf.nn.moments(batch, axes=[0])
+            mean, var = tf.nn.moments(batch, axes=[0], name="batch_normalization")
         return (batch - mean) / tf.sqrt(var + 1e-10)
 
-    def _update_batch_normalization(self, batch, mean, var):
+    def _update_batch_normalization(self, batch):
         "batch normalize + update average mean and variance of layer"
+        mean, var = tf.nn.moments(batch, axes=[0])
         assign_mean = self._running_mean.assign(mean)
         assign_var = self._running_var.assign(var)
         # TODO: add this back in?
-        ewma_apply = self._ewma.apply([self._running_mean, self._running_var])
-        with tf.control_dependencies([assign_mean, assign_var, ewma_apply]):
+        self.bn_assigns.append(self._ewma.apply([self._running_mean, self._running_var]))
+        with tf.control_dependencies([assign_mean, assign_var]):
             return (batch - mean) / tf.sqrt(var + 1e-10)
 
     @property
@@ -147,7 +161,7 @@ class LadderLayer(BaseLayer):
                                                                   stddev=self.NOISE_STD)
 
     def unsupervised_cost(self):
-        mean = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - self.input_z_clean), 1))
+        mean = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - unlabeled(self.input_z_clean)), 1))
         # TODO: input_nodes may change...
         return (mean / self.input_nodes) * self._denoising_cost
 
@@ -172,7 +186,8 @@ class LadderLayer(BaseLayer):
         return z_est
 
     def _activation_method(self, z):
-        return self._non_liniarity(z + self._beta)
+        with tf.name_scope(str(self.layer_number) + "_" + self._name):
+            return self._non_liniarity(z + self._beta, name="activation")
 
 
 class LadderGammaLayer(LadderLayer):
@@ -202,4 +217,5 @@ class LadderGammaLayer(LadderLayer):
         """values for generating std dev of output"""
 
     def _activation_method(self, z):
-        return self._non_liniarity(self._gamma * (z + self._beta))
+        with tf.name_scope(str(self.layer_number) + "_" + self._name):
+            return self._non_liniarity(self._gamma * (z + self._beta), name="activation_gamma")

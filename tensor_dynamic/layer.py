@@ -16,6 +16,8 @@ class Layer(BaseLayer):
                  freeze=False,
                  non_liniarity=tf.nn.sigmoid,
                  weight_extender_func=noise_weight_extender,
+                 unsupervised_cost=1.,
+                 supervised_cost=1.,
                  name='Layer'):
         super(Layer, self).__init__(input_layer,
                                     output_nodes,
@@ -25,6 +27,8 @@ class Layer(BaseLayer):
                                     name=name)
         self._non_liniarity = non_liniarity
         self.bactivate = bactivate
+        self._unsupervised_cost = unsupervised_cost
+        self._supervised_cost = supervised_cost
 
         self._weights = self._create_variable((BaseLayer.INPUT_BOUND_VALUE, BaseLayer.OUTPUT_BOUND_VALUE),
                                               weights if weights is not None else xavier_init(self._input_nodes,
@@ -37,7 +41,8 @@ class Layer(BaseLayer):
 
         if self.bactivate:
             self._back_bias = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,),
-                                                    back_bias if back_bias is not None else tf.zeros((self._input_nodes,)),
+                                                    back_bias if back_bias is not None else tf.zeros(
+                                                        (self._input_nodes,)),
                                                     "back_bias")
         else:
             self._back_bias = None
@@ -48,6 +53,8 @@ class Layer(BaseLayer):
 
         kwargs['bactivate'] = self.bactivate
         kwargs['non_liniarity'] = self._non_liniarity
+        kwargs['unsupervised_cost'] = self._unsupervised_cost
+        kwargs['supervised_cost'] = self._supervised_cost
 
         return kwargs
 
@@ -102,13 +109,17 @@ class Layer(BaseLayer):
 
     def supervised_cost(self, targets):
         if not self.next_layer:
-            return tf.reduce_sum(tf.square(self.activation - targets))
+            return tf.reduce_mean(tf.reduce_sum(tf.square(self.activation - targets), 1)) * self._supervised_cost
         else:
             return None
 
+    @lazyprop
+    def bactivation_loss(self):
+        return tf.reduce_mean(tf.square(self.bactivation - self.input_layer.activation))# / tf.cast(tf.shape(self._back_bias)[0], "float")
+
     def unsupervised_cost(self):
         if self.bactivate:
-            return tf.reduce_mean(tf.square(self.bactivation - self.input_layer.activation))
+            return self.bactivation_loss * self._unsupervised_cost
         else:
             return None
 
