@@ -21,14 +21,28 @@ def xavier_init(fan_in, fan_out, constant=1.0):
     -------
         A tensor of the specified shape filled with random uniform values.
     """
-    low = 0.1#-constant*np.sqrt(6.0/(fan_in + fan_out))
-    high = -0.1#constant*np.sqrt(6.0/(fan_in + fan_out))
+    low = -constant*np.sqrt(6.0/(fan_in + fan_out))
+    high = constant*np.sqrt(6.0/(fan_in + fan_out))
     return tf.random_uniform((fan_in, fan_out),
                              minval=low, maxval=high,
                              dtype="float")
 
 
 def tf_resize(session, tensor, new_dims, new_values=None):
+    """
+    Resize a tensor or variable
+
+    Parameters
+    ----------
+    session : tensorflow.Session
+        The session within which this variable resides
+    tensor : tensorflow.Tensor or tensorflow.Variable
+        The variable or tensor we wish to resize
+    new_dims : [int]
+        The dimensions we want the tensor transformed to
+    new_values : Optional numpy.arrray
+        If passed then these values are given to the resized tensor
+    """
     if new_values is not None:
         if hasattr(new_values, '__call__'):
             new_values = new_values()
@@ -37,14 +51,23 @@ def tf_resize(session, tensor, new_dims, new_values=None):
         session.run(assign)
 
     if tuple(tensor.get_shape().as_list()) != new_dims:
+        new_shape = tf.python.framework.tensor_shape.TensorShape(new_dims)
         if hasattr(tensor, '_variable'):
-            tensor._variable._shape = tf.python.framework.tensor_shape.TensorShape(new_dims)
+            tensor._variable._shape = new_shape
+            tensor._snapshot._shape = new_shape
         elif hasattr(tensor, '_shape'):
-            tensor._shape = tf.python.framework.tensor_shape.TensorShape(new_dims)
+            tensor._shape = new_shape
         else:
             raise NotImplementedError('unrecognized type %s' % type(tensor))
 
-def tf_resize(session, tensor, new_dims, new_values=None):
-    assign = tf.assign(tensor, new_values, validate_shape=False)
-    session.run(assign)
-    tensor._variable._shape = tf.python.framework.tensor_shape.TensorShape(new_dims)
+        for output in tensor.op.outputs:
+            output._shape = new_shape
+
+
+def tf_resize_cascading(session, variable, new_values):
+    raise NotImplementedError()
+    tf_resize(session, variable, tuple(new_values.shape), new_values)
+    consumers = variable._as_graph_element().consumers()
+    for consumer in consumers:
+        for output in consumer.outputs:
+            print output

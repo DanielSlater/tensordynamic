@@ -1,3 +1,40 @@
-iterations, nodes, loss, acc, back
-1000, 200, 0.645878422634, 99.68, False
-200, 200-200-200, 0.804632568314, 99.65, False
+bactivate = True
+noise_std = 0.3
+input_layer = InputLayer(inputs)
+bn1 = BatchNormLayer(input_layer, sess)
+net1 = Layer(bn1, 100, sess, bactivate=bactivate, unsupervised_cost=.1, noise_std=noise_std)
+bn2 = BatchNormLayer(net1, sess)
+net2 = Layer(bn2, 30, sess, bactivate=bactivate, unsupervised_cost=.1, noise_std=noise_std)
+bn3 = BatchNormLayer(net2, sess)
+net3 = Layer(bn3, 2, sess, bactivate=bactivate, unsupervised_cost=.1, noise_std=noise_std)
+bn4 = BatchNormLayer(net3, sess)
+net4 = Layer(bn4, 3, sess, bactivate=bactivate, unsupervised_cost=.1, noise_std=noise_std)
+bn5 = BatchNormLayer(net4, sess)
+outputNet = Layer(bn5, 10, sess, bactivate=False, supervised_cost=1.)
+
+trainer = CatigoricalTrainer(outputNet, targets, 0.15)
+trainPolicy = TrainPolicy(trainer, data, batch_size, 3000,
+                          grow_after_turns_without_improvement=5,
+                          start_grow_epoch=20,
+                          learn_rate_decay=0.99,
+                          learn_rate_boost=0.01)
+
+('New shape = %s', [784, 784, 220, 220, 71, 71, 9, 9, 4, 4, 10])
+(3000, 79.364740252494812, 96.720001, 0.34886983)
+hit max iterations 3000
+[96.389999, 0.35161221]
+
+Same no growth
+7.15277143986e-05 # note learning rate could be hurting the above or below...
+(761, 102.77177926898003, 96.739998, 0.40973249)
+
+With 9 in final layer
+0.00658622827276
+(311, 98.634796380996704, 97.080002, 0.38827536)
+
+(1044, 82.833925485610962, 97.199997, 0.35542455)
+back_losses [(2, 0.080958821), (8, 0.062848233), (4, 0.081375137), (6, 0.074183844)]
+('adding node to layer %s', 4)
+('New shape = %s', [784, 784, 223, 223, 112, 112, 18, 18, 4, 4, 10])
+
+-----------------

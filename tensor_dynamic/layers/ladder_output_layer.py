@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from tensor_dynamic.base_layer import BaseLayer
-from tensor_dynamic.ladder_layer import LadderLayer, unlabeled, labeled
+from tensor_dynamic.layers.base_layer import BaseLayer
+from tensor_dynamic.layers.ladder_layer import LadderLayer, unlabeled, labeled
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
@@ -22,8 +22,12 @@ class LadderOutputLayer(BaseLayer):
         self._denoising_cost = denoising_cost
 
     @property
-    def activation(self):
-        return labeled(self.input_layer.activation)
+    def activation_predict(self):
+        return labeled(self.input_layer.activation_predict)
+
+    @property
+    def activation_train(self):
+        return labeled(self.input_layer.activation_predict)
 
     @property
     def bactivation(self):
@@ -33,7 +37,7 @@ class LadderOutputLayer(BaseLayer):
     @lazyprop
     def z_est(self):
         print "Layer ", self.layer_number, ": ", self.output_nodes, " -> ", self.input_nodes, ", denoising cost: ", self._denoising_cost
-        u = unlabeled(self.input_layer.activation_corrupted)
+        u = unlabeled(self.input_layer.activation_train)
         u = LadderLayer.batch_normalization(u, self.input_layer.mean_clean_unlabeled, self.input_layer.variance_clean_unlabeled)
         return self._g_gauss(unlabeled(self.input_layer.z_corrupted), u)
 
@@ -41,15 +45,15 @@ class LadderOutputLayer(BaseLayer):
     def z_est_bn(self):
         return (self.z_est - self.input_layer.mean_clean_unlabeled) / self.input_layer.variance_clean_unlabeled
 
-    def unsupervised_cost(self):
+    def unsupervised_cost_train(self):
         cost = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - unlabeled(self.input_layer.z_clean)), 1))
         # TODO: input_nodes may change...
         return (cost / self.input_nodes) * self._denoising_cost
 
-    def supervised_cost(self, targets):
+    def supervised_cost_train(self, targets):
         # todo may have to do something more around the labelled vs unlabelled data
 
-        labeled_activations_corrupted = labeled(self.input_layer.activation_corrupted) #tf.slice(self.activation, [0, 0], tf.shape(targets))
+        labeled_activations_corrupted = labeled(self.input_layer.activation_train) #tf.slice(self.activation, [0, 0], tf.shape(targets))
         return -tf.reduce_mean(tf.reduce_sum(targets * tf.log(labeled_activations_corrupted), 1))
 
     # def train(self, unlabeled_input, labeled_input, labeled_targets):
@@ -59,16 +63,16 @@ class LadderOutputLayer(BaseLayer):
 
     def _g_gauss(self, z_c, u):
         """gaussian denoising function proposed in the original paper"""
-        a1 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a1')
-        a2 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]), name='a2')
-        a3 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a3')
-        a4 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a4')
-        a5 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a5')
-        a6 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a6')
-        a7 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]), name='a7')
-        a8 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a8')
-        a9 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a9')
-        a10 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a10')
+        a1 = self._create_variable('a1', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a2 = self._create_variable('a2', (BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]))
+        a3 = self._create_variable('a3', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a4 = self._create_variable('a4', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a5 = self._create_variable('a5', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a6 = self._create_variable('a6', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a7 = self._create_variable('a7', (BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]))
+        a8 = self._create_variable('a8', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a9 = self._create_variable('a9', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a10 = self._create_variable('a10', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
 
         mu = a1 * tf.sigmoid(a2 * u + a3) + a4 * u + a5
         v = a6 * tf.sigmoid(a7 * u + a8) + a9 * u + a10

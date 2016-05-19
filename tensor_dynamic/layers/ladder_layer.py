@@ -1,7 +1,8 @@
 import math
+
 import tensorflow as tf
 
-from tensor_dynamic.base_layer import BaseLayer
+from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
@@ -34,21 +35,21 @@ class LadderLayer(BaseLayer):
         self._denoising_cost = denoising_cost
         self._non_liniarity = non_liniarity
 
-        self._weights = self._create_variable(
-            (BaseLayer.INPUT_BOUND_VALUE, BaseLayer.OUTPUT_BOUND_VALUE),
-            weights if weights is not None else tf.random_normal((self.input_nodes, self.output_nodes),
-                                                                 stddev=1. / math.sqrt(self.input_nodes))
-            , "weights")
+        self._weights = self._create_variable("weights",
+                                              (BaseLayer.INPUT_BOUND_VALUE, BaseLayer.OUTPUT_BOUND_VALUE),
+                                              weights if weights is not None else tf.random_normal(
+                                                  (self.input_nodes, self.output_nodes),
+                                                  stddev=1. / math.sqrt(self.input_nodes)))
 
-        self._back_weights = self._create_variable(
-            (BaseLayer.OUTPUT_BOUND_VALUE, BaseLayer.INPUT_BOUND_VALUE),
-            back_weights if back_weights is not None else tf.random_normal((self.output_nodes, self.input_nodes),
-                                                                           stddev=1. / math.sqrt(self.output_nodes)),
-            "back_weights")
+        self._back_weights = self._create_variable("back_weights",
+                                                   (BaseLayer.OUTPUT_BOUND_VALUE, BaseLayer.INPUT_BOUND_VALUE),
+                                                   back_weights if back_weights is not None else tf.random_normal(
+                                                       (self.output_nodes, self.input_nodes),
+                                                       stddev=1. / math.sqrt(self.output_nodes)))
 
-        self._beta = self._create_variable((BaseLayer.OUTPUT_BOUND_VALUE,),
-                                           beta if beta is not None else tf.zeros([self.output_nodes]),
-                                           "beta")
+        self._beta = self._create_variable("beta",
+                                           (BaseLayer.OUTPUT_BOUND_VALUE,),
+                                           beta if beta is not None else tf.zeros([self.output_nodes]))
         """values generating mean of output"""
 
         self.bn_assigns = []
@@ -65,7 +66,7 @@ class LadderLayer(BaseLayer):
 
             z_pre_corrupted_labeled, z_pre_corrupted_unlabeled = split_lu(self.z_pre_corrupted)
 
-            self.z_pre_clean = tf.matmul(self.input_layer.activation, self._weights, name="z_pre_clean")
+            self.z_pre_clean = tf.matmul(self.input_layer.activation_predict, self._weights, name="z_pre_clean")
 
             z_pre_clean_labeled, z_pre_clean_unlabeled = split_lu(self.z_pre_clean)
 
@@ -91,18 +92,18 @@ class LadderLayer(BaseLayer):
     @lazyprop
     def _input_corrupted(self):
         if isinstance(self.input_layer, LadderLayer):
-            return self.input_layer.activation_corrupted
+            return self.input_layer.activation_train
         else:
-            return self.input_layer.activation + tf.random_normal(tf.shape(self.input_layer.activation),
-                                                                  stddev=self.NOISE_STD)
+            return self.input_layer.activation_predict + tf.random_normal(tf.shape(self.input_layer.activation_predict),
+                                                                          stddev=self.NOISE_STD)
 
     @lazyprop
-    def activation_corrupted(self):
+    def activation_train(self):
         print "Corrupt Act ", self.layer_number, ": ", self.input_nodes, " -> ", self.output_nodes
         return self._activation_method(self.z_corrupted)
 
     @lazyprop
-    def activation(self):
+    def activation_predict(self):
         print "Clean Act ", self.layer_number, ": ", self.input_nodes, " -> ", self.output_nodes
         # z = self.update_batch_normalization(self)
         # TODO: add back in update batch norm
@@ -157,26 +158,26 @@ class LadderLayer(BaseLayer):
         if isinstance(self.input_layer, LadderLayer):
             return self.input_layer.z_corrupted
         else:
-            return self.input_layer.activation + tf.random_normal(tf.shape(self.input_layer.activation),
-                                                                  stddev=self.NOISE_STD)
+            return self.input_layer.activation_predict + tf.random_normal(tf.shape(self.input_layer.activation_predict),
+                                                                          stddev=self.NOISE_STD)
 
-    def unsupervised_cost(self):
+    def unsupervised_cost_train(self):
         mean = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - unlabeled(self.input_z_clean)), 1))
         # TODO: input_nodes may change...
         return (mean / self.input_nodes) * self._denoising_cost
 
     def _g_gauss(self, z_c, u):
         """gaussian denoising function proposed in the original paper"""
-        a1 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a1')
-        a2 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]), name='a2')
-        a3 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a3')
-        a4 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a4')
-        a5 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a5')
-        a6 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a6')
-        a7 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]), name='a7')
-        a8 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a8')
-        a9 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a9')
-        a10 = self._create_variable((BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]), name='a10')
+        a1 = self._create_variable('a1', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a2 = self._create_variable('a2', (BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]))
+        a3 = self._create_variable('a3', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a4 = self._create_variable('a4', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a5 = self._create_variable('a5', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a6 = self._create_variable('a6', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a7 = self._create_variable('a7', (BaseLayer.INPUT_BOUND_VALUE,), tf.ones([self.input_nodes]))
+        a8 = self._create_variable('a8', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a9 = self._create_variable('a9', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
+        a10 = self._create_variable('a10', (BaseLayer.INPUT_BOUND_VALUE,), tf.zeros([self.input_nodes]))
 
         mu = a1 * tf.sigmoid(a2 * u + a3) + a4 * u + a5
         v = a6 * tf.sigmoid(a7 * u + a8) + a9 * u + a10
@@ -212,8 +213,9 @@ class LadderGammaLayer(LadderLayer):
                                                non_liniarity=non_liniarity,
                                                weight_extender_func=weight_extender_func,
                                                name=name)
-        self._gamma = self._create_variable((BaseLayer.OUTPUT_BOUND_VALUE,),
-                                            gamma if gamma is not None else tf.ones([self.output_nodes]), name="gamma")
+        self._gamma = self._create_variable("gamma",
+                                            (BaseLayer.OUTPUT_BOUND_VALUE,),
+                                            gamma if gamma is not None else tf.ones([self.output_nodes]))
         """values for generating std dev of output"""
 
     def _activation_method(self, z):

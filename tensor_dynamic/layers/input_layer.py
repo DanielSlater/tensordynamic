@@ -1,11 +1,22 @@
 import tensorflow as tf
-from tensor_dynamic.base_layer import BaseLayer
+
+from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
-from tensorflow.python import control_flow_ops
 
 
 class InputLayer(BaseLayer):
     def __init__(self, placeholder, name='Input'):
+        """
+
+        Parameters
+        ----------
+        placeholder(tensorflow.placeholder
+        name(str): the name for this layer
+
+        Returns
+        -------
+
+        """
         if isinstance(placeholder, tuple):
             placeholder = tf.placeholder('float', placeholder)
         elif isinstance(placeholder, int):
@@ -23,8 +34,20 @@ class InputLayer(BaseLayer):
         return self._placeholder
 
     @property
+    def activation_train(self):
+        return self._placeholder
+
+    @property
+    def activation_predict(self):
+        return self._placeholder
+
+    @property
     def first_layer(self):
         return self
+
+    @property
+    def bactivate(self):
+        return False
 
     @property
     def bactivation(self):
@@ -42,28 +65,27 @@ class InputLayer(BaseLayer):
     def is_input_layer(self):
         return True
 
+    def clone(self, session):
+        return InputLayer(self._placeholder, name=self._name)
+
 
 class NoisyInputLayer(InputLayer):
     def __init__(self, placeholder, session, noise_std=1.0, name='NoisyInput'):
         super(NoisyInputLayer, self).__init__(placeholder, name)
-        self._noise_std_value = noise_std
+        self._noise_std = noise_std
         self._session = session
         with self.name_scope():
-            self._noise_std = tf.Variable(noise_std, name='noise_std')
-            self._session.run(tf.initialize_variables([self._noise_std]))
-
-    @property
-    def deterministic(self):
-        return self._session.run(self._noise_std) < 0.00001
-
-    @deterministic.setter
-    def deterministic(self, value):
-        if value:
-            self._session.run(tf.assign(self._noise_std, 0.0))
-        else:
-            self._session.run(tf.assign(self._noise_std, self._noise_std_value))
+            self._predict = tf.Variable(noise_std, name='predict')
+            self._session.run(tf.initialize_variables([self._predict]))
 
     @lazyprop
-    def activation(self):
-        return self._placeholder + tf.random_normal(tf.shape(self._placeholder),
-                                                    stddev=self._noise_std)
+    def activation_train(self):
+        return self.activation + tf.random_normal(tf.shape(self._placeholder),
+                                                  stddev=self._noise_std)
+
+    @property
+    def activation_predict(self):
+        return self.activation
+
+    def clone(self, session):
+        return NoisyInputLayer(self._placeholder, session, noise_std=self._noise_std, name=self._name)

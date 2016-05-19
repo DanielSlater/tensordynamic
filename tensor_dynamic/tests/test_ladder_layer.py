@@ -1,18 +1,19 @@
-from unittest import TestCase
+import unittest
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
-from tensor_dynamic.data_functions import XOR_INPUTS, XOR_TARGETS
-from tensor_dynamic.input_layer import InputLayer, NoisyInputLayer
-from tensor_dynamic.ladder_layer import LadderLayer, LadderGammaLayer
-from tensor_dynamic.ladder_output_layer import LadderOutputLayer
-from tensor_dynamic.net import Net
+from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.layers.ladder_layer import LadderLayer, LadderGammaLayer
+from tensor_dynamic.layers.ladder_output_layer import LadderOutputLayer
+from tensor_dynamic.tests.base_layer_testcase import BaseLayerWrapper
 from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
-from tensor_dynamic.tests.test_layer import TestLayer
 
 
-class TestLadderLayer(BaseTfTestCase):
+class TestLadderLayer(BaseLayerWrapper.BaseLayerTestCase):
+
+    def _createLayerForTest(self):
+        return LadderLayer(self._input_layer, self.OUTPUT_NODES, session=self.session)
 
     def test_batch_normalize(self):
         inputs = tf.placeholder("float", (None, 2))
@@ -26,9 +27,10 @@ class TestLadderLayer(BaseTfTestCase):
         placeholder = tf.placeholder("float", (None, 4))
         input = InputLayer(placeholder, self.session)
         layer = LadderLayer(input, 2, 0.1, self.session)
-        layer2 = LadderOutputLayer(layer, 0.1, self.session)
+        LadderOutputLayer(layer, 0.1, self.session)
         self.assertEquals([None, 4], layer.bactivation.get_shape().as_list())
 
+    @unittest.skip('Need to fix batch sizing for ladder networks')
     def test_train_xor(self):
         train_x = [[0.0, 1.0, -1.0, 0.0],
                    [1.0, 0.0, -1.0, 1.0],
@@ -46,7 +48,7 @@ class TestLadderLayer(BaseTfTestCase):
         ladder = LadderGammaLayer(ladder, 2, 0.1, self.session)
         ladder = LadderOutputLayer(ladder, 0.1, self.session)
 
-        cost = ladder.cost_all_layers(targets)
+        cost = ladder.cost_all_layers_train(targets)
         train = tf.train.AdamOptimizer(0.1).minimize(cost)
 
         self.session.run(tf.initialize_all_variables())
@@ -81,16 +83,16 @@ class TestLadderLayer(BaseTfTestCase):
             l2 = LadderGammaLayer(l1, 10, 10.0, s)
             ladder = LadderOutputLayer(l2, 0.1, s)
 
-            loss = ladder.cost_all_layers(targets)
+            loss = ladder.cost_all_layers_train(targets)
             learning_rate = tf.Variable(starter_learning_rate, trainable=False)
             train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
             bn_updates = tf.group(*(l1.bn_assigns + l2.bn_assigns))
             with tf.control_dependencies([train_step]):
                 train_step = tf.group(bn_updates)
-            pred_cost = -tf.reduce_mean(tf.reduce_sum(targets * tf.log(tf.clip_by_value(ladder.activation, 1e-10, 1.0)), 1))  # cost used for prediction
+            pred_cost = -tf.reduce_mean(tf.reduce_sum(targets * tf.log(tf.clip_by_value(ladder.activation_predict, 1e-10, 1.0)), 1))  # cost used for prediction
 
-            correct_prediction = tf.equal(tf.argmax(ladder.activation, 1), tf.argmax(targets, 1))  # no of correct predictions
+            correct_prediction = tf.equal(tf.argmax(ladder.activation_predict, 1), tf.argmax(targets, 1))  # no of correct predictions
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float")) * tf.constant(100.0)
 
             s.run(tf.initialize_all_variables())

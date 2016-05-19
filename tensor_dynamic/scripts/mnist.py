@@ -1,9 +1,9 @@
-import tensor_dynamic.data.input_data as mnist
-from tensor_dynamic.input_layer import NoisyInputLayer
-from tensor_dynamic.ladder_layer import LadderLayer, LadderGammaLayer
-from tensor_dynamic.ladder_output_layer import LadderOutputLayer
-from tensor_dynamic.training import train_no_growth
 import tensorflow as tf
+
+import tensor_dynamic.data.input_data as mnist
+from tensor_dynamic.layers.input_layer import NoisyInputLayer
+from tensor_dynamic.layers.ladder_layer import LadderLayer, LadderGammaLayer
+from tensor_dynamic.layers.ladder_output_layer import LadderOutputLayer
 
 num_labeled = 100
 data = mnist.read_data_sets("../data/MNIST_data", n_labeled=num_labeled, one_hot=True)
@@ -36,7 +36,7 @@ with tf.Session() as s:
     assert int(l1.mean_corrupted_unlabeled.get_shape()[0]) == 500
     assert int(l2.mean_corrupted_unlabeled.get_shape()[0]) == 10
 
-    loss = ladder.cost_all_layers(targets)
+    loss = ladder.cost_all_layers_train(targets)
     train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
     pred_cost = -tf.reduce_mean(tf.reduce_sum(targets * tf.log(ladder.activation), 1))  # cost used for prediction
 

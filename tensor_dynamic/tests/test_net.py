@@ -1,119 +1,90 @@
-# from unittest import TestCase
-# import tensorflow as tf
-# import numpy as np
-#
-# from tensor_dynamic.data_functions import XOR_INPUTS, XOR_TARGETS
-# from tensor_dynamic.ladder_layer import LadderLayer
-# from tensor_dynamic.layer import Layer
-# from tensor_dynamic.net import Net
-#
-#
-# class TestNet(TestCase):
-#     INPUT_NODES = 3
-#     OUTPUT_NODES = 2
-#
-#     def setUp(self):
-#         self.session = tf.Session()
-#         self.session.__enter__()
-#         self.net = Net(self.session, self.INPUT_NODES, self.OUTPUT_NODES)
-#
-#     def tearDown(self):
-#         self.session.__exit__(None, None, None)
-#
-#     def test_hidden_nodes(self):
-#         self.net = self.net.add_hidden_layer(self.session, 5, -1)
-#
-#         self.assertEquals(self.net.hidden_nodes, [5])
-#
-#     def test_add_outer_layer(self):
-#         self.net = self.net.add_hidden_layer(self.session, 5, -1)
-#         self.net = self.net.add_hidden_layer(self.session, 3, -1)
-#
-#         self.assertEquals(self.net.hidden_nodes, [5, 3])
-#
-#     def test_add_node_to_layer(self):
-#         self.net = self.net.add_hidden_layer(self.session, 3, -1)
-#         self.net = self.net.add_hidden_layer(self.session, 2, -1)
-#
-#         new_net = self.net.add_node_to_hidden_layer(self.session, 0)
-#
-#         self.assertEquals(new_net.hidden_nodes, [4, 2])
-#
-#     def test_output_layer(self):
-#         self.net = self.net.add_hidden_layer(self.session, 1, -1)
-#         self.assertEquals(self.net.hidden_nodes, [1])
-#         self.assertEquals(self.net.next_layer.output_nodes, self.OUTPUT_NODES)
-#
-#         new_net = self.net.add_node_to_hidden_layer(self.session, 0)
-#         self.assertEquals(new_net.next_layer.output_nodes, self.OUTPUT_NODES)
-#
-#     def test_train_xor(self):
-#         train_x = XOR_INPUTS
-#         train_y = XOR_TARGETS
-#         net = Net(self.session, 2, 1)
-#
-#         loss_1 = net.train(train_x, train_y, batch_size=1)
-#         loss_2 = net.train(train_x, train_y, batch_size=1)
-#
-#         self.assertGreater(loss_1, loss_2, msg="Expected loss to reduce")
-#
-#     def test_train_xor_multi_layer(self):
-#         train_x = XOR_INPUTS
-#         train_y = XOR_TARGETS
-#         net = Net(self.session, 2, 1).add_hidden_layer(self.session, 2, -1)
-#
-#         loss_1 = net.train(train_x, train_y, batch_size=1)
-#         loss_2 = net.train(train_x, train_y, batch_size=1)
-#
-#         self.assertGreater(loss_1, loss_2, msg="Expected loss to reduce")
-#
-#     def test_bactivate(self):
-#         train_x = XOR_INPUTS
-#         train_y = XOR_TARGETS
-#         net = Net(self.session, 2, 1).add_hidden_layer(self.session, 3, bactivate=True)
-#
-#         loss_1 = net.train(train_x, train_y, batch_size=1)
-#         loss_2 = net.train(train_x, train_y, batch_size=1)
-#
-#         self.assertGreater(loss_1, loss_2, msg="Expected loss to reduce")
-#
-#     def test_bactivate_multi_layer(self):
-#         train_x = XOR_INPUTS
-#         train_y = XOR_TARGETS
-#         net = Net(self.session, 2, 1)\
-#             .add_hidden_layer(self.session, 2, bactivate=True)\
-#             .add_hidden_layer(self.session, 1, bactivate=True)
-#
-#         loss_1 = net.train(train_x, train_y, batch_size=1)
-#         loss_2 = net.train(train_x, train_y, batch_size=1)
-#
-#         self.assertGreater(loss_1, loss_2, msg="Expected loss to reduce")
-#
-#     def test_backtivate_add_hidden_nodes(self):
-#         train_x = XOR_INPUTS
-#         train_y = XOR_TARGETS
-#
-#         net = Net(self.session, 2, 1)
-#         net = net.add_hidden_layer(self.session, 1, bactivate=True)
-#         net = net.add_hidden_layer(self.session, 1, bactivate=True)
-#
-#         net.train(train_x, train_y, batch_size=1)
-#
-#         net = net.add_node_to_hidden_layer(self.session, 0)
-#
-#         loss_1 = net.train(train_x, train_y, batch_size=1)
-#         loss_2 = net.train(train_x, train_y, batch_size=1)
-#
-#         self.assertGreater(loss_1, loss_2, msg="Expected loss to reduce")
-#
-#     def test_ladder_layer_vs_layer(self):
-#         net_layer = Net(self.session, 100, 10, layer_class=Layer)
-#         net_layer = net_layer.add_hidden_layer(self.session, 80)
-#         net_layer = net_layer.add_hidden_layer(self.session, 50)
-#
-#         net_ladder_layer = Net(self.session, 100, 10, layer_class=LadderLayer)
-#         net_ladder_layer = net_ladder_layer.add_hidden_layer(self.session, 80)
-#         net_ladder_layer = net_ladder_layer.add_hidden_layer(self.session, 50)
-#
-#         self.assertEqual(net_layer.next_layer.output_nodes, net_ladder_layer.next_layer.output_nodes)
-#         self.assertSequenceEqual(net_layer.hidden_nodes, net_ladder_layer.hidden_nodes)
+import numpy as np
+import tensorflow as tf
+
+from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
+from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
+from tensor_dynamic.categorical_trainer import CategoricalTrainer
+
+
+class TestNet(BaseTfTestCase):
+    def test_resize(self):
+        inputs = tf.placeholder(tf.float32, shape=(None, 784))
+
+        bactivate = True
+        net1 = InputLayer(inputs)
+        bn1 = BatchNormLayer(net1, self.session)
+        net2 = Layer(bn1, 10, self.session, bactivate=bactivate)
+        bn2 = BatchNormLayer(net2, self.session)
+        output_net = Layer(bn2, 10, self.session, bactivate=False)
+
+        print(self.session.run(output_net.activation_predict, feed_dict={inputs: np.zeros(shape=(1, 784))}))
+
+        net2.resize(net2.output_nodes + 1)
+
+        print(self.session.run(output_net.activation_predict, feed_dict={inputs: np.zeros(shape=(1, 784))}))
+
+    def test_resize_deep(self):
+        inputs = tf.placeholder(tf.float32, shape=(None, 784))
+
+        bactivate = True
+        net1 = InputLayer(inputs)
+        bn1 = BatchNormLayer(net1, self.session)
+        net2 = Layer(bn1, 8, self.session, bactivate=bactivate)
+        bn2 = BatchNormLayer(net2, self.session)
+        net2 = Layer(bn2, 6, self.session, bactivate=bactivate)
+        bn3 = BatchNormLayer(net2, self.session)
+        net3 = Layer(bn3, 4, self.session, bactivate=bactivate)
+        output_net = Layer(net3, 2, self.session, bactivate=False)
+
+        print(self.session.run(output_net.activation_predict, feed_dict={inputs: np.zeros(shape=(1, 784))}))
+
+        net2.resize(net2.output_nodes + 1)
+
+        print(self.session.run(output_net.activation_predict, feed_dict={inputs: np.zeros(shape=(1, 784))}))
+
+    def test_layers_with_noise(self):
+        inputs = tf.placeholder(tf.float32, shape=(None, 784))
+
+        input_layer = InputLayer(inputs)
+        bn1 = BatchNormLayer(input_layer, self.session)
+        net1 = Layer(bn1, 70, bactivate=True, noise_std=1.)
+        output_net = Layer(net1, 10, bactivate=False, non_liniarity=tf.identity)
+
+        print(self.session.run(output_net.activation_train, feed_dict={inputs: np.zeros(shape=(1, 784))}))
+
+    def test_clone(self):
+        inputs = tf.placeholder(tf.float32, shape=(None, 784))
+
+        net1 = InputLayer(inputs)
+        bn1 = BatchNormLayer(net1, self.session)
+        net2 = Layer(bn1, 8, self.session)
+        bn2 = BatchNormLayer(net2, self.session)
+        net2 = Layer(bn2, 6, self.session)
+        bn3 = BatchNormLayer(net2, self.session)
+        net3 = Layer(bn3, 4, self.session)
+        output_net = Layer(net3, 2, self.session)
+
+        cloned_net = output_net.clone(self.session)
+
+        self.assertNotEquals(cloned_net, output_net)
+        self.assertNotEquals(cloned_net.input_layer, output_net.input_layer)
+        self.assertEqual(len(list(cloned_net.all_layers)), len(list(output_net.all_layers)))
+
+    def test_accuracy_bug(self):
+        import tensor_dynamic.data.input_data as mnist
+        data = mnist.read_data_sets("../data/MNIST_data", one_hot=True)
+
+        inputs = tf.placeholder(tf.float32, shape=(None, 784))
+        input_layer = InputLayer(inputs)
+        outputs = Layer(input_layer, 10, self.session, non_liniarity=tf.sigmoid)
+
+        trainer = CategoricalTrainer(outputs, 0.1)
+
+        trainer.train(data.validation.images, data.validation.labels)
+
+        # this was throwing an exception
+        accuracy = trainer.accuracy(data.validation.images, data.validation.labels)
+        self.assertLessEqual(accuracy, 100.)
+        self.assertGreaterEqual(accuracy, 0.)
