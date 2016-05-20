@@ -119,12 +119,12 @@ class Layer(BaseLayer):
     @lazyprop
     def bactivation_loss_train(self):
         return tf.reduce_mean(tf.square(
-            self.bactivation - self.input_layer.activation_train))
+            self.bactivation_train - self.input_layer.activation_train))
 
     @lazyprop
     def bactivation_loss_predict(self):
         return tf.reduce_mean(tf.square(
-            self.bactivation - self.input_layer.activation_predict))
+            self.bactivation_predict - self.input_layer.activation_predict))
 
     def unsupervised_cost_train(self):
         if self.bactivate:
