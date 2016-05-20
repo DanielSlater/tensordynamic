@@ -50,10 +50,6 @@ class InputLayer(BaseLayer):
         return False
 
     @property
-    def bactivation(self):
-        raise Exception("Cannot get bactivation from input layer")
-
-    @property
     def input_shape(self):
         raise Exception("Input layer has no input shape")
 
@@ -66,7 +62,7 @@ class InputLayer(BaseLayer):
         return True
 
     def clone(self, session):
-        return InputLayer(self._placeholder, name=self._name)
+        return self.__class__(self._placeholder, name=self._name)
 
 
 class NoisyInputLayer(InputLayer):
@@ -88,4 +84,4 @@ class NoisyInputLayer(InputLayer):
         return self.activation
 
     def clone(self, session):
-        return NoisyInputLayer(self._placeholder, session, noise_std=self._noise_std, name=self._name)
+        return self.__class__(self._placeholder, session, noise_std=self._noise_std, name=self._name)

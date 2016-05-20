@@ -1,3 +1,4 @@
+import itertools
 import tensorflow as tf
 
 
@@ -19,9 +20,19 @@ class CategoricalTrainer(object):
         self._prediction = tf.argmax(self._net.activation_predict, 1)
         self._correct_prediction = tf.equal(self._prediction, tf.argmax(self._target_placeholder, 1))
         self._accuracy = tf.reduce_mean(tf.cast(self._correct_prediction, "float")) * tf.constant(100.0)
-        optimizer = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder)
+        #optimizer = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder)
+
+        temp = set(tf.all_variables())
+        optimizer = tf.train.AdamOptimizer()
         self._train = optimizer.minimize(self._cost)
+        self.net.session.run(tf.initialize_variables(set(tf.all_variables()) - temp))
+
         self.learn_rate = learn_rate
+
+        # adam_optimizer_variables = itertools.chain(*[x.values() for x in optimizer._slots.values()])
+        # self.net.session.run(tf.initialize_variables(adam_optimizer_variables))
+        # self.net.session.run(tf.initialize_variables([optimizer._beta1_t, optimizer._beta2_t, optimizer._epsilon_t,
+        #                                               optimizer._lr_t]))
 
     @property
     def net(self):
@@ -58,6 +69,10 @@ class CategoricalTrainer(object):
         """
         back_losses = [(layer, layer.unsupervised_cost_predict()) for layer in self._net.all_connected_layers if
                        layer.bactivate]
+
+        if not back_losses:
+            return None
+
         results = self._net.session.run([a[1] for a in back_losses],
                                         feed_dict={self._net.input_placeholder: input_data})
         return dict((a[0][0], a[1]) for a in zip(back_losses, results))
@@ -77,14 +92,16 @@ class CategoricalTrainer(object):
 
         Back loss per layer
         """
+        back_losses = [(layer, layer.unsupervised_cost_predict()) for layer in self._net.all_connected_layers if
+                       layer.bactivate]
+        if not back_losses:
+            return None
+
         predictions = self._net.session.run(self._correct_prediction,
                                             feed_dict={self._net.input_placeholder: input_data,
                                                        self._target_placeholder: labels})
 
         misclassified = [item for item, prediction in zip(input_data, predictions) if prediction <= 0.0]
-
-        back_losses = [(layer, layer.unsupervised_cost_predict()) for layer in self._net.all_connected_layers if
-                       layer.bactivate]
         results = self._net.session.run([a[1] for a in back_losses],
                                         feed_dict={self._net.input_placeholder: misclassified})
         return dict((a[0][0], a[1]) for a in zip(back_losses, results))

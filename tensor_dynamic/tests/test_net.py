@@ -14,10 +14,9 @@ class TestNet(BaseTfTestCase):
 
         bactivate = True
         net1 = InputLayer(inputs)
-        bn1 = BatchNormLayer(net1, self.session)
-        net2 = Layer(bn1, 10, self.session, bactivate=bactivate)
-        bn2 = BatchNormLayer(net2, self.session)
-        output_net = Layer(bn2, 10, self.session, bactivate=False)
+        net2 = Layer(net1, 10, self.session, bactivate=bactivate)
+        bn1 = BatchNormLayer(net2, self.session)
+        output_net = Layer(bn1, 10, self.session, bactivate=False)
 
         print(self.session.run(output_net.activation_predict, feed_dict={inputs: np.zeros(shape=(1, 784))}))
 

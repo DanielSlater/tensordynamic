@@ -22,11 +22,11 @@ class BaseLayerWrapper(object):
             self._input_layer = InputLayer(self._input_placeholder)
             self._target_placeholder = tf.placeholder("float", shape=(None, self.OUTPUT_NODES))
 
-        def _createLayerForTest(self):
+        def _create_layer_for_test(self):
             raise NotImplementedError('Override in sub class to return a new instance of the layer to be tested')
 
         def test_clone(self):
-            layer = self._createLayerForTest()
+            layer = self._create_layer_for_test()
             clone = layer.clone()
             input_noise = np.random.normal(size=[1, layer.input_nodes])
             layer_activation = self.session.run(layer.activation_predict,
@@ -49,7 +49,7 @@ class BaseLayerWrapper(object):
                     err_msg="Expect activation to be unchanged after cloning, but found difference")
 
         def test_resize(self):
-            layer = self._createLayerForTest()
+            layer = self._create_layer_for_test()
 
             input_noise = np.random.normal(size=[1, layer.input_nodes])
             layer_activation = self.session.run(layer.activation_predict,

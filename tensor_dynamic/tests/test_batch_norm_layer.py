@@ -2,12 +2,13 @@ import numpy as np
 
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.tests.base_layer_testcase import BaseLayerWrapper
 from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
 
 
 class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):
-    def _createLayerForTest(self):
+    def _create_layer_for_test(self):
         return BatchNormLayer(self._input_layer, self.session)
 
     def test_normalize(self):
@@ -48,4 +49,14 @@ class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def test_resize(self):
         # batch norm layer is resized based only on it's input layer
-        pass
+        input_nodes = 2
+        input = InputLayer(input_nodes)
+        layer = Layer(input, 2, self.session)
+        batchLayer = BatchNormLayer(layer, self.session)
+
+        RESIZE_NODES = 3
+        layer.resize(RESIZE_NODES)
+
+        self.assertEqual(batchLayer.output_nodes, RESIZE_NODES)
+
+        self.session.run(batchLayer.activation_predict, feed_dict={batchLayer.input_placeholder: [np.ones(2)]})

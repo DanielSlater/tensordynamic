@@ -44,6 +44,7 @@ class TrainPolicy(object):
             if use_validation:
                 validation_accuracy, validation_loss = self._trainer.accuracy(self._data_set.validation.images,
                                                                               self._data_set.validation.labels)
+                print validation_accuracy, validation_loss
                 error = validation_loss
             if error < best_error:
                 best_error = error

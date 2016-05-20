@@ -8,7 +8,7 @@ from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
 
 
 class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
-    def _createLayerForTest(self):
+    def _create_layer_for_test(self):
         return Layer(self._input_layer, self.OUTPUT_NODES, session=self.session)
 
     def test_create_layer(self):
@@ -118,22 +118,15 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
                       non_liniarity=tf.identity,
                       noise_std=noise_std)
 
-        result_noisy = self.session.run(layer.bactivation,
+        result_noisy = self.session.run(layer.bactivation_train,
                                         feed_dict={
                                             input_p: np.ones(input_size, dtype=np.float32).reshape((1, input_size))})
 
         self.assertAlmostEqual(result_noisy.std(), noise_std, delta=noise_std / 4.,
                                msg="the result std should be the noise_std")
 
-        # layer.predict = True
-        #
-        # result_clean = self.session.run(layer.bactivation, feed_dict={
-        #     input_p: np.ones(input_size, dtype=np.float32).reshape((1, input_size))})
-        #
-        # self.assertAlmostEqual(result_clean.std(), 0., delta=0.1,
-        #                        msg="When running in prediction mode there should be no noise in the activation")
-        #
-        # target_p = tf.placeholder("float", (None, input_size))
-        # self.session.run(layer.cost_all_layers(target_p), feed_dict={
-        #     input_p: np.ones(input_size, dtype=np.float32).reshape((1, input_size)),
-        #     target_p: np.ones(input_size, dtype=np.float32).reshape((1, input_size))})
+        result_clean = self.session.run(layer.bactivation_predict, feed_dict={
+            input_p: np.ones(input_size, dtype=np.float32).reshape((1, input_size))})
+
+        self.assertAlmostEqual(result_clean.std(), 0., delta=0.1,
+                               msg="When running in prediction mode there should be no noise in the bactivation")

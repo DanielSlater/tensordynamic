@@ -15,24 +15,24 @@ initail_learning_rate = 0.15
 resize_learning_rate = 0.05
 minimal_model_training_epochs = 50
 learn_rate_decay = 0.96
-hidden_layers = [256, 256]
+hidden_layers = [200, 100, 50, 10]
 checkpoint_path = 'resizeing_results'
-SAVE = False
+SAVE = True
 
 data = mnist.read_data_sets("../data/MNIST_data", one_hot=True, validation_size=5000)
 
 
 def create_network(sess, hidden_layers):
     inputs = tf.placeholder(tf.float32, shape=(None, 784))
-    bactivate = False
-    noise_std = None#0.3
-    non_lin = tf.sigmoid
+    bactivate = True
+    noise_std = 0.3
+    non_lin = tf.nn.relu
     input_layer = InputLayer(inputs)
     last = BatchNormLayer(input_layer, sess)
     for hidden_nodes in hidden_layers:
         last = Layer(last, hidden_nodes, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1,
                      noise_std=noise_std)
-        #last = BatchNormLayer(last, sess)
+        last = BatchNormLayer(last, sess)
 
     outputs = Layer(last, 10, sess, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
 
@@ -56,7 +56,7 @@ with tf.Session() as sess:
     else:
         print("retraining network")
         tp = TrainPolicy(trainer, data, batch_size, learn_rate_decay=learn_rate_decay)
-        tp.train_till_convergence()
+        tp.train_till_convergence(max_epochs=10)
 
         if SAVE:
             saver.save(sess, checkpoint_path + "/network")

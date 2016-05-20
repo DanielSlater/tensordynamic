@@ -12,7 +12,7 @@ from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
 
 class TestLadderLayer(BaseLayerWrapper.BaseLayerTestCase):
 
-    def _createLayerForTest(self):
+    def _create_layer_for_test(self):
         return LadderLayer(self._input_layer, self.OUTPUT_NODES, session=self.session)
 
     def test_batch_normalize(self):
@@ -28,7 +28,8 @@ class TestLadderLayer(BaseLayerWrapper.BaseLayerTestCase):
         input = InputLayer(placeholder, self.session)
         layer = LadderLayer(input, 2, 0.1, self.session)
         LadderOutputLayer(layer, 0.1, self.session)
-        self.assertEquals([None, 4], layer.bactivation.get_shape().as_list())
+        self.assertEquals([None, 4], layer.bactivation_predict.get_shape().as_list())
+        self.assertEquals([None, 4], layer.bactivation_train.get_shape().as_list())
 
     @unittest.skip('Need to fix batch sizing for ladder networks')
     def test_train_xor(self):

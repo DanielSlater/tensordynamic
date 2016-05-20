@@ -122,7 +122,11 @@ class BaseLayer(object):
         return self._session
 
     @property
-    def bactivation(self):
+    def bactivation_predict(self):
+        raise NotImplementedError()
+
+    @property
+    def bactivation_train(self):
         raise NotImplementedError()
 
     @property
@@ -307,7 +311,8 @@ class BaseLayer(object):
             tf_resize(self._session, self.activation_predict, (None, self._output_nodes))
 
         if input_nodes_changed and self.bactivate:
-            tf_resize(self._session, self.bactivation, (None, self._input_nodes))
+            tf_resize(self._session, self.bactivation_train, (None, self._input_nodes))
+            tf_resize(self._session, self.bactivation_predict, (None, self._input_nodes))
 
         if self._next_layer and self._next_layer.resize_needed():
             self._next_layer.resize()

@@ -60,9 +60,9 @@ class BatchNormLayer(BaseLayer):
             self.session.run(assign)
         self._register_variable('ewma_running_mean', (self.OUTPUT_BOUND_VALUE,), ewma_running_mean_variable)
 
-        ewma_running_var_variable = self._ewma.average(self._running_mean)
+        ewma_running_var_variable = self._ewma.average(self._running_var)
         if ewma_running_var is not None:
-            assign = tf.assign(ewma_running_mean_variable, ewma_running_var)
+            assign = tf.assign(ewma_running_var_variable, ewma_running_var)
             self.session.run(assign)
         self._register_variable('ewma_running_var', (self.OUTPUT_BOUND_VALUE,), ewma_running_var_variable)
 

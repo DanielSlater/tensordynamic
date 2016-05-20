@@ -84,10 +84,18 @@ class Layer(BaseLayer):
         return self._non_liniarity(tf.matmul(activation, self._weights) + self._bias)
 
     @lazyprop
-    def bactivation(self):
+    def bactivation_train(self):
         if self.bactivate:
             return self._non_liniarity(
                 tf.matmul(self.activation_train, tf.transpose(self._weights)) + self._back_bias)
+        else:
+            return None
+
+    @lazyprop
+    def bactivation_predict(self):
+        if self.bactivate:
+            return self._non_liniarity(
+                tf.matmul(self.activation_predict, tf.transpose(self._weights)) + self._back_bias)
         else:
             return None
 
@@ -103,8 +111,8 @@ class Layer(BaseLayer):
 
     def supervised_cost_train(self, targets):
         if not self.next_layer:
-            #return tf.reduce_mean(tf.reduce_sum(tf.square(self.activation_train - targets), 1)) * self._supervised_cost
-            return -tf.reduce_mean(tf.reduce_sum(targets*tf.log(self.activation_train), 1)) * self._supervised_cost
+            return tf.reduce_mean(tf.reduce_sum(tf.square(self.activation_train - targets), 1)) * self._supervised_cost
+            #return -tf.reduce_mean(tf.reduce_sum(targets*tf.log(self.activation_train), 1)) * self._supervised_cost
         else:
             return None
 

@@ -127,7 +127,12 @@ class LadderLayer(BaseLayer):
             return self.z_est / 1 - 1e-10
 
     @property
-    def bactivation(self):
+    def bactivation_train(self):
+        return self.z_est
+
+    @property
+    def bactivation_predict(self):
+        #maybe this should be from an uncorrupted forward pass?
         return self.z_est
 
     @staticmethod
