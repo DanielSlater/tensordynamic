@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
+from tensor_dynamic.tf_loss_functions import squared_loss
 from tensor_dynamic.utils import xavier_init
 from tensor_dynamic.weight_functions import noise_weight_extender
 
@@ -19,6 +20,7 @@ class Layer(BaseLayer):
                  unsupervised_cost=1.,
                  supervised_cost=1.,
                  noise_std=None,
+                 bactivation_loss_func=squared_loss,
                  name='Layer'):
         super(Layer, self).__init__(input_layer,
                                     output_nodes,
@@ -31,6 +33,7 @@ class Layer(BaseLayer):
         self._unsupervised_cost = unsupervised_cost
         self._supervised_cost = supervised_cost
         self._noise_std = noise_std
+        self._bactivation_loss_func = bactivation_loss_func
 
         self._weights = self._create_variable("weights",
                                               (BaseLayer.INPUT_BOUND_VALUE, BaseLayer.OUTPUT_BOUND_VALUE),
@@ -58,6 +61,7 @@ class Layer(BaseLayer):
         kwargs = super(Layer, self).kwargs
 
         kwargs['bactivate'] = self.bactivate
+        kwargs['bactivation_loss_func'] = self._bactivation_loss_func
         kwargs['non_liniarity'] = self._non_liniarity
         kwargs['unsupervised_cost'] = self._unsupervised_cost
         kwargs['supervised_cost'] = self._supervised_cost
@@ -76,8 +80,9 @@ class Layer(BaseLayer):
     @lazyprop
     def activation_train(self):
         if self._noise_std is not None:
-            activation = self.input_layer.activation_train + tf.random_normal(tf.shape(self.input_layer.activation_train),
-                                                                              stddev=self._noise_std)
+            activation = self.input_layer.activation_train + tf.random_normal(
+                tf.shape(self.input_layer.activation_train),
+                stddev=self._noise_std)
         else:
             activation = self.input_layer.activation_train
 
@@ -111,20 +116,21 @@ class Layer(BaseLayer):
 
     def supervised_cost_train(self, targets):
         if not self.next_layer:
-            return tf.reduce_mean(tf.reduce_sum(tf.square(self.activation_train - targets), 1)) * self._supervised_cost
-            #return -tf.reduce_mean(tf.reduce_sum(targets*tf.log(self.activation_train), 1)) * self._supervised_cost
+            #return tf.reduce_mean(tf.square(self.activation_train - targets)) * self._supervised_cost
+            return tf.reduce_mean(tf.reduce_sum(tf.square(self.activation_train - targets), 1))
         else:
             return None
 
     @lazyprop
     def bactivation_loss_train(self):
-        return tf.reduce_mean(tf.square(
-            self.bactivation_train - self.input_layer.activation_train))
+        return tf.reduce_mean(tf.reduce_sum(tf.square(self.bactivation_train - self.input_layer.activation_train), 1))#self._bactivation_loss_func(self.bactivation_train,
+               #                            self.input_layer.activation_train)
 
     @lazyprop
     def bactivation_loss_predict(self):
-        return tf.reduce_mean(tf.square(
-            self.bactivation_predict - self.input_layer.activation_predict))
+        return tf.reduce_mean(tf.reduce_sum(tf.square(self.bactivation_predict - self.input_layer.activation_predict), 1))
+        #return self._bactivation_loss_func(self.bactivation_predict,
+        #                                   self.input_layer.activation_predict)
 
     def unsupervised_cost_train(self):
         if self.bactivate:
@@ -134,7 +140,7 @@ class Layer(BaseLayer):
 
     def unsupervised_cost_predict(self):
         if self.bactivate:
-            return self.bactivation_loss_predict * self._unsupervised_cost
+            return self.bactivation_loss_predict
         else:
             return None
 

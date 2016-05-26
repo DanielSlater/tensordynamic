@@ -12,7 +12,7 @@ class LadderOutputLayer(BaseLayer):
                  session=None,
                  freeze=False,
                  weight_extender_func=noise_weight_extender,
-                 name="ladderOutput"):
+                 name="ladder_output"):
         super(LadderOutputLayer, self).__init__(input_layer,
                                                 input_layer.output_nodes,
                                                 session=session,

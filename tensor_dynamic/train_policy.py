@@ -11,7 +11,8 @@ class TrainPolicy(object):
                  grow_after_turns_without_improvement=None,
                  start_grow_epoch=None,
                  learn_rate_decay=1.,
-                 learn_rate_boost=None):
+                 learn_rate_boost=None,
+                 back_loss_on_misclassified_only=False):
         self.learn_rate_decay = learn_rate_decay
         self.batch_size = batch_size
         self._data_set = data_set
@@ -22,6 +23,7 @@ class TrainPolicy(object):
         self.grow_after_epochs_without_improvement = grow_after_turns_without_improvement
         self.start_grow_epoch = start_grow_epoch
         self.learn_rate_boost = learn_rate_boost
+        self.back_loss_on_misclassified_only = back_loss_on_misclassified_only
 
     def train_one_epoch(self):
         start_epoch = self._data_set.train.epochs_completed
@@ -31,7 +33,6 @@ class TrainPolicy(object):
             cost += self._trainer.train(train_x, train_y)
 
         self._trainer.learn_rate *= self.learn_rate_decay
-        print(cost)
 
         return cost
 
@@ -102,7 +103,11 @@ class TrainPolicy(object):
 
     def grow_net(self):
         # find layer with highest reconstruction error
-        back_losses_per_layer = self._trainer.back_losses_per_layer(self._data_set.train.images)
+        if self.back_loss_on_misclassified_only:
+            back_losses_per_layer = self._trainer.back_losses_per_layer(self._data_set.train.images)
+        else:
+            back_losses_per_layer = self._trainer.back_losses_per_layer(self._data_set.train.images, self._data_set.train.labels)
+
         print("back_losses %s" % [(k.layer_number, v) for k, v in back_losses_per_layer.iteritems()])
         max_layer = max(back_losses_per_layer.iteritems(), key=operator.itemgetter(1))[0]
         print("adding node to layer %s", max_layer.layer_number)

@@ -56,7 +56,7 @@ with tf.Session() as sess:
     else:
         print("retraining network")
         tp = TrainPolicy(trainer, data, batch_size, learn_rate_decay=learn_rate_decay)
-        tp.train_till_convergence(max_epochs=10)
+        tp.train_till_convergence()
 
         if SAVE:
             saver.save(sess, checkpoint_path + "/network")

@@ -10,7 +10,7 @@ from tensor_dynamic.weight_functions import noise_weight_extender
 class BaseLayer(object):
     OUTPUT_BOUND_VALUE = 'output'
     INPUT_BOUND_VALUE = 'input'
-    _BoundVariable = namedtuple('BoundVariable', ['name', 'dimensions', 'variable'])
+    _BoundVariable = namedtuple('BoundVariable', ['name', 'dimensions', 'variable', 'is_kwarg'])
 
     def __init__(self,
                  input_layer,
@@ -241,7 +241,8 @@ class BaseLayer(object):
     def _bound_variables_as_kwargs(self):
         kwarg_dict = {}
         for bound_variable in self._bound_variables:
-            kwarg_dict[bound_variable.name] = self.session.run(bound_variable.variable)
+            if bound_variable.is_kwarg:
+                kwarg_dict[bound_variable.name] = self.session.run(bound_variable.variable)
 
         return kwarg_dict
 
@@ -303,8 +304,12 @@ class BaseLayer(object):
             if input_nodes_changed and self._bound_dimensions_contains_input(bound_variable.dimensions) or \
                             output_nodes_changed and self._bound_dimensions_contains_output(bound_variable.dimensions):
                 int_dims = self._bound_dimensions_to_ints(bound_variable.dimensions)
-                tf_resize(self._session, bound_variable.variable, int_dims,
-                          self._weight_extender_func(self._session.run(bound_variable.variable), int_dims))
+                if isinstance(bound_variable.variable, tf.Variable):
+                    tf_resize(self._session, bound_variable.variable, int_dims,
+                              self._weight_extender_func(self._session.run(bound_variable.variable), int_dims))
+                else:
+                    # this is a tensor so no need to provide values
+                    tf_resize(self._session, bound_variable.variable, int_dims)
 
         if output_nodes_changed:
             tf_resize(self._session, self.activation_train, (None, self._output_nodes))
@@ -321,7 +326,10 @@ class BaseLayer(object):
         int_dims = ()
         for x in bound_dims:
             if isinstance(x, int):
-                int_dims += (x,)
+                if x == -1:
+                    int_dims += (None,)
+                else:
+                    int_dims += (x,)
             elif x == self.OUTPUT_BOUND_VALUE:
                 int_dims += (self._output_nodes,)
             elif x == self.INPUT_BOUND_VALUE:
@@ -330,26 +338,34 @@ class BaseLayer(object):
                 raise Exception("bound dimension must be either int or 'input' or 'output' found %s" % (x,))
         return int_dims
 
-    def _create_variable(self, name, bound_dimensions, default_val):
+    def _create_variable(self, name, bound_dimensions, default_val, is_kwarg=True, is_trainable=True):
         int_dims = self._bound_dimensions_to_ints(bound_dimensions)
 
         with self.name_scope():
             if isinstance(default_val, np.ndarray):
                 default_val = self._weight_extender_func(default_val, int_dims)
 
-            var = tf.Variable(default_val, trainable=not self._freeze, name=name)
+            var = tf.Variable(default_val, trainable=(not self._freeze) and is_trainable, name=name)
 
             self._session.run(tf.initialize_variables([var]))
-            self._bound_variables.append(self._BoundVariable(name, bound_dimensions, var))
+            self._bound_variables.append(self._BoundVariable(name, bound_dimensions, var, is_kwarg))
             return var
 
-    def _register_variable(self, name, bound_dimensions, variable):
+    def _register_variable(self, name, bound_dimensions, variable, is_kwarg=True):
         int_dims = self._bound_dimensions_to_ints(bound_dimensions)
         assert tuple(variable.get_shape().as_list()) == tuple(int_dims)
-        self._bound_variables.append(self._BoundVariable(name, bound_dimensions, variable))
+        self._bound_variables.append(self._BoundVariable(name, bound_dimensions, variable, is_kwarg))
+
+    def _register_tensor(self, name, bound_dimensions, tensor):
+        int_dims = self._bound_dimensions_to_ints(bound_dimensions)
+        assert tuple(tensor.get_shape().as_list()) == tuple(int_dims)
 
     def _bound_dimensions_contains_input(self, bound_dimensions):
         return any(x for x in bound_dimensions if x == self.INPUT_BOUND_VALUE)
 
     def _bound_dimensions_contains_output(self, bound_dimensions):
         return any(x for x in bound_dimensions if x == self.OUTPUT_BOUND_VALUE)
+
+    @property
+    def assign_op(self):
+        return None

@@ -20,13 +20,19 @@ class CategoricalTrainer(object):
         self._prediction = tf.argmax(self._net.activation_predict, 1)
         self._correct_prediction = tf.equal(self._prediction, tf.argmax(self._target_placeholder, 1))
         self._accuracy = tf.reduce_mean(tf.cast(self._correct_prediction, "float")) * tf.constant(100.0)
-        #optimizer = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder)
+        optimizer = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder).minimize(self._cost)
 
-        temp = set(tf.all_variables())
-        optimizer = tf.train.AdamOptimizer()
-        self._train = optimizer.minimize(self._cost)
-        self.net.session.run(tf.initialize_variables(set(tf.all_variables()) - temp))
+        # temp = set(tf.all_variables())
+        # optimizer = tf.train.AdamOptimizer()
+        # self.net.session.run(tf.initialize_variables(set(tf.all_variables()) - temp))
 
+        assigns = [x.assign_op for x in net.all_layers if x.assign_op is not None]
+        if assigns:
+            assigns_group = tf.group(*assigns)
+            with tf.control_dependencies([optimizer]):
+                optimizer = tf.group(assigns_group)
+
+        self._train = optimizer
         self.learn_rate = learn_rate
 
         # adam_optimizer_variables = itertools.chain(*[x.values() for x in optimizer._slots.values()])
@@ -75,7 +81,7 @@ class CategoricalTrainer(object):
 
         results = self._net.session.run([a[1] for a in back_losses],
                                         feed_dict={self._net.input_placeholder: input_data})
-        return dict((a[0][0], a[1]) for a in zip(back_losses, results))
+        return dict((a[0][0], a[1]/a[0][0].input_nodes) for a in zip(back_losses, results))
 
     def back_losses_per_layer_misclassified_only(self, input_data, labels):
         """
@@ -104,4 +110,4 @@ class CategoricalTrainer(object):
         misclassified = [item for item, prediction in zip(input_data, predictions) if prediction <= 0.0]
         results = self._net.session.run([a[1] for a in back_losses],
                                         feed_dict={self._net.input_placeholder: misclassified})
-        return dict((a[0][0], a[1]) for a in zip(back_losses, results))
+        return dict((a[0][0], a[1]/a[0][0].input_nodes) for a in zip(back_losses, results))

@@ -28,7 +28,7 @@ def xavier_init(fan_in, fan_out, constant=1.0):
                              dtype="float")
 
 
-def tf_resize(session, tensor, new_dims, new_values=None):
+def tf_resize(session, tensor, new_dims=None, new_values=None):
     """
     Resize a tensor or variable
 
@@ -38,11 +38,14 @@ def tf_resize(session, tensor, new_dims, new_values=None):
         The session within which this variable resides
     tensor : tensorflow.Tensor or tensorflow.Variable
         The variable or tensor we wish to resize
-    new_dims : [int]
-        The dimensions we want the tensor transformed to
+    new_dims : Optional [int]
+        The dimensions we want the tensor transformed to. If None will be set to the dims of the new_values array
     new_values : Optional numpy.arrray
         If passed then these values are given to the resized tensor
     """
+    if new_dims is None and new_values is not None:
+        new_dims = new_values.shape
+
     if new_values is not None:
         if hasattr(new_values, '__call__'):
             new_values = new_values()

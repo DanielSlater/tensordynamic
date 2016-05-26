@@ -39,14 +39,14 @@ class BaseLayerWrapper(object):
                 err_msg="Expect activation to be unchanged after cloning, but found difference")
 
             if layer.bactivate:
-                layer_activation = self.session.run(layer.bactivation,
+                layer_bactivation = self.session.run(layer.bactivation_predict,
                                                     feed_dict={layer.input_placeholder: input_noise})
-                clone_activation = self.session.run(clone.activation_predict,
+                clone_bactivation = self.session.run(clone.bactivation_predict,
                                                     feed_dict={layer.input_placeholder: input_noise})
 
                 np.testing.assert_array_almost_equal(
-                    layer_activation, clone_activation,
-                    err_msg="Expect activation to be unchanged after cloning, but found difference")
+                    layer_bactivation, clone_bactivation,
+                    err_msg="Expect bactivation to be unchanged after cloning, but found difference")
 
         def test_resize(self):
             layer = self._create_layer_for_test()
@@ -55,7 +55,7 @@ class BaseLayerWrapper(object):
             layer_activation = self.session.run(layer.activation_predict,
                                                 feed_dict={layer.input_placeholder: input_noise})
 
-            layer.resize()
+            layer.resize(layer.output_nodes+1)
 
             layer_activation_post_resize = self.session.run(layer.activation_predict,
                                                             feed_dict={layer.input_placeholder: input_noise})

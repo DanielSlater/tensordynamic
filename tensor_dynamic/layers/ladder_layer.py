@@ -54,13 +54,12 @@ class LadderLayer(BaseLayer):
 
         self.bn_assigns = []
 
-        with tf.name_scope(str(self.layer_number) + "_" + self._name):
-            self._running_mean = tf.Variable(tf.constant(0.0, shape=[self.output_nodes]), trainable=False,
-                                             name="running_mean")
-            self._running_var = tf.Variable(tf.constant(1.0, shape=[self.output_nodes]), trainable=False,
-                                            name="running_var")
-
-            self._ewma = tf.train.ExponentialMovingAverage(decay=0.99)
+        with self.name_scope():
+            # self._running_mean = tf.Variable(tf.constant(0.0, shape=[self.output_nodes]), trainable=False,
+            #                                  name="running_mean")
+            # self._running_var = tf.Variable(tf.constant(1.0, shape=[self.output_nodes]), trainable=False,
+            #                                 name="running_var")
+            # self._ewma = tf.train.ExponentialMovingAverage(decay=0.99)
 
             self.z_pre_corrupted = tf.matmul(self._input_corrupted, self._weights, name="z_pre_corrupted")
 
@@ -143,13 +142,14 @@ class LadderLayer(BaseLayer):
 
     def _update_batch_normalization(self, batch):
         "batch normalize + update average mean and variance of layer"
-        mean, var = tf.nn.moments(batch, axes=[0])
-        assign_mean = self._running_mean.assign(mean)
-        assign_var = self._running_var.assign(var)
-        # TODO: add this back in?
-        self.bn_assigns.append(self._ewma.apply([self._running_mean, self._running_var]))
-        with tf.control_dependencies([assign_mean, assign_var]):
-            return (batch - mean) / tf.sqrt(var + 1e-10)
+        # mean, var = tf.nn.moments(batch, axes=[0])
+        # assign_mean = self._running_mean.assign(mean)
+        # assign_var = self._running_var.assign(var)
+
+        # self.bn_assigns.append(self._ewma.apply([self._running_mean, self._running_var]))
+        # with tf.control_dependencies([assign_mean, assign_var]):
+        #     return (batch - mean) / tf.sqrt(var + 1e-10)
+        return self.batch_normalization(batch)
 
     @property
     def input_z_clean(self):
@@ -192,7 +192,7 @@ class LadderLayer(BaseLayer):
         return z_est
 
     def _activation_method(self, z):
-        with tf.name_scope(str(self.layer_number) + "_" + self._name):
+        with self.name_scope():
             return self._non_liniarity(z + self._beta, name="activation")
 
 
@@ -207,7 +207,7 @@ class LadderGammaLayer(LadderLayer):
                  freeze=False,
                  non_liniarity=tf.nn.softmax,
                  weight_extender_func=noise_weight_extender,
-                 name="ladderOutput"):
+                 name="ladder_gamma_layer"):
         super(LadderGammaLayer, self).__init__(input_layer, output_nodes,
                                                denoising_cost,
                                                session=session,
@@ -224,5 +224,5 @@ class LadderGammaLayer(LadderLayer):
         """values for generating std dev of output"""
 
     def _activation_method(self, z):
-        with tf.name_scope(str(self.layer_number) + "_" + self._name):
+        with self.name_scope():
             return self._non_liniarity(self._gamma * (z + self._beta), name="activation_gamma")

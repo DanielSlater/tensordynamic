@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 import tensor_dynamic.data.input_data as mnist
+from tensor_dynamic.layers.back_weight_layer import BackWeightLayer
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
@@ -16,29 +17,28 @@ with tf.Session() as sess:
 
     bactivate = True
     noise_std = 0.3
-    non_lin = tf.sigmoid
+    beta = 0.5
+    gamma = 0.5
+    non_lin = tf.nn.sigmoid
     input_layer = InputLayer(inputs)
-    bn1 = BatchNormLayer(input_layer, sess)
-    net1 = Layer(bn1, 220, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1, noise_std=noise_std)
-    bn2 = BatchNormLayer(net1, sess)
-    net2 = Layer(bn2, 71, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1, noise_std=noise_std)
-    bn3 = BatchNormLayer(net2, sess)
-    net3 = Layer(bn3, 9, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1, noise_std=noise_std)
-    bn4 = BatchNormLayer(net3, sess)
-    net4 = Layer(bn4, 5, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1, noise_std=noise_std)
-    bn5 = BatchNormLayer(net4, sess)
-    net5 = Layer(bn5, 5, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1, noise_std=noise_std)
-    bn6 = BatchNormLayer(net5, sess)
-    net6 = Layer(bn6, 5, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1, noise_std=noise_std)
-    bn7 = BatchNormLayer(net6, sess)
-    outputNet = Layer(bn7, 10, sess, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
+    bn1 = BatchNormLayer(input_layer, sess, beta=beta, gamma=gamma)
+    net1 = Layer(bn1, 1, sess, non_liniarity=non_lin, bactivate=bactivate, unsupervised_cost=.001, noise_std=noise_std)
+    bn2 = BatchNormLayer(net1, sess, beta=beta, gamma=gamma)
+    net2 = Layer(bn2, 1, sess, non_liniarity=non_lin, bactivate=bactivate, unsupervised_cost=.001, noise_std=noise_std)
+    bn3 = BatchNormLayer(net2, sess, beta=beta, gamma=gamma)
+    net3 = Layer(bn3, 1, sess, non_liniarity=non_lin, bactivate=bactivate, unsupervised_cost=.001, noise_std=noise_std)
+    bn4 = BatchNormLayer(net3, sess, beta=beta, gamma=gamma)
+    net4 = Layer(bn4, 1, sess, non_liniarity=non_lin, bactivate=bactivate, unsupervised_cost=.001, noise_std=noise_std)
+    bn5 = BatchNormLayer(net4, sess, beta=beta, gamma=gamma)
+    outputNet = Layer(bn5, 10, sess, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
 
     trainer = CategoricalTrainer(outputNet, 0.15)
-    trainPolicy = TrainPolicy(trainer, data, batch_size, 5,
-                              grow_after_turns_without_improvement=5,
-                              start_grow_epoch=20,
+    trainPolicy = TrainPolicy(trainer, data, batch_size, max_iterations=3000,
+                              grow_after_turns_without_improvement=2,
+                              start_grow_epoch=1,
                               learn_rate_decay=0.99,
-                              learn_rate_boost=0.01)
+                              learn_rate_boost=0.01,
+                              back_loss_on_misclassified_only=True)
 
     trainPolicy.run_full()
 

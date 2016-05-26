@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.lazyprop import lazyprop
+from tensor_dynamic.tf_loss_functions import squared_loss
 from tensor_dynamic.utils import xavier_init
 from tensor_dynamic.weight_functions import noise_weight_extender
 
@@ -15,6 +16,7 @@ class BackWeightLayer(Layer):
                  back_bias=None,
                  freeze=False,
                  non_liniarity=tf.nn.relu,
+                 bactivation_loss_func=squared_loss,
                  weight_extender_func=noise_weight_extender,
                  unsupervised_cost=1.,
                  supervised_cost=1.,
@@ -29,6 +31,7 @@ class BackWeightLayer(Layer):
                                               freeze=freeze,
                                               non_liniarity=non_liniarity,
                                               weight_extender_func=weight_extender_func,
+                                              bactivation_loss_func=bactivation_loss_func,
                                               unsupervised_cost=unsupervised_cost,
                                               supervised_cost=supervised_cost,
                                               noise_std=noise_std,
@@ -47,4 +50,13 @@ class BackWeightLayer(Layer):
     @lazyprop
     def bactivation_predict(self):
         return self._non_liniarity(
-            tf.matmul(self.activation_train, self._back_weights) + self._back_bias)
+            tf.matmul(self.activation_predict, self._back_weights) + self._back_bias)
+
+    @property
+    def kwargs(self):
+        kwargs = super(BackWeightLayer, self).kwargs
+
+        # bactivate is not optional for these layers
+        del kwargs['bactivate']
+
+        return kwargs
