@@ -6,20 +6,13 @@ def xavier_init(fan_in, fan_out, constant=1.0):
     """ Xavier initialization of network weights
     https://stackoverflow.com/questions/33640581/how-to-do-xavier-initialization-on-tensorflow
 
-    Parameters
-    ----------
-    fan_in : int
-        Number of input connections to this matrix
+    Args:
+        fan_in (int): Number of input connections to this matrix
+        fan_out (int): Number of output connections from this matrix
+        constant (float32): Scales the output
 
-    fan_out : int
-        Number of output connections from this matrix
-
-    constant : float32
-        Scales the output
-
-    Returns
-    -------
-        A tensor of the specified shape filled with random uniform values.
+    Returns:
+        tensorflow.Tensor: A tensor of the specified shape filled with random uniform values.
     """
     low = -constant*np.sqrt(6.0/(fan_in + fan_out))
     high = constant*np.sqrt(6.0/(fan_in + fan_out))
@@ -29,19 +22,13 @@ def xavier_init(fan_in, fan_out, constant=1.0):
 
 
 def tf_resize(session, tensor, new_dims=None, new_values=None):
-    """
-    Resize a tensor or variable
+    """Resize a tensor or variable
 
-    Parameters
-    ----------
-    session : tensorflow.Session
-        The session within which this variable resides
-    tensor : tensorflow.Tensor or tensorflow.Variable
-        The variable or tensor we wish to resize
-    new_dims : Optional [int]
-        The dimensions we want the tensor transformed to. If None will be set to the dims of the new_values array
-    new_values : Optional numpy.arrray
-        If passed then these values are given to the resized tensor
+    Args:
+        session (tensorflow.Session): The session within which this variable resides
+        tensor (tensorflow.Tensor or tensorflow.Variable): The variable or tensor we wish to resize
+        new_dims ([int]): The dimensions we want the tensor transformed to. If None will be set to the dims of the new_values array
+        new_values (numpy.array): If passed then these values are given to the resized tensor
     """
     if new_dims is None and new_values is not None:
         new_dims = new_values.shape

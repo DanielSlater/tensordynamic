@@ -52,6 +52,13 @@ class Layer(BaseLayer):
         else:
             self._back_bias = None
 
+        if self._noise_std is not None:
+            self._activation_corrupted = self.input_layer.activation_train + tf.random_normal(
+                tf.shape(self.input_layer.activation_train),
+                stddev=self._noise_std)
+        else:
+            self._activation_corrupted = self.input_layer.activation_train
+
     @property
     def bactivate(self):
         return self._bactivate
@@ -79,14 +86,7 @@ class Layer(BaseLayer):
 
     @lazyprop
     def activation_train(self):
-        if self._noise_std is not None:
-            activation = self.input_layer.activation_train + tf.random_normal(
-                tf.shape(self.input_layer.activation_train),
-                stddev=self._noise_std)
-        else:
-            activation = self.input_layer.activation_train
-
-        return self._non_liniarity(tf.matmul(activation, self._weights) + self._bias)
+        return self._non_liniarity(tf.matmul(self._activation_corrupted, self._weights) + self._bias)
 
     @lazyprop
     def bactivation_train(self):

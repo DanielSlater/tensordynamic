@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 
 from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
-from tensor_dynamic.utils import tf_resize_cascading
+from tensor_dynamic.utils import tf_resize_cascading, tf_resize
 
 
 class TestTensorflowFeatures(BaseTfTestCase):
@@ -21,6 +21,14 @@ class TestTensorflowFeatures(BaseTfTestCase):
         new_activation_var = self.session.run(activation)
         self.assertSequenceEqual(new_var.shape, (2,))
         self.assertSequenceEqual(new_activation_var.shape, (2,))
+
+    def test_tf_resize_new_values(self):
+        var = tf.Variable(range(20))
+        self.session.run(tf.initialize_variables([var]))
+
+        tf_resize(self.session, var, new_values=np.array(range(10)))
+
+        self.assertEqual(len(self.session.run(var)), 10)
 
     @unittest.skip('functionality not implemented yet')
     def test_cascading_resize(self):

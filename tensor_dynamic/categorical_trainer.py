@@ -7,11 +7,9 @@ class CategoricalTrainer(object):
         """
         Sets up an optimizer and various helper methods against a network
 
-        Parameters
-        ----------
-        net : tensorflow_dynamic.layers.BaseLayer
-            Net that we will be training against
-        learn_rate : float
+        Args:
+            net (tensorflow_dynamic.layers.BaseLayer): Net that we will be training against
+            learn_rate (float):
         """
         self._net = net
         self._target_placeholder = tf.placeholder(tf.float32, shape=net.output_shape)
@@ -57,15 +55,29 @@ class CategoricalTrainer(object):
                                         feed_dict={self._net.input_placeholder: input_data,
                                                    self._target_placeholder: labels,
                                                    self._learn_rate_placeholder: self.learn_rate})
+
         return cost
 
-    def back_losses_per_layer(self, input_data):
+    def train_one_epoch(self, data_set, batch_size):
+        start_epoch = data_set.train.epochs_completed
+        cost = 0.
+        while start_epoch == data_set.train.epochs_completed:
+            train_x, train_y = data_set.train.next_batch(batch_size)
+            cost += self.train(train_x, train_y)
+
+        return cost
+
+    def back_losses_per_layer(self, input_data, misclassification_only=False, labels=None):
         """
         The loss per bactivating layer
 
         Parameters
         ----------
         input_data : np.array
+        misclassification_only : bool
+            If True back loss is only checked on data that has been misclassified
+        labels : np.array
+            Labels for the input data, required if using misclassification_only
 
         Returns
         -------
@@ -78,36 +90,17 @@ class CategoricalTrainer(object):
 
         if not back_losses:
             return None
+
+        if misclassification_only:
+            if not labels:
+                raise Exception('must supply labels when using misclassification_only')
+
+            predictions = self._net.session.run(self._correct_prediction,
+                                                feed_dict={self._net.input_placeholder: input_data,
+                                                           self._target_placeholder: labels})
+
+            input_data = [item for item, prediction in zip(input_data, predictions) if prediction <= 0.0]
 
         results = self._net.session.run([a[1] for a in back_losses],
                                         feed_dict={self._net.input_placeholder: input_data})
-        return dict((a[0][0], a[1]/a[0][0].input_nodes) for a in zip(back_losses, results))
-
-    def back_losses_per_layer_misclassified_only(self, input_data, labels):
-        """
-        The loss per bactivating layer only for examples that were misclassified
-
-        Parameters
-        ----------
-        input_data : np.array
-        labels : np.array
-
-        Returns
-        -------
-        {tensorflow_dynamic.layers.BaseLayer, float}
-
-        Back loss per layer
-        """
-        back_losses = [(layer, layer.unsupervised_cost_predict()) for layer in self._net.all_connected_layers if
-                       layer.bactivate]
-        if not back_losses:
-            return None
-
-        predictions = self._net.session.run(self._correct_prediction,
-                                            feed_dict={self._net.input_placeholder: input_data,
-                                                       self._target_placeholder: labels})
-
-        misclassified = [item for item, prediction in zip(input_data, predictions) if prediction <= 0.0]
-        results = self._net.session.run([a[1] for a in back_losses],
-                                        feed_dict={self._net.input_placeholder: misclassified})
-        return dict((a[0][0], a[1]/a[0][0].input_nodes) for a in zip(back_losses, results))
+        return dict((a[0][0], a[1] / a[0][0].input_nodes) for a in zip(back_losses, results))

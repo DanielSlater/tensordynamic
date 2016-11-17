@@ -177,3 +177,26 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         result = self.session.run([cost], feed_dict={input_layer.input_placeholder: data})
         print result
+
+    def test_noise_reconstruction(self):
+        INPUT_DIM = 10
+        HIDDEN_NODES = 1
+        bw_layer1 = Layer(InputLayer(INPUT_DIM), HIDDEN_NODES, session=self.session, noise_std=1.0, bactivate=True)
+
+        # single cluster reconstruct
+        data = []
+        for i in range(10):
+            data.append([i*.1]*INPUT_DIM)
+
+        cost = bw_layer1.unsupervised_cost_train()
+        optimizer = tf.train.AdamOptimizer(0.1).minimize(cost)
+
+        self.session.run(tf.initialize_all_variables())
+
+        for j in range(200):
+            self.session.run(optimizer, feed_dict={bw_layer1.input_placeholder: data})
+
+        result = self.session.run(bw_layer1.unsupervised_cost_predict(),
+                                  feed_dict={bw_layer1.input_placeholder: data})
+
+        print("denoising with %s hidden layer had cost %s" % (HIDDEN_NODES, result))

@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.layers.input_layer import InputLayer, SemiSupervisedInputLayer
 from tensor_dynamic.layers.ladder_layer import LadderLayer, LadderGammaLayer
 from tensor_dynamic.layers.ladder_output_layer import LadderOutputLayer
 from tensor_dynamic.tests.base_layer_testcase import BaseLayerWrapper
@@ -13,7 +13,7 @@ from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
 class TestLadderLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def _create_layer_for_test(self):
-        return LadderLayer(self._input_layer, self.OUTPUT_NODES, session=self.session)
+        return LadderLayer(SemiSupervisedInputLayer(self.INPUT_NODES), self.OUTPUT_NODES, session=self.session)
 
     def test_batch_normalize(self):
         inputs = tf.placeholder("float", (None, 2))

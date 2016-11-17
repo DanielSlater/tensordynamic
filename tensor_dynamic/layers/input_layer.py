@@ -85,3 +85,24 @@ class NoisyInputLayer(InputLayer):
 
     def clone(self, session):
         return self.__class__(self._placeholder, session, noise_std=self._noise_std, name=self._name)
+
+
+class SemiSupervisedInputLayer(InputLayer):
+    def __init__(self, input_dim, name='Input'):
+        if isinstance(input_dim, tuple):
+            supervised = tf.placeholder('float', input_dim)
+            unsupervised = tf.placeholder('float', input_dim)
+        elif isinstance(input_dim, int):
+            supervised = tf.placeholder('float', (None, input_dim))
+            unsupervised = tf.placeholder('float', (None, input_dim))
+
+        super(SemiSupervisedInputLayer, self).__init__(supervised, name=name)
+        self._unsupervised_placeholder = unsupervised
+
+    @property
+    def unsupervised_placeholder(self):
+        return self._unsupervised_placeholder
+
+    @lazyprop
+    def labeled_input_size(self):
+        return tf.shape(self._placeholder)[1]

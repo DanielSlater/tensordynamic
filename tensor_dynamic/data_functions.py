@@ -68,28 +68,21 @@ def _create_dataset(fn, input_size, length, even_classes=False):
     return np.array(X_train, dtype='float32') / 1.0, np.array(y_train, dtype='float32') / 1.0
 
 
-def create_dataset(function, input_size, dataset_size, validation_percent=0.25, test_percent=0.25, even_test_classes=False):
-    """
-    Create a dataset from a function
+def create_dataset(function, input_size, dataset_size, validation_percent=0.25, test_percent=0.25,
+                   even_test_classes=False):
+    """Create a dataset from a function
 
-    Parameters
-    ----------
-    function : [float] -> [float]
-        function that takes an input of random floats and outputs a transformation of them, can change the size
-    input_size : int
-        length of array that the function should take as an input
-    dataset_size : int
-        total number of rows of data to generate across all data sets
-    validation_percent : float
-        percent of data generated to go into the validation data set
-    test_percent : float
-        percent of data generated to go into the test data set
-    even_test_classes : bool
-        If True then it will garentee that all datasets have equal numbers of classes
+    Args:
+        function ([float] -> [float]): function that takes an input of random floats and outputs a transformation of them,
+            can change the size
+        input_size (int): length of array that the function should take as an input
+        dataset_size (int): total number of rows of data to generate across all data sets
+        validation_percent (float): percent of data generated to go into the validation data set
+        test_percent (float): percent of data generated to go into the test data set
+        even_test_classes (bool): If True then it will garentee that all datasets have equal numbers of classes
 
-    Returns
-    -------
-    numpy.array, numpy.array, numpy.array, numpy.array, numpy.array, numpy.array
+    Returns:
+        numpy.array, numpy.array, numpy.array, numpy.array, numpy.array, numpy.array
     """
     train_x, train_y = _create_dataset(function, input_size, int(dataset_size * (1.0 - validation_percent - test_percent)),
                                        even_classes=even_test_classes)
@@ -184,16 +177,13 @@ def one_hot(data):
 
 
 def normalize(data):
-    """
-    Normalize a dataset so the values in all rows are between 0 and 1
+    """Normalize a dataset so the values in all rows are between 0 and 1
 
-    Parameters
-    ----------
-    data : [float]
+    Args:
+        data ([float]):
 
-    Returns
-    -------
-    [float]
+    Returns:
+        [float]
     """
     minmax = []
     for i in range(len(data[0])):

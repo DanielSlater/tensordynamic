@@ -123,11 +123,18 @@ class BatchNormLayer(BaseLayer):
             normalized = normalized + self._beta
         return normalized
 
-    def resize(self, new_output_nodes=None):
-        if new_output_nodes is None:
-            super(BatchNormLayer, self).resize(new_output_nodes=self.input_layer.output_nodes)
-        else:
-            super(BatchNormLayer, self).resize(new_output_nodes=new_output_nodes)
+    def resize(self, new_output_nodes=None, input_nodes_to_prune=None, output_nodes_to_prune=None,
+               split_output_nodes=None,
+               split_input_nodes=None,
+               split_nodes_noise_std=None):
+        new_output_nodes = new_output_nodes or self.input_layer.output_nodes
+
+        super(BatchNormLayer, self).resize(new_output_nodes=new_output_nodes,
+                                           input_nodes_to_prune=input_nodes_to_prune,
+                                           output_nodes_to_prune=output_nodes_to_prune,
+                                           split_output_nodes=split_output_nodes,
+                                           split_input_nodes=split_input_nodes,
+                                           split_nodes_noise_std=split_nodes_noise_std)
 
     @property
     def kwargs(self):

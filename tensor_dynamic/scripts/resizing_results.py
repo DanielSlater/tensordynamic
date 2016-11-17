@@ -68,7 +68,7 @@ with tf.Session() as sess:
     print trainer.back_losses_per_layer(data.train.images)
 
     # get error just on miss-classifications
-    print trainer.back_losses_per_layer_misclassified_only(data.train.images, data.train.labels)
+    print trainer.back_losses_per_layer(data.train.images, misclassification_only=True, labels=data.train.labels)
 
     results = {}
 

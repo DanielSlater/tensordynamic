@@ -3,13 +3,14 @@ import math
 import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
+from tensor_dynamic.layers.input_layer import SemiSupervisedInputLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
 join = lambda l, u: tf.concat(0, [l, u], name="join")
-labeled = lambda x: tf.slice(x, [0, 0], [100, -1], name="slice_unlabeled") if x is not None else x
-unlabeled = lambda x: tf.slice(x, [100, 0], [-1, -1], name="slice_labeled") if x is not None else x
-split_lu = lambda x: (labeled(x), unlabeled(x))
+labeled = lambda x, labeled_size: tf.slice(x, [0, 0], [labeled_size, -1], name="slice_unlabeled") if x is not None else x
+unlabeled = lambda x, labeled_size: tf.slice(x, [labeled_size, 0], [-1, -1], name="slice_labeled") if x is not None else x
+split_lu = lambda x, labeled_size: (labeled(x, labeled_size), unlabeled(x, labeled_size))
 
 
 class LadderLayer(BaseLayer):
@@ -32,6 +33,9 @@ class LadderLayer(BaseLayer):
                                           weight_extender_func=weight_extender_func,
                                           freeze=freeze,
                                           name=name)
+        if not isinstance(self.first_layer, SemiSupervisedInputLayer):
+            raise Exception("To use a ladder network you must have a tensor_dynamic.layers.input_layer.SemiSupervisedInputLayer as the input layer to the network")
+
         self._denoising_cost = denoising_cost
         self._non_liniarity = non_liniarity
 
@@ -63,11 +67,11 @@ class LadderLayer(BaseLayer):
 
             self.z_pre_corrupted = tf.matmul(self._input_corrupted, self._weights, name="z_pre_corrupted")
 
-            z_pre_corrupted_labeled, z_pre_corrupted_unlabeled = split_lu(self.z_pre_corrupted)
+            z_pre_corrupted_labeled, z_pre_corrupted_unlabeled = split_lu(self.z_pre_corrupted, self.first_layer.labeled_input_size)
 
             self.z_pre_clean = tf.matmul(self.input_layer.activation_predict, self._weights, name="z_pre_clean")
 
-            z_pre_clean_labeled, z_pre_clean_unlabeled = split_lu(self.z_pre_clean)
+            z_pre_clean_labeled, z_pre_clean_unlabeled = split_lu(self.z_pre_clean, self.first_layer.labeled_input_size)
 
             self.mean_corrupted_unlabeled, self.variance_corrupted_unlabeled = tf.nn.moments(z_pre_corrupted_unlabeled,
                                                                                              axes=[0])
@@ -84,9 +88,9 @@ class LadderLayer(BaseLayer):
                                 self.batch_normalization(z_pre_clean_unlabeled, self.mean_clean_unlabeled,
                                                          self.variance_clean_unlabeled))
 
-        if session:
-            session.run(tf.initialize_variables([self._running_mean,
-                                                 self._running_var]))
+        # if session:
+        #     session.run(tf.initialize_variables([self._running_mean,
+        #                                          self._running_var]))
 
     @lazyprop
     def _input_corrupted(self):
@@ -115,7 +119,7 @@ class LadderLayer(BaseLayer):
         u = tf.matmul(self.next_layer.z_est, self._back_weights, name="u")
         u = self.batch_normalization(u)
         # self._input_corrupted ?? this is changed?
-        return self._g_gauss(unlabeled(self.input_z_corrupted), u)
+        return self._g_gauss(unlabeled(self.input_z_corrupted, self.first_layer.labeled_input_size), u)
 
     @lazyprop
     def z_est_bn(self):
@@ -151,6 +155,10 @@ class LadderLayer(BaseLayer):
         #     return (batch - mean) / tf.sqrt(var + 1e-10)
         return self.batch_normalization(batch)
 
+    # @property
+    # def assign_op(self):
+    #     return self.bn_assigns
+
     @property
     def input_z_clean(self):
         if isinstance(self.input_layer, LadderLayer):
@@ -167,7 +175,7 @@ class LadderLayer(BaseLayer):
                                                                           stddev=self.NOISE_STD)
 
     def unsupervised_cost_train(self):
-        mean = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - unlabeled(self.input_z_clean)), 1))
+        mean = tf.reduce_mean(tf.reduce_sum(tf.square(self.z_est_bn - unlabeled(self.input_z_clean, self.first_layer.labeled_input_size)), 1))
         # TODO: input_nodes may change...
         return (mean / self.input_nodes) * self._denoising_cost
 

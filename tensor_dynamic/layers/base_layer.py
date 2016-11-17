@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensor_dynamic.utils import tf_resize
-from tensor_dynamic.weight_functions import noise_weight_extender
+from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
 
 class BaseLayer(object):
@@ -19,23 +19,15 @@ class BaseLayer(object):
                  weight_extender_func=noise_weight_extender,
                  name=None,
                  freeze=False):
-        """
-        Base class from which all layers will inherit. This is an abstract class
+        """Base class from which all layers will inherit. This is an abstract class
 
-        Parameters
-        ----------
-        input_layer : tensor_dynamic.base_layer.BaseLayer
-            This layer will work on the activation of the input_layer
-        output_nodes: int
-            Number of output nodes for this layer
-        session : tensorflow.Session
-            The session within which all these variables should be created
-        weight_extender_func: func
-            Method that extends the size of matrix or vectors
-        name : str
-            Used for identifying the layer and when initializing tensorflow variables
-        freeze : bool
-            If True then weights in this layer are not trainable
+        Args:
+            input_layer (tensor_dynamic.base_layer.BaseLayer): This layer will work on the activation of the input_layer
+            output_nodes (int): Number of output nodes for this layer
+            session (tensorflow.Session): The session within which all these variables should be created
+            weight_extender_func (func): Method that extends the size of matrix or vectors
+            name (str): Used for identifying the layer and when initializing tensorflow variables
+            freeze (bool):If True then weights in this layer are not trainable
         """
         if not isinstance(input_layer, BaseLayer):
             raise TypeError("input_layer must be of type %s" % BaseLayer)
@@ -52,73 +44,95 @@ class BaseLayer(object):
         input_layer._attach_next_layer(self)
 
     def name_scope(self):
-        """
-        Used for naming variables associated with this layer in TensorFlow in a consistent way
+        """Used for naming variables associated with this layer in TensorFlow in a consistent way
 
         Format = "{layer_number}_{layer_name}"
 
-        Returns
-        -------
-        A context manager that installs `name` as a new name scope in the
-        default graph.
+        Examples:
+            with self.name_scope():
+                my_new_variable = tf.Variable(default_val, name="name")
+
+        Returns:
+            A context manager that installs `name` as a new name scope in the
+            default graph.
         """
         name = str(self.layer_number) + "_" + self._name
         return tf.name_scope(name)
 
     @property
     def activation_train(self):
-        """
-        The activation used for training this layer, this will often be the same as prediction except with dropout or
+        """The activation used for training this layer, this will often be the same as prediction except with dropout or
         random noise applied.
 
-        Returns
-        -------
-        tensorflow.Tensor
+        Returns:
+            tensorflow.Tensor
         """
         raise NotImplementedError()
 
     @property
     def activation_predict(self):
+        """The activation used for predictions from this layer, this will often be the same as training except without
+        dropout or random noise applied.
+
+        Returns:
+            tensorflow.Tensor
+        """
         raise NotImplementedError()
 
     @property
     def bactivate(self):
-        """
-        All layers have output activation, some unsupervised layer activate backwards as well.
+        """All layers have output activation, some unsupervised layer activate backwards as well.
 
         e.g. Layers in ladder networks, Denoising Autoencoders
 
-        Returns
-        -------
-        bool
+        Returns:
+            bool
         """
         return False
 
     @property
     def is_input_layer(self):
-        """
-        Are we the input layer
+        """Are we the input layer
 
-        Returns
-        -------
-        bool
+        Returns:
+            bool
         """
         return False
 
     @property
     def is_output_layer(self):
+        """Is this the final layer of the network
+
+        Returns:
+            bool
+        """
         return self._next_layer is None
 
     @property
     def output_nodes(self):
+        """The number of output nodes
+
+        Returns:
+            int
+        """
         return self._output_nodes
 
     @property
     def input_nodes(self):
+        """The number of input nodes to this layer
+
+        Returns:
+            int
+        """
         return self._input_nodes
 
     @property
     def session(self):
+        """Session used to create the variables in this layer
+
+        Returns:
+            tensorflow.Session
+        """
         return self._session
 
     @property
@@ -247,8 +261,7 @@ class BaseLayer(object):
         return kwarg_dict
 
     def clone(self, session=None):
-        """
-        Produce a clone of this layer AND all connected upstream layers
+        """Produce a clone of this layer AND all connected upstream layers
 
         Parameters
         ----------
@@ -270,29 +283,48 @@ class BaseLayer(object):
         return new_self
 
     def resize_needed(self):
-        """
-        If there is a mismatch between the input size of this layer and the output size of it's previous layer will
+        """ If there is a mismatch between the input size of this layer and the output size of it's previous layer will
         return True
 
-        Returns
-        -------
-        bool
+        Returns:
+            bool
         """
         if self._input_layer.output_nodes != self.input_nodes:
             return True
         return False
 
-    def resize(self, new_output_nodes=None):
-        """
-        Resize this layer by changing the number of output nodes. Will also resize any downstream layers
+    def resize(self, new_output_nodes=None, output_nodes_to_prune=None, input_nodes_to_prune=None,
+               split_output_nodes=None,
+               split_input_nodes=None,
+               split_nodes_noise_std=.01):
+        """Resize this layer by changing the number of output nodes. Will also resize any downstream layers
 
-        Parameters
-        ----------
-        new_output_nodes : int
-            If passed we change the number of output nodes of this layer to be new_output_nodes
-            Otherwise we change the size to current output nodes+1
+        Args:
+            new_output_nodes (int): If passed we change the number of output nodes of this layer to be new_output_nodes
+                Otherwise we change the size to current output nodes+1
+            output_nodes_to_prune ([int]): list of indexes of the output nodes we want pruned e.g. [1, 3] would remove
+                the 1st and 3rd output node from this layer
+            input_nodes_to_prune ([int]): list of indexes of the input nodes we want pruned e.g. [1, 3] would remove the
+                1st and 3rd input node from this layer
+            split_output_nodes ([int]): list of indexes of nodes to split. This is for growing the layer
+            split_input_nodes: ([int]): list of indexes of nodes that where split in the prevous layer.
+            split_nodes_noise_std (float): standard deviation of noise to add when splitting a node
         """
-        new_output_nodes = new_output_nodes or self._output_nodes
+        if output_nodes_to_prune:
+            if split_output_nodes:
+                raise NotImplementedError("At the moment must either split or prune")
+            if not (new_output_nodes is None or new_output_nodes != self._output_nodes - len(output_nodes_to_prune)):
+                raise Exception("Different number of output nodes set from that left after pruning")
+            else:
+                new_output_nodes = self._output_nodes - len(output_nodes_to_prune)
+        elif split_output_nodes:
+            if not (new_output_nodes is None or new_output_nodes != self._output_nodes + len(split_output_nodes)):
+                raise Exception("Different number of output nodes set from that left after splitting")
+            else:
+                new_output_nodes = self._output_nodes + len(split_output_nodes)
+        else:
+            new_output_nodes = new_output_nodes or self._output_nodes
+
         new_input_nodes = self.input_layer.output_nodes
         input_nodes_changed = new_input_nodes != self._input_nodes
         output_nodes_changed = new_output_nodes != self._output_nodes
@@ -304,9 +336,34 @@ class BaseLayer(object):
             if input_nodes_changed and self._bound_dimensions_contains_input(bound_variable.dimensions) or \
                             output_nodes_changed and self._bound_dimensions_contains_output(bound_variable.dimensions):
                 int_dims = self._bound_dimensions_to_ints(bound_variable.dimensions)
+
                 if isinstance(bound_variable.variable, tf.Variable):
+                    old_values = self._session.run(bound_variable.variable)
+                    if output_nodes_to_prune or split_output_nodes:
+                        try:
+                            output_bound_axis = bound_variable.dimensions.index(self.OUTPUT_BOUND_VALUE)
+                            if output_nodes_to_prune:
+                                old_values = np.delete(old_values, output_nodes_to_prune, output_bound_axis)
+                            else:  # split
+                                old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
+                                                          noise_std=split_nodes_noise_std)
+                        except ValueError, e:
+                            pass
+                    if input_nodes_to_prune or split_input_nodes:
+                        try:
+                            input_bound_axis = bound_variable.dimensions.index(self.INPUT_BOUND_VALUE)
+                            if input_nodes_to_prune:
+                                old_values = np.delete(old_values, input_nodes_to_prune, input_bound_axis)
+                            else:  # split
+                                old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
+                                                          noise_std=split_nodes_noise_std)
+                        except ValueError, e:
+                            pass
+
+                    new_values = self._weight_extender_func(old_values, int_dims)
+
                     tf_resize(self._session, bound_variable.variable, int_dims,
-                              self._weight_extender_func(self._session.run(bound_variable.variable), int_dims))
+                              new_values)
                 else:
                     # this is a tensor so no need to provide values
                     tf_resize(self._session, bound_variable.variable, int_dims)
@@ -320,7 +377,7 @@ class BaseLayer(object):
             tf_resize(self._session, self.bactivation_predict, (None, self._input_nodes))
 
         if self._next_layer and self._next_layer.resize_needed():
-            self._next_layer.resize()
+            self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_input_nodes)
 
     def _bound_dimensions_to_ints(self, bound_dims):
         int_dims = ()
@@ -368,4 +425,10 @@ class BaseLayer(object):
 
     @property
     def assign_op(self):
+        """Optional tensor flow op that will be set as a dependency of the train step. Useful for things like clamping
+        variables, or setting mean/var in batch normalization layer
+
+        Returns:
+            tensorflow.Operation or None
+        """
         return None
