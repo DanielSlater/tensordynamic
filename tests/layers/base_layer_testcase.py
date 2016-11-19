@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
+from tests.base_tf_testcase import BaseTfTestCase
 
 
 class BaseLayerWrapper(object):

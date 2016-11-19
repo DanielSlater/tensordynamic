@@ -1,10 +1,10 @@
 import unittest
-from unittest import TestCase
-import tensorflow as tf
-import numpy as np
 
-from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
+import numpy as np
+import tensorflow as tf
+
 from tensor_dynamic.utils import tf_resize_cascading, tf_resize
+from tests.base_tf_testcase import BaseTfTestCase
 
 
 class TestTensorflowFeatures(BaseTfTestCase):

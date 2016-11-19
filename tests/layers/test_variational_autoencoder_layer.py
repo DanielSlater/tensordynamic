@@ -1,12 +1,8 @@
 import tensorflow as tf
 
-from tensor_dynamic.layers.back_weight_candidate_layer import BackWeightCandidateLayer
-from tensor_dynamic.layers.back_weight_layer import BackWeightLayer
-from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.layers.variational_autoencoder_layer import VariationalAutoencoderLayer
-from tensor_dynamic.tests.base_layer_testcase import BaseLayerWrapper
+from tests import BaseLayerWrapper
 
 
 class TestVariationalAutoencoderLayer(BaseLayerWrapper.BaseLayerTestCase):

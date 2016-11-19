@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
+from tensor_dynamic.categorical_trainer import CategoricalTrainer
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
-from tensor_dynamic.tests.base_tf_testcase import BaseTfTestCase
-from tensor_dynamic.categorical_trainer import CategoricalTrainer
+from tests.base_tf_testcase import BaseTfTestCase
 
 
 class TestNet(BaseTfTestCase):

@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
-from tensor_dynamic.tests.base_layer_testcase import BaseLayerWrapper
+from tests import BaseLayerWrapper
 
 
 class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):

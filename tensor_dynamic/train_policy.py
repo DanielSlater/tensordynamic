@@ -6,7 +6,7 @@ from tensor_dynamic.layers.duel_state_relu_layer import DuelStateReluLayer
 
 
 class TrainPolicy(object):
-    def __init__(self, trainer, data_set, batch_size,
+    def __init__(self, trainer, data_set, batch_size=100,
                  max_iterations=10000,
                  max_hidden_nodes=None,
                  stop_accuracy=None,
@@ -15,6 +15,24 @@ class TrainPolicy(object):
                  learn_rate_decay=1.,
                  learn_rate_boost=None,
                  back_loss_on_misclassified_only=False):
+        """Class for training networks
+
+        Args:
+            trainer (tensor_dynamic.CategoricalTrainer):
+            data_set:
+            batch_size (int):
+            max_iterations (int):
+            max_hidden_nodes:
+            stop_accuracy:
+            grow_after_turns_without_improvement:
+            start_grow_epoch:
+            learn_rate_decay (float):
+            learn_rate_boost (float):
+            back_loss_on_misclassified_only (bool):
+
+        Returns:
+
+        """
         self.learn_rate_decay = learn_rate_decay
         self.batch_size = batch_size
         self._data_set = data_set

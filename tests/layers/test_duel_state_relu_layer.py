@@ -1,11 +1,12 @@
 import numpy as np
+
 from tensor_dynamic.categorical_trainer import CategoricalTrainer
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.duel_state_relu_layer import DuelStateReluLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
-from tensor_dynamic.tests.base_layer_testcase import BaseLayerWrapper
 from tensor_dynamic.train_policy import DuelStateReluTrainPolicy
+from tests import BaseLayerWrapper
 
 
 class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):

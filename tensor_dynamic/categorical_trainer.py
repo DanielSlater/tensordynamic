@@ -4,8 +4,7 @@ import tensorflow as tf
 
 class CategoricalTrainer(object):
     def __init__(self, net, learn_rate):
-        """
-        Sets up an optimizer and various helper methods against a network
+        """Sets up an optimizer and various helper methods against a network
 
         Args:
             net (tensorflow_dynamic.layers.BaseLayer): Net that we will be training against
@@ -68,22 +67,15 @@ class CategoricalTrainer(object):
         return cost
 
     def back_losses_per_layer(self, input_data, misclassification_only=False, labels=None):
-        """
-        The loss per bactivating layer
+        """The loss per bactivating layer
 
-        Parameters
-        ----------
-        input_data : np.array
-        misclassification_only : bool
-            If True back loss is only checked on data that has been misclassified
-        labels : np.array
-            Labels for the input data, required if using misclassification_only
+        Args:
+            input_data (np.array):
+            misclassification_only (bool): If True back loss is only checked on data that has been misclassified
+            labels (np.array): Labels for the input data, required if using misclassification_only
 
-        Returns
-        -------
-        {tensorflow_dynamic.layers.BaseLayer, float}
-
-        Back loss per layer
+        Returns:
+            {tensorflow_dynamic.layers.BaseLayer, float}
         """
         back_losses = [(layer, layer.unsupervised_cost_predict()) for layer in self._net.all_connected_layers if
                        layer.bactivate]

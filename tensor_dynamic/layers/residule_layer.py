@@ -1,7 +1,7 @@
+import tensorflow as tf
+
 from layer import Layer
 from tensor_dynamic.weight_functions import noise_weight_extender
-import tensorflow as tf
-import numpy as np
 
 
 class ResiduleLayer(Layer):

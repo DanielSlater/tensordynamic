@@ -3,6 +3,7 @@ from collections import namedtuple
 import numpy as np
 import tensorflow as tf
 
+from tensor_dynamic.lazyprop import clear_all_lazyprops
 from tensor_dynamic.utils import tf_resize
 from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
@@ -422,6 +423,24 @@ class BaseLayer(object):
 
     def _bound_dimensions_contains_output(self, bound_dimensions):
         return any(x for x in bound_dimensions if x == self.OUTPUT_BOUND_VALUE)
+
+    def detach_output(self):
+        next_layer = self._next_layer
+
+        next_layer._input_layer = None
+        clear_all_lazyprops(next_layer)
+
+        self._next_layer = None
+        clear_all_lazyprops(self)
+
+        return next_layer
+
+    def add_intermediate_layer(self, layer_creation_func):
+        old_next_layer = self.detach_output()
+        new_next_layer = layer_creation_func(self)
+
+        new_next_layer._next_layer = old_next_layer
+        old_next_layer._input_layer = new_next_layer
 
     @property
     def assign_op(self):
