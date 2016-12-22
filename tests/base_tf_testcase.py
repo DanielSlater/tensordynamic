@@ -20,7 +20,7 @@ class BaseTfTestCase(TestCase):
     def mnist_data(self):
         if self.MNIST_DATA is None:
             import tensor_dynamic.data.input_data as mnist
-            self.MNIST_DATA = mnist.read_data_sets("../data/MNIST_data", one_hot=True)
+            self.MNIST_DATA = mnist.read_data_sets("../../tensor_dynamic/data/MNIST_data/", one_hot=True)
         return self.MNIST_DATA
 
     def data_sum_of_gaussians(self, num_gaussians, data_width, data_count):

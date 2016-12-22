@@ -15,6 +15,6 @@ class NoiseLayer(BaseLayer):
         return self.input_layer.activation_train + tf.random_normal(tf.shape(self.input_layer.activation_train),
                                                                     stddev=self._noise_std)
 
-    @property
+    @lazyprop
     def activation_predict(self):
         return self.input_layer.activation_predict

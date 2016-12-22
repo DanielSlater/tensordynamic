@@ -1,3 +1,18 @@
+"""
+This script tests
+* creating a network with 1 hidden layer
+* training it until convergence
+* then repeating
+    * adding a layer
+    * train till convergence
+
+The results are, you can add a layer and it seems to always improve test error
+
+TODO:   compare to highway layer
+        compare to residule layer
+        compare to network of same size trained from scratch
+"""
+import sys
 import tensorflow as tf
 
 from tensor_dynamic.categorical_trainer import CategoricalTrainer
@@ -6,6 +21,28 @@ from tensor_dynamic.layers.layer import Layer
 from tests.base_tf_testcase import BaseTfTestCase
 
 HIDDEN_NOES = 100
+MAX_EPOCHS = 1000
+
+
+def train_until_no_improvement_for_epochs(data_set, net, max_epochs_without_improvement):
+    trainer = CategoricalTrainer(net, 0.1)
+    best_error = sys.float_info.max
+    epochs_since_best_error = 0
+
+    for x in range(MAX_EPOCHS):
+        error = trainer.train_one_epoch(data_set, 100)
+        print("iteration {0} error {1}".format(x, error))
+        trainer.learn_rate *= 0.995
+
+        if error < best_error:
+            best_error = error
+            epochs_since_best_error = 0
+        else:
+            if epochs_since_best_error > max_epochs_without_improvement:
+                break
+            epochs_since_best_error += 1
+
+    return best_error
 
 
 class TestGrowingLayers(BaseTfTestCase):
@@ -15,26 +52,18 @@ class TestGrowingLayers(BaseTfTestCase):
         hidden = Layer(input, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid, bactivate=False)
         output = Layer(hidden, 10, self.session, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
 
-        cost = output.supervised_cost_predict()
-        optimizer = tf.train.GradientDescentOptimizer(0.1).minimize(cost)
-
-        trainer = CategoricalTrainer(input, 0.1)
-
-        best_score = train_until_no_improvement_for_epochs(data, cost, optimizer, 4)
+        best_score = train_until_no_improvement_for_epochs(data, output, 3)
 
         for hidden_layer_count in range(1, 10):
             print("hidden_layers {0} best_score {1}".format(hidden_layer_count, best_score))
 
-            candidate = input.clone()
-            last_hidden_layer = candidate.last_layer().input_layer()
+            candidate = output.clone()
+            last_hidden_layer = candidate.last_layer.input_layer
             last_hidden_layer.add_intermediate_layer(
                 lambda input_layer: Layer(input_layer, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid,
                                           bactivate=False))
 
-            cost = candidate.last_layer.supervised_cost_predict()
-            optimizer = tf.train.GradientDescentOptimizer(0.1).minimize(cost)
-
-            new_best_score = train_until_no_improvement_for_epochs(data, cost, optimizer, 4)
+            new_best_score = train_until_no_improvement_for_epochs(data, candidate, 3)
 
             if new_best_score > best_score:
                 # failed to get improvement
@@ -42,4 +71,4 @@ class TestGrowingLayers(BaseTfTestCase):
                 break
             else:
                 best_score = new_best_score
-                input = candidate
+                output = candidate

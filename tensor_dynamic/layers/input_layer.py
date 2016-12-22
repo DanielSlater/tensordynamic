@@ -6,18 +6,14 @@ from tensor_dynamic.lazyprop import lazyprop
 
 class InputLayer(BaseLayer):
     def __init__(self, placeholder, name='Input'):
+        """Input layer to a neural network
+
+        Args:
+            placeholder (tensorflow.placeholder or (int) or int): If an int then a tensorflow.placeholder is created
+                with dimensions (None, placholder) if a tuple a placeholder is created of that dimension
+            name(str): the name for this layer
         """
-
-        Parameters
-        ----------
-        placeholder(tensorflow.placeholder
-        name(str): the name for this layer
-
-        Returns
-        -------
-
-        """
-        if isinstance(placeholder, tuple):
+        if isinstance(placeholder, (tuple, list)):
             placeholder = tf.placeholder('float', placeholder)
         elif isinstance(placeholder, int):
             placeholder = tf.placeholder('float', (None, placeholder))
@@ -61,7 +57,7 @@ class InputLayer(BaseLayer):
     def is_input_layer(self):
         return True
 
-    def clone(self, session):
+    def clone(self, session=None):
         return self.__class__(self._placeholder, name=self._name)
 
 
