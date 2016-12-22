@@ -1,8 +1,8 @@
+import logging
 import numpy as np
 import tensorflow as tf
-import logging
 
-logger = logging.getlogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def xavier_init(fan_in, fan_out, constant=1.0):
@@ -93,7 +93,7 @@ def train_till_convergence(train_one_epoch_function, continue_epochs=3, max_epoc
             epochs_since_best_error = 0
         else:
             epochs_since_best_error += 1
-            if epochs_since_best_error < continue_epochs:
+            if epochs_since_best_error >= continue_epochs:
                 if log:
                     logger.info("finished with best error %s", best_error)
                 break

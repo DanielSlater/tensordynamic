@@ -3,6 +3,7 @@ import operator
 import sys
 
 from tensor_dynamic.layers.duel_state_relu_layer import DuelStateReluLayer
+from utils import train_till_convergence
 
 
 class TrainPolicy(object):
@@ -52,23 +53,16 @@ class TrainPolicy(object):
         return cost
 
     def train_till_convergence(self, continue_epochs=3, use_validation=True, max_epochs=10000):
-        best_error = sys.float_info.max
-        epochs_since_best_error = 0
-
-        for x in range(max_epochs):
-            error = self.train_one_epoch()
-            if use_validation:
-                validation_accuracy, validation_loss = self._trainer.accuracy(self._data_set.validation.images,
+        if use_validation:
+            def train_one_epoch_validation():
+                self.train_one_epoch()
+                _, validation_loss = self._trainer.accuracy(self._data_set.validation.images,
                                                                               self._data_set.validation.labels)
-                print validation_accuracy, validation_loss
-                error = validation_loss
-            if error < best_error:
-                best_error = error
-                epochs_since_best_error = 0
-            else:
-                epochs_since_best_error += 1
-                if epochs_since_best_error < continue_epochs:
-                    break
+                return validation_loss
+
+            train_till_convergence(train_one_epoch_validation, continue_epochs=continue_epochs, max_epochs=max_epochs)
+        else:
+            train_till_convergence(self.train_one_epoch, continue_epochs=continue_epochs, max_epochs=max_epochs)
 
     @property
     def validation_accuracy(self):
