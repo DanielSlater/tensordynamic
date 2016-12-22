@@ -1,5 +1,8 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+import logging
+
+logger = logging.getlogger(__name__)
 
 
 def xavier_init(fan_in, fan_out, constant=1.0):
@@ -61,3 +64,38 @@ def tf_resize_cascading(session, variable, new_values):
     for consumer in consumers:
         for output in consumer.outputs:
             print output
+
+
+def train_till_convergence(train_one_epoch_function, continue_epochs=3, max_epochs=10000, log=False):
+    """Runs the train_one_epoch_function until we go continue_epochs without improvement in the best error
+
+    Args:
+        train_one_epoch_function (()->int): Function that when called runs one epoch of training returning the error
+            from training.
+        continue_epochs (int): The number of epochs without improvement before we terminate training, default 3
+        max_epochs (int): The max number of epochs we can run for. default 10000
+        log (bool): If true print result of each epoch
+
+    Returns:
+        int: The error we got for the final training epoch
+    """
+    best_error = train_one_epoch_function()
+    error = best_error
+    epochs_since_best_error = 0
+
+    for epochs in xrange(1, max_epochs):
+        error = train_one_epoch_function()
+        if log:
+            logger.info("epochs %s error %s", epochs, error)
+
+        if error < best_error:
+            best_error = error
+            epochs_since_best_error = 0
+        else:
+            epochs_since_best_error += 1
+            if epochs_since_best_error < continue_epochs:
+                if log:
+                    logger.info("finished with best error %s", best_error)
+                break
+
+    return error
