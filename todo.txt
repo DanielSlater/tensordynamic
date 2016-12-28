@@ -1,0 +1,9 @@
+Highway networks
+Residule nets
+Fix ladder network
+Fix order of back_loss display
+Fix de-noise on layer
+Net2Net and Net2DeeperNet
+IRBM?
+OptimalBrainDamage
+LimitNeurons with gradiant descent like that paper...

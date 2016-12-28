@@ -2,7 +2,7 @@ import os
 
 import tensorflow as tf
 
-import tensor_dynamic.data.input_data as mnist
+import tensor_dynamic.data.mnist_data as mnist
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer

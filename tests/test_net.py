@@ -72,7 +72,7 @@ class TestNet(BaseTfTestCase):
         self.assertEqual(len(list(cloned_net.all_layers)), len(list(output_net.all_layers)))
 
     def test_accuracy_bug(self):
-        import tensor_dynamic.data.input_data as mnist
+        import tensor_dynamic.data.mnist_data as mnist
         data = mnist.read_data_sets("../data/MNIST_data", one_hot=True)
 
         inputs = tf.placeholder(tf.float32, shape=(None, 784))

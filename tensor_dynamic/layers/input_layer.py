@@ -60,6 +60,10 @@ class InputLayer(BaseLayer):
     def clone(self, session=None):
         return self.__class__(self._placeholder, name=self._name)
 
+    @property
+    def variables(self):
+        return ()
+
 
 class NoisyInputLayer(InputLayer):
     def __init__(self, placeholder, session, noise_std=1.0, name='NoisyInput'):

@@ -48,14 +48,8 @@ class DuelStateReluLayer(Layer):
         self._width_binarizer_constant = width_binarizer_constant
         self._inactive_nodes_to_leave = inactive_nodes_to_leave
 
-    @lazyprop
-    def activation_train(self):
-        activation = super(DuelStateReluLayer, self).activation_train
-        return activation * self._width
-
-    @lazyprop
-    def activation_predict(self):
-        activation = super(DuelStateReluLayer, self).activation_predict
+    def _layer_activation(self, input_activation):
+        activation = super(DuelStateReluLayer, self)._layer_activation(input_activation)
         return activation * self._width
 
     def unsupervised_cost_train(self):

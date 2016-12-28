@@ -1,14 +1,17 @@
+from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
 import numpy as np
 import tensorflow as tf
 
-from tensor_dynamic.lazyprop import clear_all_lazyprops
+from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop
 from tensor_dynamic.utils import tf_resize
 from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
 
 class BaseLayer(object):
+    __metaclass__ = ABCMeta
+
     OUTPUT_BOUND_VALUE = 'output'
     INPUT_BOUND_VALUE = 'input'
     _BoundVariable = namedtuple('BoundVariable', ['name', 'dimensions', 'variable', 'is_kwarg'])
@@ -61,6 +64,7 @@ class BaseLayer(object):
         return tf.name_scope(name)
 
     @property
+    @abstractmethod
     def activation_train(self):
         """The activation used for training this layer, this will often be the same as prediction except with dropout or
         random noise applied.
@@ -71,6 +75,7 @@ class BaseLayer(object):
         raise NotImplementedError()
 
     @property
+    @abstractmethod
     def activation_predict(self):
         """The activation used for predictions from this layer, this will often be the same as training except without
         dropout or random noise applied.
@@ -191,6 +196,10 @@ class BaseLayer(object):
         return self.first_layer.input_placeholder
 
     @property
+    def target_placeholder(self):
+        return self.last_layer.target_placeholder
+
+    @property
     def downstream_layers(self):
         if self._next_layer:
             yield self._next_layer
@@ -215,6 +224,17 @@ class BaseLayer(object):
         yield self
         for d in self.downstream_layers:
             yield d
+
+    def activate_predict(self, data_set):
+        """Get the prediction activation of this network given the data_set as input
+
+        Args:
+            data_set (np.array): np.array or Array matching the dimensions of the input placeholder
+
+        Returns:
+            np.array: prediction activation of the network
+        """
+        return self.session.run(self.activation_predict, feed_dict={self.input_placeholder: data_set})
 
     def supervised_cost_train(self, targets):
         return None
@@ -264,17 +284,12 @@ class BaseLayer(object):
     def clone(self, session=None):
         """Produce a clone of this layer AND all connected upstream layers
 
-        Parameters
-        ----------
-        session : tensorflow.Session
-            If passed in the clone will be created with all variables initialised in this session
-            If None then the current session of this layer is used
+        Args:
+            session (tensorflow.Session): If passed in the clone will be created with all variables initialised in this session
+                                          If None then the current session of this layer is used
 
-        Returns
-        -------
-        tensorflow_dynamic.BaseLayer
-
-        A copy of this layer and all upstream layers
+        Returns:
+            tensorflow_dynamic.BaseLayer: A copy of this layer and all upstream layers
         """
         new_self = self.__class__(self.input_layer.clone(session or self.session),
                                   self.output_nodes,
@@ -297,18 +312,17 @@ class BaseLayer(object):
     def resize(self, new_output_nodes=None, output_nodes_to_prune=None, input_nodes_to_prune=None,
                split_output_nodes=None,
                split_input_nodes=None,
-               split_nodes_noise_std=.01):
+               split_nodes_noise_std=.1):
         """Resize this layer by changing the number of output nodes. Will also resize any downstream layers
 
         Args:
             new_output_nodes (int): If passed we change the number of output nodes of this layer to be new_output_nodes
-                Otherwise we change the size to current output nodes+1
             output_nodes_to_prune ([int]): list of indexes of the output nodes we want pruned e.g. [1, 3] would remove
                 the 1st and 3rd output node from this layer
             input_nodes_to_prune ([int]): list of indexes of the input nodes we want pruned e.g. [1, 3] would remove the
                 1st and 3rd input node from this layer
             split_output_nodes ([int]): list of indexes of nodes to split. This is for growing the layer
-            split_input_nodes: ([int]): list of indexes of nodes that where split in the prevous layer.
+            split_input_nodes: ([int]): list of indexes of nodes that where split in the previous layer.
             split_nodes_noise_std (float): standard deviation of noise to add when splitting a node
         """
         if output_nodes_to_prune:
@@ -414,10 +428,6 @@ class BaseLayer(object):
         assert tuple(variable.get_shape().as_list()) == tuple(int_dims)
         self._bound_variables.append(self._BoundVariable(name, bound_dimensions, variable, is_kwarg))
 
-    def _register_tensor(self, name, bound_dimensions, tensor):
-        int_dims = self._bound_dimensions_to_ints(bound_dimensions)
-        assert tuple(tensor.get_shape().as_list()) == tuple(int_dims)
-
     def _bound_dimensions_contains_input(self, bound_dimensions):
         return any(x for x in bound_dimensions if x == self.INPUT_BOUND_VALUE)
 
@@ -451,3 +461,24 @@ class BaseLayer(object):
             tensorflow.Operation or None
         """
         return None
+
+    @property
+    def variables(self):
+        """Get all the tensorflow variables used in this layer, useful for weight regularization
+
+        Returns:
+            Iterable of tf.Variable:
+        """
+        for bound_variable in self._bound_variables:
+            yield bound_variable.variable
+
+    @property
+    def variables_all_layers(self):
+        """Get all the tensorflow variables used in all connected layers, useful for weight regularization
+
+        Returns:
+            Iterable of tf.Variable:
+        """
+        for layer in self.all_layers:
+            for variable in layer.variables:
+                yield variable

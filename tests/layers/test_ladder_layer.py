@@ -63,7 +63,7 @@ class TestLadderLayer(BaseLayerWrapper.BaseLayerTestCase):
         self.assertGreater(cost1, cost2, msg="Expected loss to reduce")
 
     def test_mnist(self):
-        import tensor_dynamic.data.input_data as mnist
+        import tensor_dynamic.data.mnist_data as mnist
 
         num_labeled = 100
         data = mnist.read_data_sets("../data/MNIST_data", n_labeled=num_labeled, one_hot=True)

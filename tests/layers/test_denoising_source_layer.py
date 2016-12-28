@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensor_dynamic.layers.back_weight_candidate_layer import BackWeightCandidateLayer
 from tensor_dynamic.layers.denoising_source_layer import DenoisingSourceLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tests import BaseLayerWrapper
+from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
 class TestBackWeightCandidateLayer(BaseLayerWrapper.BaseLayerTestCase):

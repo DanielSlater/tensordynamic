@@ -66,10 +66,13 @@ def tf_resize_cascading(session, variable, new_values):
             print output
 
 
-def train_till_convergence(train_one_epoch_function, continue_epochs=3, max_epochs=10000, log=False):
+def train_till_convergence(train_one_epoch_function, continue_epochs=3, max_epochs=10000, log=False,
+                           on_no_improvement_func=None):
     """Runs the train_one_epoch_function until we go continue_epochs without improvement in the best error
 
     Args:
+        on_no_improvement_func (()->()): Called whenever we don't see an improvement in training, can be used to change
+            the learning rate
         train_one_epoch_function (()->int): Function that when called runs one epoch of training returning the error
             from training.
         continue_epochs (int): The number of epochs without improvement before we terminate training, default 3
@@ -98,4 +101,16 @@ def train_till_convergence(train_one_epoch_function, continue_epochs=3, max_epoc
                     logger.info("finished with best error %s", best_error)
                 break
 
+            if on_no_improvement_func:
+                on_no_improvement_func()
+
     return error
+
+
+def get_tf_adam_optimizer_variables(optimizer):
+    for slot_values in optimizer._slots.values():
+        for value in slot_values.values():
+            yield value
+
+    yield optimizer._beta1_power
+    yield optimizer._beta2_power

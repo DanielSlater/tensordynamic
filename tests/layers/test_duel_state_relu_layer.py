@@ -6,7 +6,7 @@ from tensor_dynamic.layers.duel_state_relu_layer import DuelStateReluLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.train_policy import DuelStateReluTrainPolicy
-from tests import BaseLayerWrapper
+from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
 class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):

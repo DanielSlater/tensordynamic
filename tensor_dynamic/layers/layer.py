@@ -80,38 +80,38 @@ class Layer(BaseLayer):
     def has_bactivation(self):
         return self.bactivate
 
+    def _layer_activation(self, input_activation):
+        return self._non_liniarity(tf.matmul(input_activation, self._weights) + self._bias)
+
     @lazyprop
     def activation_predict(self):
-        return self._non_liniarity(tf.matmul(self.input_layer.activation_predict, self._weights) + self._bias)
+        return self._layer_activation(self.input_layer.activation_predict)
 
     @lazyprop
     def activation_train(self):
-        return self._non_liniarity(tf.matmul(self._activation_corrupted, self._weights) + self._bias)
+        return self._layer_activation(self._activation_corrupted)
+
+    def _layer_bactivation(self, activation):
+        if self.bactivate:
+            return self._non_liniarity(
+                    tf.matmul(activation, tf.transpose(self._weights)) + self._back_bias)
 
     @lazyprop
     def bactivation_train(self):
-        if self.bactivate:
-            return self._non_liniarity(
-                tf.matmul(self.activation_train, tf.transpose(self._weights)) + self._back_bias)
-        else:
-            return None
+        return self._layer_bactivation(self.activation_train)
 
     @lazyprop
     def bactivation_predict(self):
-        if self.bactivate:
-            return self._non_liniarity(
-                tf.matmul(self.activation_predict, tf.transpose(self._weights)) + self._back_bias)
-        else:
-            return None
+        return self._layer_bactivation(self.activation_predict)
 
     @property
     def non_liniarity(self):
         return self._non_liniarity
 
-    def get_layers_list(self):
+    def get_forward_layers(self):
         result = [self]
         if self.next_layer is not None:
-            result.extend(self.next_layer.get_layers_list())
+            result.extend(self.next_layer.get_forward_layers())
         return result
 
     def supervised_cost_train(self, targets):

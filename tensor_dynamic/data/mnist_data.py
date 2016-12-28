@@ -169,7 +169,7 @@ class SemiDataSet(object):
         return images, labels
 
 
-def read_data_sets(train_dir, n_labeled=None, fake_data=False, one_hot=False, validation_size=0):
+def read_data_sets(train_dir, n_labeled=None, fake_data=False, one_hot=False, validation_size=0, limit_train_size=None):
     class DataSets(object):
         pass
 
@@ -200,8 +200,12 @@ def read_data_sets(train_dir, n_labeled=None, fake_data=False, one_hot=False, va
 
     validation_images = train_images[:validation_size]
     validation_labels = train_labels[:validation_size]
-    train_images = train_images[validation_size:]
-    train_labels = train_labels[validation_size:]
+    if limit_train_size:
+        train_images = train_images[-limit_train_size:]
+        train_labels = train_labels[-limit_train_size:]
+    else:
+        train_images = train_images[validation_size:]
+        train_labels = train_labels[validation_size:]
 
     if n_labeled is None:
         data_sets.train = DataSet(train_images, train_labels)

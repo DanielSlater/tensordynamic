@@ -6,6 +6,8 @@ from tests.base_tf_testcase import BaseTfTestCase
 
 
 class BaseLayerWrapper(object):
+    MNIST_DATA_DIR = "../../tensor_dynamic/data/MNIST_data/"
+
     def __init__(self):
         """
         This class only exists so base tests aren't run on there own

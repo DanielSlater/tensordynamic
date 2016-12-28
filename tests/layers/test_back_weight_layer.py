@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from tensor_dynamic.layers.back_weight_layer import BackWeightLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tests import BaseLayerWrapper
+from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
 class TestBackWeightLayer(BaseLayerWrapper.BaseLayerTestCase):

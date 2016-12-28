@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.variational_autoencoder_layer import VariationalAutoencoderLayer
-from tests import BaseLayerWrapper
+from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
 class TestVariationalAutoencoderLayer(BaseLayerWrapper.BaseLayerTestCase):

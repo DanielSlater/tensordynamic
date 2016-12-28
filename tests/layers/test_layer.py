@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
-from tensor_dynamic.tests.base_layer_testcase import BaseLayerWrapper
 
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
+from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
 class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
@@ -68,7 +68,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
         layer2 = Layer(layer, 2, session=self.session)
         layer3 = Layer(layer2, 3, session=self.session)
 
-        self.assertEquals(layer.get_layers_list(), [layer, layer2, layer3])
+        self.assertEquals(layer.get_forward_layers(), [layer, layer2, layer3])
 
     def test_get_output_layer_activation(self):
         input_p = tf.placeholder("float", (None, 10))

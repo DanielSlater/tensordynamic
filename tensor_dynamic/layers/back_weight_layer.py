@@ -42,15 +42,9 @@ class BackWeightLayer(Layer):
                                                        self._output_nodes,
                                                        self._input_nodes))
 
-    @lazyprop
-    def bactivation_train(self):
+    def _layer_bactivation(self, activation):
         return self._non_liniarity(
-            tf.matmul(self.activation_train, self._back_weights) + self._back_bias)
-
-    @lazyprop
-    def bactivation_predict(self):
-        return self._non_liniarity(
-            tf.matmul(self.activation_predict, self._back_weights) + self._back_bias)
+            tf.matmul(activation, self._back_weights) + self._back_bias)
 
     @property
     def kwargs(self):
