@@ -2,7 +2,7 @@ import numpy as np
 
 from unittest import TestCase
 
-from tensor_dynamic.weight_functions import array_extend
+from tensor_dynamic.weight_functions import array_extend, noise_weight_extender
 
 
 class TestWeightFunctions(TestCase):
@@ -40,3 +40,11 @@ class TestWeightFunctions(TestCase):
         np.testing.assert_array_almost_equal(split_extended, np.array([[1., 2., 4.],
                                                                        [1., 2., 3.],
                                                                        [1., 2., 4.]]))
+
+    def test_noise_weight_extender_shrink(self):
+        a = np.array([[2., 4., 8.],
+                      [1., 2., 3.]])
+
+        b = noise_weight_extender(a, (2, 2))
+
+        self.assertEqual(b.shape, (2, 2))

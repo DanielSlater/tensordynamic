@@ -4,42 +4,53 @@ import numpy as np
 import tensorflow as tf
 
 
-def noise_weight_extender(array, extended_dimensions, mean=0.0, var=None):
+def noise_weight_extender(array, new_dimensions, mean=0.0, var=None):
     """Extends a numpy array to have a new dimension, new values are filled in using random gaussian noise
 
     Args:
         array (np.array): The array we want to resize
-        extended_dimensions ([int]): The size to extend the array to, must be larger than the current array
+        new_dimensions ([int]): The size to extend the array to, must be larger than the current array
         mean (float):
         var (float):
 
     Returns:
         np.array : Array will be of size new_dims
     """
+    if any(x <= 0 for x in new_dimensions):
+        raise ValueError("new_dimensions must all be greater than 0 was %s" % (new_dimensions,))
     new_values = array
 
-    if len(extended_dimensions) == 1:
-        if extended_dimensions[0] > array.shape[-1]:
-            new_values = np.append(array, np.zeros([extended_dimensions[0] - array.shape[-1]])) \
+    if len(new_dimensions) == 1:
+        if new_dimensions[0] > array.shape[-1]:
+            new_values = np.append(array, np.zeros([new_dimensions[0] - array.shape[-1]])) \
                 .astype(array.dtype)
+        elif new_dimensions[0] < array.shape[-1]:
+            # TODO: smarter downsizing
+            new_values = np.resize(new_values, new_dimensions)
     else:
-        if extended_dimensions[0] > array.shape[0]:
+        if new_dimensions[0] > array.shape[0]:
             new_values = np.append(new_values,
-                                   np.random.normal(scale=var or (1.0 / math.sqrt(float(extended_dimensions[0]))),
+                                   np.random.normal(scale=var or (1.0 / math.sqrt(float(new_dimensions[0]))),
                                                     loc=mean,
                                                     size=(
-                                                        extended_dimensions[0] - new_values.shape[0],
+                                                        new_dimensions[0] - new_values.shape[0],
                                                         new_values.shape[1]))
                                    .astype(array.dtype),
                                    axis=0)
-        if extended_dimensions[1] > array.shape[1]:
+        elif new_dimensions[0] < new_values.shape[0]:
+            # TODO: smarter downsizing
+            new_values = np.resize(new_values, new_dimensions)
+        if new_dimensions[1] > array.shape[1]:
             new_values = np.append(new_values,
                                    np.random.normal(
-                                       scale=var or (1.0 / math.sqrt(float(extended_dimensions[1])) / 100.),
+                                       scale=var or (1.0 / math.sqrt(float(new_dimensions[1])) / 100.),
                                        loc=mean,
-                                       size=(new_values.shape[0], extended_dimensions[1] - new_values.shape[1]))
+                                       size=(new_values.shape[0], new_dimensions[1] - new_values.shape[1]))
                                    .astype(array.dtype),
                                    axis=1)
+        while new_dimensions[1] < new_values.shape[1]:
+            # TODO: smarter downsizing
+            new_values = np.delete(new_values, -1, 1)
 
     return new_values
 

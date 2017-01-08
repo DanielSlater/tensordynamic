@@ -7,8 +7,8 @@ import tensorflow as tf
 from tensor_dynamic.abstract_resizable_net import AbstractResizableNet
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
-from tensor_dynamic.layers.output_layer import CatigoricalOutputLayer
-from tensor_dynamic.utils import train_till_convergence, get_tf_adam_optimizer_variables
+from tensor_dynamic.layers.output_layer import CategoricalOutputLayer
+from tensor_dynamic.utils import train_till_convergence, get_tf_optimizer_variables
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +20,15 @@ class BasicResizableNetWrapper(AbstractResizableNet):
         for hidden_nodes in initial_size[1:-1]:
             last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=tf.sigmoid)
 
-        output = CatigoricalOutputLayer(last_layer, initial_size[-1], session,
+        output = CategoricalOutputLayer(last_layer, initial_size[-1], session,
                                         regularizer_weighting=alpha, target_weighting=beta)
 
         self._net = output
         self._learn_rate_placeholder = tf.placeholder("float", shape=[], name="learn_rate")
         self._start_learning_rate = learning_rate
         self._learning_rate = learning_rate
+        self.optimizer_dict = {}
+        self._current_optimizer = None
         #self._train_op = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder).minimize(self._net.loss)
 
     def get_dimensions(self):
@@ -39,13 +41,29 @@ class BasicResizableNetWrapper(AbstractResizableNet):
         return self._net.accuracy(inputs, labels)
 
     def resize_layer(self, layer_index, new_size, data_set):
+        if new_size <= 0:
+            raise ValueError("new_size must all be greater than 0 was %s" % (new_size,))
         # TODO improve
         list(self._net.all_layers)[layer_index].resize(new_output_nodes=new_size)
 
     def train_till_convergence(self, data_set):
-        optimizer = tf.train.AdamOptimizer()
+        # optimizer_key = tuple(self.get_dimensions())
+        # if optimizer_key not in self.optimizer_dict:
+        #     optimizer = tf.train.RMSPropOptimizer(0.001, name="prop_for_%s" % (self.get_dimensions()[1],))
+        #     train_op = optimizer.minimize(self._net.loss)
+        #     self._net.session.run(tf.initialize_variables(list(get_tf_rmsprop_optimizer_variables(optimizer))))
+        #     self.optimizer_dict[optimizer_key] = train_op
+        #     self._current_optimizer = optimizer
+        #     print(optimizer._name)
+        #
+        # train_op = self.optimizer_dict[optimizer_key]
+
+        optimizer = tf.train.RMSPropOptimizer(0.001, name="prop_for_%s" % (self.get_dimensions()[1],))
         train_op = optimizer.minimize(self._net.loss)
-        self._net.session.run(tf.initialize_variables(list(get_tf_adam_optimizer_variables(optimizer))))
+
+        self._net.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer))))
+        print(optimizer._name)
+
         iterations = [0]
 
         def train():
@@ -58,18 +76,15 @@ class BasicResizableNetWrapper(AbstractResizableNet):
                                                        feed_dict={self._net.input_placeholder: images,
                                                                   self._net.target_placeholder: labels,
                                                                   self._learn_rate_placeholder: self._learning_rate})
+
                 error += batch_error
 
             self._learning_rate *= .99
             return error
 
-        def on_no_improvement():
-            self._learning_rate *= .9
+        error = train_till_convergence(train, log=False, continue_epochs=6)
 
-        train_till_convergence(train, log=False, continue_epochs=5,
-                               on_no_improvement_func=None)
-
-        logger.info("iterations = %s", iterations[0])
+        logger.info("iterations = %s error = %s", iterations[0], error)
 
     def add_layer(self, layer_index_to_add_after, hidden_nodes):
         self._net.all_layers()[layer_index_to_add_after].add_intermediate_layer(
@@ -134,6 +149,7 @@ class BayesianResizingNet(object):
             new_score = self._layer_resize_converge(data_set, layer_index,
                                                     self.GROWTH_MULTIPLYER)
         if not resized:
+            logger.info("From start_size %s Bigger failed, trying smaller", start_size)
             # try smaller, doing this twice feels wrong...
             self._layer_resize_converge(data_set, layer_index,
                                                   self.SHRINK_MULTIPLYER)
@@ -147,6 +163,8 @@ class BayesianResizingNet(object):
                 best_layer_size = self._resizable_net.get_layer_size(layer_index)
                 new_score = self._layer_resize_converge(data_set, layer_index,
                                                         self.SHRINK_MULTIPLYER)
+
+        logger.info("From start_size %s Found best was %s", start_size, best_layer_size)
 
         # return to the best size we found
         self._resizable_net.resize_layer(layer_index,
@@ -166,25 +184,28 @@ class BayesianResizingNet(object):
             else:
                 new_size = self._resizable_net.get_layer_size(layer_index) - self.MINIMUM_GROW_AMOUNT
 
+        if new_size <= 0:
+            logger.info("layer too small stopping downsize")
+            return -sys.float_info.max
+
         self._resizable_net.resize_layer(layer_index,
                                          new_size,
                                          data_set)
 
         self._resizable_net.train_till_convergence(data_set)
         result = self.model_weight_score(data_set)
-        logger.info("trying size %s result %s", self._resizable_net.get_dimensions(), result)
+        logger.info("layer resize converge for dim: %s result: %s", self._resizable_net.get_dimensions(), result)
         return result
 
     def model_weight_score(self, data_set):
-        log_probability = log_probability_of_targets_given_weights_multimodal(lambda x: self._resizable_net.predict(x),
+        log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: self._resizable_net.predict(x),
                                                                               data_set.train.images,
                                                                               data_set.train.labels)
-        model_complexity = BayesianResizingNet.get_model_complexity(self._resizable_net.get_dimensions())
-
-        return log_probability - log(model_complexity)
+        model_parameters = BayesianResizingNet.get_model_parameters(self._resizable_net.get_dimensions())
+        return bayesian_information_criterion(log_liklihood, model_parameters, len(data_set.train.images))
 
     @staticmethod
-    def get_model_complexity(dimensions):
+    def get_model_parameters(dimensions):
         # returns the number of parameters
         parameters = 0
         for i in xrange(len(dimensions) - 1):
@@ -208,6 +229,11 @@ def log_probability_of_targets_given_weights_multimodal(network_prediction_funct
         result += log(sum(predictions[i] * targets[i]))
 
     return result
+
+
+def bayesian_information_criterion(log_liklihood, number_of_parameters, number_of_data_points):
+    logger.info("log_liklihood %s number_of_parameters %s", log_liklihood, number_of_parameters)
+    return 2*log_liklihood-log(number_of_parameters)#log(number_of_data_points)#*number_of_parameters
 
 
 if __name__ == '__main__':

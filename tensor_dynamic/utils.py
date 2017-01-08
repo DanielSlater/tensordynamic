@@ -17,8 +17,8 @@ def xavier_init(fan_in, fan_out, constant=1.0):
     Returns:
         tensorflow.Tensor: A tensor of the specified shape filled with random uniform values.
     """
-    low = -constant*np.sqrt(6.0/(fan_in + fan_out))
-    high = constant*np.sqrt(6.0/(fan_in + fan_out))
+    low = -constant * np.sqrt(6.0 / (fan_in + fan_out))
+    high = constant * np.sqrt(6.0 / (fan_in + fan_out))
     return tf.random_uniform((fan_in, fan_out),
                              minval=low, maxval=high,
                              dtype="float")
@@ -33,6 +33,10 @@ def tf_resize(session, tensor, new_dims=None, new_values=None):
         new_dims ([int]): The dimensions we want the tensor transformed to. If None will be set to the dims of the new_values array
         new_values (numpy.array): If passed then these values are given to the resized tensor
     """
+    if new_values is not None and new_dims is not None:
+        if tuple(new_dims) != new_values.shape:
+            raise ValueError("new_dims and new_values must have same shape")
+
     if new_dims is None and new_values is not None:
         new_dims = new_values.shape
 
@@ -42,14 +46,22 @@ def tf_resize(session, tensor, new_dims=None, new_values=None):
 
         assign = tf.assign(tensor, new_values, validate_shape=False)
         session.run(assign)
+    elif isinstance(tensor, tf.Variable):
+        current_vals = session.run(tensor)
+        new_values = np.resize(current_vals, new_dims)
+        assign = tf.assign(tensor, new_values, validate_shape=False)
+        session.run(assign)
 
     if tuple(tensor.get_shape().as_list()) != new_dims:
         new_shape = tf.python.framework.tensor_shape.TensorShape(new_dims)
         if hasattr(tensor, '_variable'):
-            tensor._variable._shape = new_shape
-            tensor._snapshot._shape = new_shape
+            for i in range(len(new_dims)):
+                tensor._variable._shape._dims[i]._value = new_dims[i]
+                tensor._snapshot._shape._dims[i]._value = new_dims[i]
+                tensor._initial_value._shape._dims[i]._value = new_dims[i]
         elif hasattr(tensor, '_shape'):
-            tensor._shape = new_shape
+            for i in range(len(new_dims)):
+                tensor._shape._dims[i]._value = new_dims[i]
         else:
             raise NotImplementedError('unrecognized type %s' % type(tensor))
 
@@ -107,10 +119,71 @@ def train_till_convergence(train_one_epoch_function, continue_epochs=3, max_epoc
     return error
 
 
-def get_tf_adam_optimizer_variables(optimizer):
+def get_tf_optimizer_variables(optimizer):
+    """Get all the tensorflow variables in an optimzier, for use in initialization
+
+    Args:
+        optimizer (tf.train.Optimizer): Some kind of tensorflow optimizer
+
+    Returns:
+        Iterable of tf.Variable
+    """
+    if isinstance(optimizer, tf.train.AdamOptimizer):
+        for var in _get_optimzer_slot_variables(optimizer):
+            yield var
+        yield optimizer._beta1_power
+        yield optimizer._beta2_power
+    elif isinstance(optimizer, tf.train.RMSPropOptimizer):
+        for var in _get_optimzer_slot_variables(optimizer):
+            yield var
+    elif isinstance(optimizer, tf.train.GradientDescentOptimizer):
+        pass
+    else:
+        raise TypeError("Unsupported optimizer %s" % (type(optimizer),))
+
+
+def _get_optimzer_slot_variables(optimizer):
+    count = 0
     for slot_values in optimizer._slots.values():
         for value in slot_values.values():
+            count += 1
             yield value
 
-    yield optimizer._beta1_power
-    yield optimizer._beta2_power
+    if count == 0:
+        raise Exception("Found no variables in optimizer, you may need to call minimize on this optimizer before calling this method")
+
+
+def _iterate_coords(tensor):
+    if len(tensor.get_shape()) == 1:
+        for i in range(tensor.get_shape()[0]):
+            yield (i,), (1,)
+    else:
+        for i in range(tensor.get_shape()[0]):
+            for j in range(tensor.get_shape()[1]):
+                yield (i, j), (1, 1)
+
+
+def _variable_size(variable):
+    size = 1
+    for dim in variable.get_shape():
+        size *= int(dim)
+    return size
+
+
+def create_hessian_op(tensor_op, variables, session):
+    mat = []
+    for v1 in variables:
+        temp = []
+        for v2 in variables:
+            # computing derivative twice, first w.r.t v2 and then w.r.t v1
+            first_derivative = tf.gradients(tensor_op, v2)[0]
+            for begin, size in _iterate_coords(v2):
+                temp.append(tf.gradients(tf.slice(first_derivative, begin=begin, size=size), v1)[0])
+        # tensorflow returns None when there is no gradient, so we replace None with, maybe we should just fail...
+        # temp = [0. if t is None else t for t in temp]
+        mat.append(temp)
+
+    # now we need to arrange the result into one final tensor, really annoying that gradient of reshape doesn't work...
+    raise NotImplementedError()
+
+    return mat

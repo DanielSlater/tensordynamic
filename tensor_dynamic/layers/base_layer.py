@@ -325,6 +325,9 @@ class BaseLayer(object):
             split_input_nodes: ([int]): list of indexes of nodes that where split in the previous layer.
             split_nodes_noise_std (float): standard deviation of noise to add when splitting a node
         """
+        if new_output_nodes is not None and new_output_nodes <= 0:
+            raise ValueError("new_output_nodes must all be greater than 0 was %s" % (new_output_nodes,))
+
         if output_nodes_to_prune:
             if split_output_nodes:
                 raise NotImplementedError("At the moment must either split or prune")

@@ -59,7 +59,7 @@ class OutputLayer(Layer):
         super(OutputLayer, self).resize(**kwargs)
 
 
-class CatigoricalOutputLayer(OutputLayer):
+class CategoricalOutputLayer(OutputLayer):
     def __init__(self, input_layer, output_nodes,
                  session=None,
                  bias=None,
@@ -70,8 +70,8 @@ class CatigoricalOutputLayer(OutputLayer):
                  noise_std=None,
                  regularizer_weighting=0.01,
                  target_weighting=0.99,
-                 name='CatigoricalOutputLayer'):
-        super(CatigoricalOutputLayer, self).__init__(input_layer, output_nodes,
+                 name='CategoricalOutputLayer'):
+        super(CategoricalOutputLayer, self).__init__(input_layer, output_nodes,
                                                      session=session,
                                                      bias=bias,
                                                      weights=weights,
