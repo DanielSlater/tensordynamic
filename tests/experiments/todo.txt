@@ -1,8 +1,8 @@
 *Bayesian resizing net
-Fix sizing down bug
-work with AdamOptimizer
-shrink over big net 1 layer
-growing small net 1 layer
+Fix sizing down bug - done
+work with AdamOptimizer - done
+shrink over big net 1 layer - works badly
+growing small net 1 layer - works badly
 Adding layers
 vs grid search
 Add weight prior term?

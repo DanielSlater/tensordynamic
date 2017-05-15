@@ -173,17 +173,19 @@ def _variable_size(variable):
 def create_hessian_op(tensor_op, variables, session):
     mat = []
     for v1 in variables:
-        temp = []
         for v2 in variables:
+            temp = []
             # computing derivative twice, first w.r.t v2 and then w.r.t v1
             first_derivative = tf.gradients(tensor_op, v2)[0]
             for begin, size in _iterate_coords(v2):
                 temp.append(tf.gradients(tf.slice(first_derivative, begin=begin, size=size), v1)[0])
-        # tensorflow returns None when there is no gradient, so we replace None with, maybe we should just fail...
-        # temp = [0. if t is None else t for t in temp]
+            # tensorflow returns None when there is no gradient, so we replace None with, maybe we should just fail...
+            # temp = [0. if t is None else t for t in temp]
+
+            derivatives = tf.concat(0, temp)
+
         mat.append(temp)
 
-    # now we need to arrange the result into one final tensor, really annoying that gradient of reshape doesn't work...
     raise NotImplementedError()
 
     return mat

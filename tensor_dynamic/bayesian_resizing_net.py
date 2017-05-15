@@ -86,6 +86,8 @@ class BasicResizableNetWrapper(AbstractResizableNet):
 
         logger.info("iterations = %s error = %s", iterations[0], error)
 
+        return error
+
     def add_layer(self, layer_index_to_add_after, hidden_nodes):
         self._net.all_layers()[layer_index_to_add_after].add_intermediate_layer(
             lambda input_layer: Layer(input_layer, hidden_nodes, self.session, non_liniarity=tf.sigmoid))

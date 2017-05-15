@@ -37,15 +37,41 @@ class TestUtils(BaseTfTestCase):
         loss = -tf.reduce_sum(y_target * tf.log(output))
 
         self.session.run(tf.initialize_variables([hidden_weights, hidden_biases, output_weights, output_biases]))
-        hessian_op = create_hessian_op(loss, [hidden_weights, hidden_biases, output_weights, output_biases], self.session)
+        hessian_op = create_hessian_op(loss, [hidden_weights, hidden_biases, output_weights, output_biases],
+                                       self.session)
         result = self.session.run(hessian_op, feed_dict={x_input: np.random.normal(size=(1, n_input)),
                                                          y_target: np.random.normal(size=(1, n_output))})
+
+        print(result)
+
+    def test_compute_hessian_1_variable(self):
+        # this currently fails because I can't get the method to work, tensorflow does not support gradients after
+        # doing a reshape/slice op
+        n_input = 2
+        n_output = 2
+
+        x_input = tf.placeholder(tf.float32, shape=[None, n_input])
+        y_target = tf.placeholder(tf.float32, shape=[None, n_output])
+
+        weights = tf.Variable(initial_value=[[-2., -1.], [1., 2.]])
+
+        output = tf.nn.softmax(tf.matmul(x_input, weights))
+        # Define cross entropy loss
+        loss = -tf.reduce_sum(y_target * tf.log(output))
+
+        self.session.run(tf.initialize_variables([weights]))
+        hessian_op = create_hessian_op(loss, [weights], self.session)
+        result = self.session.run(hessian_op, feed_dict={x_input: np.ones((1, n_input)),
+                                                         y_target: np.ones((1, n_output))})
+
+        # TODO D.S find simple hessian example + numbers
+
         print(result)
 
     def test_gradient_through_reshape(self):
-        input = tf.Variable(initial_value=tf.zeros([2,2]))
+        input = tf.Variable(initial_value=tf.zeros([2, 2]))
         after_reshape = tf.reshape(input, [-1])
-        target = tf.square(1.-tf.reduce_sum(after_reshape))
+        target = tf.square(1. - tf.reduce_sum(after_reshape))
 
         train_op = tf.train.GradientDescentOptimizer(0.5).minimize(target)
 

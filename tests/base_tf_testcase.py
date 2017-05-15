@@ -13,7 +13,7 @@ class BaseTfTestCase(TestCase):
     MNIST_DATA = None
     MNIST_INPUT_NODES = 784
     MNIST_OUTPUT_NODES = 10
-    MNIST_LIMIT_TEST_DATA_SIZE = 1000
+    MNIST_LIMIT_TEST_DATA_SIZE = 4000
     MNIST_DATA_DIR = "../tensor_dynamic/data/MNIST_data/"
 
     def setUp(self):
