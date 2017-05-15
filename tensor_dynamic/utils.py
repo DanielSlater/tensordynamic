@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.framework.tensor_shape import TensorShape
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def tf_resize(session, tensor, new_dims=None, new_values=None):
         session.run(assign)
 
     if tuple(tensor.get_shape().as_list()) != new_dims:
-        new_shape = tf.python.framework.tensor_shape.TensorShape(new_dims)
+        new_shape = TensorShape(new_dims)
         if hasattr(tensor, '_variable'):
             for i in range(len(new_dims)):
                 tensor._variable._shape._dims[i]._value = new_dims[i]
