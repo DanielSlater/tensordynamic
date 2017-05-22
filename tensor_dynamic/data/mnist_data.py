@@ -71,31 +71,31 @@ def extract_labels(filename, one_hot=False):
 
 
 class DataSet(object):
-    def __init__(self, images, labels, fake_data=False):
+    def __init__(self, features, labels, fake_data=False):
         if fake_data:
             self._num_examples = 10000
         else:
-            assert images.shape[0] == labels.shape[0], (
-                "images.shape: %s labels.shape: %s" % (images.shape,
+            assert features.shape[0] == labels.shape[0], (
+                "images.shape: %s labels.shape: %s" % (features.shape,
                                                        labels.shape))
-            self._num_examples = images.shape[0]
+            self._num_examples = features.shape[0]
 
             # Convert shape from [num examples, rows, columns, depth]
             # to [num examples, rows*columns] (assuming depth == 1)
-            assert images.shape[3] == 1
-            images = images.reshape(images.shape[0],
-                                    images.shape[1] * images.shape[2])
+            assert features.shape[3] == 1
+            features = features.reshape(features.shape[0],
+                                        features.shape[1] * features.shape[2])
             # Convert from [0, 255] -> [0.0, 1.0].
-            images = images.astype(numpy.float32)
-            images = numpy.multiply(images, 1.0 / 255.0)
-        self._images = images
+            features = features.astype(numpy.float32)
+            features = numpy.multiply(features, 1.0 / 255.0)
+        self._features = features
         self._labels = labels
         self._epochs_completed = 0
         self._index_in_epoch = 0
 
     @property
-    def images(self):
-        return self._images
+    def features(self):
+        return self._features
 
     @property
     def labels(self):
@@ -124,14 +124,14 @@ class DataSet(object):
             # Shuffle the data
             perm = numpy.arange(self._num_examples)
             numpy.random.shuffle(perm)
-            self._images = self._images[perm]
+            self._features = self._features[perm]
             self._labels = self._labels[perm]
             # Start next epoch
             start = 0
             self._index_in_epoch = batch_size
             assert batch_size <= self._num_examples
         end = self._index_in_epoch
-        return self._images[start:end], self._labels[start:end]
+        return self._features[start:end], self._labels[start:end]
 
 
 class SemiDataSet(object):

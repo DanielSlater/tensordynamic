@@ -81,9 +81,9 @@ class TestNet(BaseTfTestCase):
 
         trainer = CategoricalTrainer(outputs, 0.1)
 
-        trainer.train(data.validation.images, data.validation.labels)
+        trainer.train(data.validation.features, data.validation.labels)
 
         # this was throwing an exception
-        accuracy = trainer.accuracy(data.validation.images, data.validation.labels)
+        accuracy = trainer.accuracy(data.validation.features, data.validation.labels)
         self.assertLessEqual(accuracy, 100.)
         self.assertGreaterEqual(accuracy, 0.)

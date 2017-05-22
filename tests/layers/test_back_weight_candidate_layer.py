@@ -10,7 +10,7 @@ class TestBackWeightCandidateLayer(BaseLayerWrapper.BaseLayerTestCase):
         return BackWeightCandidateLayer(self._input_layer, self.OUTPUT_NODES, session=self.session)
 
     def test_more_nodes_improves_reconstruction_loss_mnist(self):
-        data = self.mnist_data.train.images
+        data = self.mnist_data.train.features
         recon_1 = self.reconstruction_loss_for(1, data)
         recon_2 = self.reconstruction_loss_for(2, data)
         recon_5 = self.reconstruction_loss_for(5, data)

@@ -71,7 +71,7 @@ def tf_resize(session, tensor, new_dims=None, new_values=None):
 
 
 def tf_resize_cascading(session, variable, new_values):
-    raise NotImplementedError()
+    #raise NotImplementedError()
     tf_resize(session, variable, tuple(new_values.shape), new_values)
     consumers = variable._as_graph_element().consumers()
     for consumer in consumers:

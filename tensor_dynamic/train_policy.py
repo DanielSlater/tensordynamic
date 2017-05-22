@@ -56,8 +56,8 @@ class TrainPolicy(object):
         if use_validation:
             def train_one_epoch_validation():
                 self.train_one_epoch()
-                _, validation_loss = self._trainer.accuracy(self._data_set.validation.images,
-                                                                              self._data_set.validation.labels)
+                _, validation_loss = self._trainer.accuracy(self._data_set.validation.features,
+                                                            self._data_set.validation.labels)
                 return validation_loss
 
             train_till_convergence(train_one_epoch_validation, continue_epochs=continue_epochs, max_epochs=max_epochs)
@@ -66,7 +66,7 @@ class TrainPolicy(object):
 
     @property
     def validation_accuracy(self):
-        self._trainer.predict(self._data_set.validation.images, self._data_set.validation.labels)
+        self._trainer.predict(self._data_set.validation.features, self._data_set.validation.labels)
 
     def run_full(self, verbose=True):
         best_validation_loss = sys.float_info.max
@@ -79,7 +79,7 @@ class TrainPolicy(object):
 
         while True:
             train_loss = self.train_one_epoch()
-            validation_accuracy, validation_loss = self._trainer.accuracy(self._data_set.validation.images,
+            validation_accuracy, validation_loss = self._trainer.accuracy(self._data_set.validation.features,
                                                                           self._data_set.validation.labels)
             if verbose:
                 print(self._data_set.train.epochs_completed, train_loss, validation_accuracy, validation_loss)
@@ -116,9 +116,9 @@ class TrainPolicy(object):
     def grow_net(self):
         # find layer with highest reconstruction error
         if self.back_loss_on_misclassified_only:
-            back_losses_per_layer = self._trainer.back_losses_per_layer(self._data_set.train.images)
+            back_losses_per_layer = self._trainer.back_losses_per_layer(self._data_set.train.features)
         else:
-            back_losses_per_layer = self._trainer.back_losses_per_layer(self._data_set.train.images,
+            back_losses_per_layer = self._trainer.back_losses_per_layer(self._data_set.train.features,
                                                                         misclassification_only=True,
                                                                         labels=self._data_set.train.labels)
 

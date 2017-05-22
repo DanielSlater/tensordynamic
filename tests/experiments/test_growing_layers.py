@@ -64,7 +64,6 @@ class TestGrowingLayers(BaseTfTestCase):
                                           bactivate=False))
 
             new_best_score = train_until_no_improvement_for_epochs(data, candidate, 3)
-
             if new_best_score > best_score:
                 # failed to get improvement
                 print("failed to get improvement with layer {0}".format(hidden_layer_count))

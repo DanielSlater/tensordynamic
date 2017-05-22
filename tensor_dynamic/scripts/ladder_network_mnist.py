@@ -51,7 +51,7 @@ with tf.Session() as s:
 
     ladder.set_all_deterministic(True)
 
-    print "acc", s.run([accuracy], feed_dict={inputs: data.test.images, targets: data.test.labels})
+    print "acc", s.run([accuracy], feed_dict={inputs: data.test.features, targets: data.test.labels})
 
     ladder.set_all_deterministic(False)
 
@@ -64,8 +64,8 @@ with tf.Session() as s:
         # if i % 50 == 0:
         #     print "acc" + str(net.catagorical_accurasy(train_x, train_y))
 
-        print "acc", s.run([accuracy], feed_dict={inputs: data.test.images, targets: data.test.labels})
+        print "acc", s.run([accuracy], feed_dict={inputs: data.test.features, targets: data.test.labels})
 
     ladder.set_all_deterministic(True)
 
-    print "acc", s.run([accuracy], feed_dict={inputs: data.test.images, targets: data.test.labels})
+    print "acc", s.run([accuracy], feed_dict={inputs: data.test.features, targets: data.test.labels})

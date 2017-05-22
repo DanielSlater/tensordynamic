@@ -3,6 +3,7 @@ import sys
 from math import log
 
 import tensorflow as tf
+from enum import Enum
 
 from tensor_dynamic.abstract_resizable_net import AbstractResizableNet
 from tensor_dynamic.layers.input_layer import InputLayer
@@ -13,8 +14,15 @@ from tensor_dynamic.utils import train_till_convergence, get_tf_optimizer_variab
 logger = logging.getLogger(__name__)
 
 
+class EDataType(Enum):
+    TRAIN = 0
+    TEST = 1
+    VALIDATION = 2
+
+
 class BasicResizableNetWrapper(AbstractResizableNet):
-    def __init__(self, initial_size, session, alpha=0.0001, beta=.9999, learning_rate=.1):
+    def __init__(self, initial_size, session, alpha=0.0001, beta=.9999, learning_rate=.1,
+                 model_selection_data_type=EDataType.TEST):
         last_layer = InputLayer(initial_size[0])
 
         for hidden_nodes in initial_size[1:-1]:
@@ -29,7 +37,8 @@ class BasicResizableNetWrapper(AbstractResizableNet):
         self._learning_rate = learning_rate
         self.optimizer_dict = {}
         self._current_optimizer = None
-        #self._train_op = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder).minimize(self._net.loss)
+        self.model_selection_data_type = model_selection_data_type
+        # self._train_op = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder).minimize(self._net.loss)
 
     def get_dimensions(self):
         return [layer.output_nodes for layer in self._net.all_layers]
@@ -154,7 +163,7 @@ class BayesianResizingNet(object):
             logger.info("From start_size %s Bigger failed, trying smaller", start_size)
             # try smaller, doing this twice feels wrong...
             self._layer_resize_converge(data_set, layer_index,
-                                                  self.SHRINK_MULTIPLYER)
+                                        self.SHRINK_MULTIPLYER)
 
             new_score = self._layer_resize_converge(data_set, layer_index,
                                                     self.SHRINK_MULTIPLYER)
@@ -200,11 +209,23 @@ class BayesianResizingNet(object):
         return result
 
     def model_weight_score(self, data_set):
+        if self.model_selection == EDataType.TRAIN:
+            evaluation_features = data_set.train.features
+            evaluation_labels = data_set.train.labels
+        elif self.model_selection == EDataType.TEST:
+            evaluation_features = data_set.test.features
+            evaluation_labels = data_set.test.labels
+        elif self.model_selection == EDataType.VALIDATION:
+            evaluation_features = data_set.validation.features
+            evaluation_labels = data_set.validation.labels
+        else:
+            raise Exception("unknown model_selection_data_type %s", self.model_selection)
+
         log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: self._resizable_net.predict(x),
-                                                                              data_set.train.images,
-                                                                              data_set.train.labels)
+                                                                            evaluation_features,
+                                                                            evaluation_labels)
         model_parameters = BayesianResizingNet.get_model_parameters(self._resizable_net.get_dimensions())
-        return bayesian_information_criterion(log_liklihood, model_parameters, len(data_set.train.images))
+        return bayesian_model_selection(log_liklihood, model_parameters, len(data_set.train.features))
 
     @staticmethod
     def get_model_parameters(dimensions):
@@ -233,9 +254,10 @@ def log_probability_of_targets_given_weights_multimodal(network_prediction_funct
     return result
 
 
-def bayesian_information_criterion(log_liklihood, number_of_parameters, number_of_data_points):
-    logger.info("log_liklihood %s number_of_parameters %s", log_liklihood, number_of_parameters)
-    return 2*log_liklihood-log(number_of_parameters)#log(number_of_data_points)#*number_of_parameters
+def bayesian_model_selection(log_liklihood, number_of_parameters, number_of_data_points):
+    score = log_liklihood - log(number_of_parameters)
+    logger.info("log_liklihood %s number_of_parameters %s score %s", log_liklihood, number_of_parameters, score)
+    return score
 
 
 if __name__ == '__main__':

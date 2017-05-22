@@ -30,7 +30,7 @@ class TestTensorflowFeatures(BaseTfTestCase):
 
         self.assertEqual(len(self.session.run(var)), 10)
 
-    @unittest.skip('functionality not implemented yet')
+    #@unittest.skip('functionality not implemented yet')
     def test_cascading_resize(self):
         a = tf.Variable(tf.zeros((1, 2)), name="a")
         b = tf.sigmoid(a, name="b")
