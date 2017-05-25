@@ -36,7 +36,7 @@ class TestBackWeightLayer(BaseLayerWrapper.BaseLayerTestCase):
             self.session.run(optimizer, feed_dict={bw_layer1.input_placeholder: train_x})
 
         result = self.session.run(bw_layer1.unsupervised_cost_predict(),
-                                  feed_dict={bw_layer1.input_placeholder: data.train.images})
+                                  feed_dict={bw_layer1.input_placeholder: data.train.features})
         print("denoising with %s hidden nodes had cost %s" % (output_nodes, result))
         return result
 

@@ -42,4 +42,4 @@ with tf.Session() as sess:
 
     trainPolicy.run_full()
 
-    print trainer.accuracy(data.test.images, data.test.labels)
+    print trainer.accuracy(data.test.features, data.test.labels)

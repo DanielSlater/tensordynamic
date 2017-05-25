@@ -62,13 +62,13 @@ with tf.Session() as sess:
             saver.save(sess, checkpoint_path + "/network")
 
     # get train error
-    print("train error ", trainer.accuracy(data.validation.images, data.validation.labels))
+    print("train error ", trainer.accuracy(data.validation.features, data.validation.labels))
 
     # get reconstruction errors
-    print trainer.back_losses_per_layer(data.train.images)
+    print trainer.back_losses_per_layer(data.train.features)
 
     # get error just on miss-classifications
-    print trainer.back_losses_per_layer(data.train.images, misclassification_only=True, labels=data.train.labels)
+    print trainer.back_losses_per_layer(data.train.features, misclassification_only=True, labels=data.train.labels)
 
     results = {}
 
@@ -81,7 +81,7 @@ with tf.Session() as sess:
         new_trainer = CategoricalTrainer(net, resize_learning_rate)
         new_tp = TrainPolicy(new_trainer, data, batch_size, learn_rate_decay=learn_rate_decay)
         new_tp.train_till_convergence()
-        acc, cost = trainer.accuracy(data.validation.images, data.validation.labels)
+        acc, cost = trainer.accuracy(data.validation.features, data.validation.labels)
         print("train error ", acc, cost)
         results[x] = (acc, cost)
 

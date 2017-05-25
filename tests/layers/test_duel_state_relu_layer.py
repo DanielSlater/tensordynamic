@@ -23,13 +23,13 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         end_epoch = data.train.epochs_completed + 5
 
-        print(trainer.accuracy(data.test.images, data.test.labels))
+        print(trainer.accuracy(data.test.features, data.test.labels))
 
         while data.train.epochs_completed <= end_epoch:
             train_x, train_y = data.train.next_batch(100)
             trainer.train(train_x, train_y)
 
-        accuracy, cost = trainer.accuracy(data.test.images, data.test.labels)
+        accuracy, cost = trainer.accuracy(data.test.features, data.test.labels)
         print(accuracy, cost)
         # print(output.active_nodes())
         print(hidden_1.active_nodes())
@@ -105,7 +105,7 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
             train_x, train_y = data.train.next_batch(100)
             trainer.train(train_x, train_y)
 
-        accuracy, cost = trainer.accuracy(data.test.images, data.test.labels)
+        accuracy, cost = trainer.accuracy(data.test.features, data.test.labels)
         print(accuracy, cost)
         print("active nodes ", d_1.active_nodes())
         self.assertGreater(accuracy, 70.)

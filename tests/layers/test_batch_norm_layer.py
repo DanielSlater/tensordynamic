@@ -85,10 +85,10 @@ class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):
             self.session.run(optimizer, feed_dict={bn.input_placeholder: train_x})
 
         result_predict = self.session.run(bn.activation_predict,
-                                          feed_dict={bn.input_placeholder: data.test.images})
+                                          feed_dict={bn.input_placeholder: data.test.features})
 
         result_train = self.session.run(bn.activation_train,
-                                        feed_dict={bn.input_placeholder: data.test.images})
+                                        feed_dict={bn.input_placeholder: data.test.features})
 
         self.assertAlmostEqual(result_train.mean(), result_predict.mean(), delta=0.2)
         self.assertAlmostEqual(result_train.var(), result_predict.var(), delta=0.2)
@@ -114,8 +114,8 @@ class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):
             self.session.run(optimizer, feed_dict={layer.input_placeholder: train_x})
 
         result_train = self.session.run(layer.unsupervised_cost_train(),
-                                        feed_dict={layer.input_placeholder: data.test.images})
+                                        feed_dict={layer.input_placeholder: data.test.features})
         result_predict = self.session.run(layer.unsupervised_cost_predict(),
-                                          feed_dict={layer.input_placeholder: data.test.images})
+                                          feed_dict={layer.input_placeholder: data.test.features})
 
         self.assertAlmostEqual(result_train, result_predict, delta=0.2)

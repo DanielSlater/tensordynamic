@@ -43,11 +43,13 @@ class BatchNormLayer(BaseLayer):
         self._gamma = gamma
 
         mean, var = tf.nn.moments(self._input_layer.activation_train, axes=[0])
-        self._activation_train = self._batch_normalize(self.input_layer.activation_train, mean, var)
+        self._register_variable("mean", (self.INPUT_BOUND_VALUE,), mean)
+        self._register_variable("var", (self.INPUT_BOUND_VALUE,), var)
 
-        mean, var = tf.nn.moments(self._input_layer.activation_predict, axes=[0])
+        self._activation_train = self._batch_normalize(self.input_layer.activation_train, mean, var)
         self._activation_predict = self._batch_normalize(self.input_layer.activation_predict, mean,
                                                          var)
+        #self._register_variable()
 
     @property
     def activation_predict(self):
@@ -102,7 +104,7 @@ class BatchNormLayer(BaseLayer):
 
         reshape_to_conv = tf.reshape(batch, [-1, 1, 1, self.input_nodes], name="reshape_to_conv")
         self._r1 = reshape_to_conv
-        self._register_variable("reshape_to_conv", (-1, 1, 1, self.INPUT_BOUND_VALUE), reshape_to_conv, is_kwarg=False)
+        self._register_variable("reshape_to_conv", (-1, 1, 1, self.INPUT_BOUND_VALUE), reshape_to_conv, is_constructor_variable=False)
         batch_normalized = tf.nn.batch_norm_with_global_normalization(reshape_to_conv, mean, var,
                                                                       self._batch_norm_beta,
                                                                       self._batch_norm_gamma,
@@ -110,7 +112,7 @@ class BatchNormLayer(BaseLayer):
                                                                       False)
         reshape_from_conv = tf.reshape(batch_normalized, [-1, self.input_nodes], name="reshape_from_conv")
         self._r2 = reshape_from_conv
-        self._register_variable("reshape_from_conv", (-1, self.INPUT_BOUND_VALUE), reshape_from_conv, is_kwarg=False)
+        self._register_variable("reshape_from_conv", (-1, self.INPUT_BOUND_VALUE), reshape_from_conv, is_constructor_variable=False)
 
         return reshape_from_conv
 

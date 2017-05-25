@@ -246,11 +246,11 @@ class BaseLayer(object):
         supervised_cost = self.supervised_cost_train(targets)
         unsupervised_cost = self.unsupervised_cost_train()
 
-        if supervised_cost:
-            if unsupervised_cost:
+        if supervised_cost is not None:
+            if unsupervised_cost is not None:
                 return supervised_cost + unsupervised_cost
             return supervised_cost
-        if unsupervised_cost:
+        if unsupervised_cost is not None:
             return unsupervised_cost
 
         return None
@@ -426,10 +426,18 @@ class BaseLayer(object):
             self._bound_variables.append(self._BoundVariable(name, bound_dimensions, var, is_kwarg))
             return var
 
-    def _register_variable(self, name, bound_dimensions, variable, is_kwarg=True):
+    def _register_variable(self, name, bound_dimensions, variable, is_constructor_variable=True):
+        """Register a variable that will need to be resized with this layer
+
+        Args:
+            name (str): Name used for displaying errors and debuging
+            bound_dimensions (tuple of (self.OUTPUT_BOUND_VALUE or self.INPUT_BOUND_VALUE or int)):
+            variable (tf.Tensor): The variable to bind
+            is_constructor_variable (bool): If true this variable is passed as an arg to the constructor of this class if it is cloned
+        """
         int_dims = self._bound_dimensions_to_ints(bound_dimensions)
         assert tuple(variable.get_shape().as_list()) == tuple(int_dims)
-        self._bound_variables.append(self._BoundVariable(name, bound_dimensions, variable, is_kwarg))
+        self._bound_variables.append(self._BoundVariable(name, bound_dimensions, variable, is_constructor_variable))
 
     def _bound_dimensions_contains_input(self, bound_dimensions):
         return any(x for x in bound_dimensions if x == self.INPUT_BOUND_VALUE)

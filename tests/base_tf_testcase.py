@@ -13,8 +13,8 @@ class BaseTfTestCase(TestCase):
     MNIST_DATA = None
     MNIST_INPUT_NODES = 784
     MNIST_OUTPUT_NODES = 10
-    MNIST_LIMIT_TEST_DATA_SIZE = 4000
-    MNIST_DATA_DIR = "../tensor_dynamic/data/MNIST_data/"
+    MNIST_LIMIT_TEST_DATA_SIZE = 1000
+    MNIST_DATA_DIR = "/MNIST_data"
 
     def setUp(self):
         self.session = tf.Session()
@@ -28,7 +28,10 @@ class BaseTfTestCase(TestCase):
     def mnist_data(self):
         if self.MNIST_DATA is None:
             import tensor_dynamic.data.mnist_data as mnist
-            self.MNIST_DATA = mnist.read_data_sets(self.MNIST_DATA_DIR, one_hot=True,
+            import tensor_dynamic.data.data_set as ds
+            import os
+
+            self.MNIST_DATA = mnist.read_data_sets(os.path.dirname(ds.__file__) + self.MNIST_DATA_DIR, one_hot=True,
                                                    limit_train_size=self.MNIST_LIMIT_TEST_DATA_SIZE)
         return self.MNIST_DATA
 

@@ -155,7 +155,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
             self.session.run(optimizer, feed_dict={bw_layer1.input_placeholder: train_x})
 
         result = self.session.run(bw_layer1.unsupervised_cost_predict(),
-                                  feed_dict={bw_layer1.input_placeholder: data.test.images})
+                                  feed_dict={bw_layer1.input_placeholder: data.test.features})
         print("denoising with %s hidden layer had cost %s" % (output_nodes, result))
         return result
 

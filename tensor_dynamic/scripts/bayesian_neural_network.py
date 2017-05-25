@@ -92,14 +92,14 @@ with tf.Session() as session:
         saver.save(session, checkpoint_path)
 
     accuracy = session.run(tf.reduce_mean(tf.cast(correct_op, tf.float32)),
-                           feed_dict={input_placeholder: data.train.images, target_placeholder: data.train.labels})
+                           feed_dict={input_placeholder: data.train.features, target_placeholder: data.train.labels})
 
     print("accuracy = %s " % accuracy)
 
     ln_prob_weights = log_prior_probability_of_weights(session.run(weights_squared), alpha, 0., 16. * num_weights)
 
     ln_prob_labels_given_weights = log_probability_of_targets_given_weights(
-        lambda x: session.run(output_layer, feed_dict={input_placeholder: x}), data.train.images, data.train.labels)
+        lambda x: session.run(output_layer, feed_dict={input_placeholder: x}), data.train.features, data.train.labels)
 
     # ln p(y) = sum(log(p(y_i))
     prob_of_labels = len(data.train.labels) * log(0.1)

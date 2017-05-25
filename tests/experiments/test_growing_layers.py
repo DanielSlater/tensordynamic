@@ -24,14 +24,18 @@ HIDDEN_NOES = 100
 MAX_EPOCHS = 1000
 
 
-def train_until_no_improvement_for_epochs(data_set, net, max_epochs_without_improvement):
+def train_until_no_improvement_for_epochs(train_data_set, net, max_epochs_without_improvement, validation_data_set=None):
     trainer = CategoricalTrainer(net, 0.1)
     best_error = sys.float_info.max
     epochs_since_best_error = 0
 
     for x in range(MAX_EPOCHS):
-        error = trainer.train_one_epoch(data_set, 100)
+        error = trainer.train_one_epoch(train_data_set, 100)
         print("iteration {0} error {1}".format(x, error))
+
+        if validation_data_set is not None:
+            error = trainer.ac
+
         trainer.learn_rate *= 0.995
 
         if error < best_error:
@@ -64,7 +68,6 @@ class TestGrowingLayers(BaseTfTestCase):
                                           bactivate=False))
 
             new_best_score = train_until_no_improvement_for_epochs(data, candidate, 3)
-
             if new_best_score > best_score:
                 # failed to get improvement
                 print("failed to get improvement with layer {0}".format(hidden_layer_count))
