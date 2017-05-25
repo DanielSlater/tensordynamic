@@ -11,7 +11,7 @@ def noise_weight_extender(array, new_dimensions, mean=0.0, var=None):
         array (np.array): The array we want to resize
         new_dimensions ([int]): The size to extend the array to, must be larger than the current array
         mean (float):
-        var (float):
+        var (float): How much random noise to add when changing layer size
 
     Returns:
         np.array : Array will be of size new_dims

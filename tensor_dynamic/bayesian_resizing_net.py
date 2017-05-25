@@ -9,7 +9,7 @@ from tensor_dynamic.abstract_resizable_net import AbstractResizableNet
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.layers.output_layer import CategoricalOutputLayer
-from tensor_dynamic.utils import train_till_convergence, get_tf_optimizer_variables
+from tensor_dynamic.utils import train_till_convergence, get_tf_optimizer_variables, get_model_parameters
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +21,15 @@ class EDataType(Enum):
 
 
 class BasicResizableNetWrapper(AbstractResizableNet):
-    def __init__(self, initial_size, session, alpha=0.0001, beta=.9999, learning_rate=.1,
-                 model_selection_data_type=EDataType.TEST):
+    def __init__(self, initial_size, session, regularizer_coeff=0.0001, beta=.9999, learning_rate=.1,
+                 model_selection_data_type=EDataType.TRAIN):
         last_layer = InputLayer(initial_size[0])
 
         for hidden_nodes in initial_size[1:-1]:
             last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=tf.sigmoid)
 
         output = CategoricalOutputLayer(last_layer, initial_size[-1], session,
-                                        regularizer_weighting=alpha, target_weighting=beta)
+                                        regularizer_weighting=regularizer_coeff, target_weighting=beta)
 
         self._net = output
         self._learn_rate_placeholder = tf.placeholder("float", shape=[], name="learn_rate")
@@ -37,7 +37,7 @@ class BasicResizableNetWrapper(AbstractResizableNet):
         self._learning_rate = learning_rate
         self.optimizer_dict = {}
         self._current_optimizer = None
-        # self._train_op = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder).minimize(self._net.loss)
+        self.model_selection_data_type = model_selection_data_type
 
     def get_dimensions(self):
         return [layer.output_nodes for layer in self._net.all_layers]
@@ -51,21 +51,11 @@ class BasicResizableNetWrapper(AbstractResizableNet):
     def resize_layer(self, layer_index, new_size, data_set):
         if new_size <= 0:
             raise ValueError("new_size must all be greater than 0 was %s" % (new_size,))
+        assert type(new_size) == int
         # TODO improve
         list(self._net.all_layers)[layer_index].resize(new_output_nodes=new_size)
 
     def train_till_convergence(self, data_set):
-        # optimizer_key = tuple(self.get_dimensions())
-        # if optimizer_key not in self.optimizer_dict:
-        #     optimizer = tf.train.RMSPropOptimizer(0.001, name="prop_for_%s" % (self.get_dimensions()[1],))
-        #     train_op = optimizer.minimize(self._net.loss)
-        #     self._net.session.run(tf.initialize_variables(list(get_tf_rmsprop_optimizer_variables(optimizer))))
-        #     self.optimizer_dict[optimizer_key] = train_op
-        #     self._current_optimizer = optimizer
-        #     print(optimizer._name)
-        #
-        # train_op = self.optimizer_dict[optimizer_key]
-
         optimizer = tf.train.RMSPropOptimizer(0.001, name="prop_for_%s" % (self.get_dimensions()[1],))
         train_op = optimizer.minimize(self._net.loss)
 
@@ -75,11 +65,10 @@ class BasicResizableNetWrapper(AbstractResizableNet):
         iterations = [0]
 
         def train():
-            iterations[0] += 1  # ehhhh
+            iterations[0] += 1
             error = 0.
-            current_epoch = data_set.train.epochs_completed
-            while data_set.train.epochs_completed == current_epoch:
-                images, labels = data_set.train.next_batch(100)
+
+            for images, labels in data_set.train.one_iteration_in_batches(100):
                 _, batch_error = self._net.session.run([train_op, self._net.loss],
                                                        feed_dict={self._net.input_placeholder: images,
                                                                   self._net.target_placeholder: labels,
@@ -88,9 +77,23 @@ class BasicResizableNetWrapper(AbstractResizableNet):
                 error += batch_error
 
             self._learning_rate *= .99
+
+            if self.model_selection_data_type == EDataType.VALIDATION:
+                error, acc = self._net.session.run([self._net.loss, self._net._accuracy],
+                                              feed_dict={
+                                                  self._net.input_placeholder: data_set.validation.features,
+                                                  self._net.target_placeholder: data_set.validation.labels})
+                print(error, acc)
+            elif self.model_selection_data_type == EDataType.TEST:
+                error, acc = self._net.session.run([self._net.loss, self._net._accuracy],
+                                              feed_dict={
+                                                  self._net.input_placeholder: data_set.test.features,
+                                                  self._net.target_placeholder: data_set.test.labels})
+                print(error, acc)
+
             return error
 
-        error = train_till_convergence(train, log=False, continue_epochs=6)
+        error = train_till_convergence(train, log=False, continue_epochs=2)
 
         logger.info("iterations = %s error = %s", iterations[0], error)
 
@@ -106,11 +109,10 @@ class BayesianResizingNet(object):
     SHRINK_MULTIPLYER = 1. / GROWTH_MULTIPLYER
     MINIMUM_GROW_AMOUNT = 3
 
-    def __init__(self, resizable_net, model_selection_data_type=EDataType.TRAIN):
+    def __init__(self, resizable_net):
         if not isinstance(resizable_net, AbstractResizableNet):
             raise TypeError("resizable_net must implement AbstractResizableNet")
         self._resizable_net = resizable_net
-        self.model_selection_data_type = model_selection_data_type
 
     def run(self, data_set):
         # DataSet must be multimodel for now
@@ -209,39 +211,23 @@ class BayesianResizingNet(object):
         return result
 
     def model_weight_score(self, data_set):
-        if self.model_selection_data_type == EDataType.TRAIN:
+        if self._resizable_net.model_selection_data_type == EDataType.TRAIN:
             evaluation_features = data_set.train.features
             evaluation_labels = data_set.train.labels
-        elif self.model_selection_data_type == EDataType.TEST:
+        elif self._resizable_net.model_selection_data_type == EDataType.TEST:
             evaluation_features = data_set.test.features
             evaluation_labels = data_set.test.labels
-        elif self.model_selection_data_type == EDataType.VALIDATION:
+        elif self._resizable_net.model_selection_data_type == EDataType.VALIDATION:
             evaluation_features = data_set.validation.features
             evaluation_labels = data_set.validation.labels
         else:
-            raise Exception("unknown model_selection_data_type %s", self.model_selection)
+            raise Exception("unknown model_selection_data_type %s", self._resizable_net.model_selection_data_type)
 
         log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: self._resizable_net.predict(x),
                                                                             evaluation_features,
                                                                             evaluation_labels)
-        model_parameters = BayesianResizingNet.get_model_parameters(self._resizable_net.get_dimensions())
+        model_parameters = get_model_parameters(self._resizable_net.get_dimensions())
         return bayesian_model_selection(log_liklihood, model_parameters, len(data_set.train.features))
-
-    @staticmethod
-    def get_model_parameters(dimensions):
-        # returns the number of parameters
-        parameters = 0
-        for i in xrange(len(dimensions) - 1):
-            in_dim = dimensions[i]
-            out_dim = dimensions[i + 1]
-
-            # weights
-            parameters += in_dim * out_dim
-
-            # biases
-            parameters += out_dim
-
-        return parameters
 
 
 def log_probability_of_targets_given_weights_multimodal(network_prediction_function, inputs, targets):
@@ -254,9 +240,9 @@ def log_probability_of_targets_given_weights_multimodal(network_prediction_funct
     return result
 
 
-def bayesian_information_criterion(log_liklihood, number_of_parameters, number_of_data_points):
+def bayesian_model_selection(log_liklihood, number_of_parameters, number_of_data_points):
     logger.info("log_liklihood %s number_of_parameters %s", log_liklihood, number_of_parameters)
-    return log_liklihood-log(number_of_parameters)
+    return log_liklihood - log(number_of_parameters)
 
 
 if __name__ == '__main__':

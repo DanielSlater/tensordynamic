@@ -9,6 +9,14 @@ import tensorflow as tf
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
+def get_mnist_data(limit_size=None):
+    import tensor_dynamic.data.mnist_data as mnist
+    import tensor_dynamic.data.data_set as ds
+    import os
+    return mnist.read_data_sets(os.path.dirname(ds.__file__) + BaseTfTestCase.MNIST_DATA_DIR, one_hot=True,
+                                limit_train_size=limit_size)
+
+
 class BaseTfTestCase(TestCase):
     MNIST_DATA = None
     MNIST_INPUT_NODES = 784
@@ -27,12 +35,7 @@ class BaseTfTestCase(TestCase):
     @property
     def mnist_data(self):
         if self.MNIST_DATA is None:
-            import tensor_dynamic.data.mnist_data as mnist
-            import tensor_dynamic.data.data_set as ds
-            import os
-
-            self.MNIST_DATA = mnist.read_data_sets(os.path.dirname(ds.__file__) + self.MNIST_DATA_DIR, one_hot=True,
-                                                   limit_train_size=self.MNIST_LIMIT_TEST_DATA_SIZE)
+            self.MNIST_DATA = get_mnist_data(limit_size=self.MNIST_LIMIT_TEST_DATA_SIZE)
         return self.MNIST_DATA
 
     def data_sum_of_gaussians(self, num_guassians, data_width, data_count):

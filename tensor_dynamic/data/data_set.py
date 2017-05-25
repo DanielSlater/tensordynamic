@@ -61,7 +61,7 @@ class DataSet(object):
         start = self._index_in_epoch
         self._index_in_epoch += batch_size
         if self._index_in_epoch > self._num_examples:
-            end = self._num_examples-1
+            end = -0
 
             # Finished epoch
             self._epochs_completed += 1
@@ -69,11 +69,16 @@ class DataSet(object):
         else:
             end = self._index_in_epoch
 
+            # we will overrun next run
+            if start + batch_size == self._num_examples:
+                self._epochs_completed += 1
+                self._index_in_epoch = 0
+
         return self._features[start:end], self._labels[start:end]
 
     def one_iteration_in_batches(self, batch_size):
         self._index_in_epoch = 0
-        starting_epoch = 0
+        starting_epoch = self._epochs_completed
 
         while starting_epoch == self._epochs_completed:
             yield self.next_batch(batch_size)
