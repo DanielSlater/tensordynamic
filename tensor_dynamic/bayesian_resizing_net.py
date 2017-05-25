@@ -37,7 +37,6 @@ class BasicResizableNetWrapper(AbstractResizableNet):
         self._learning_rate = learning_rate
         self.optimizer_dict = {}
         self._current_optimizer = None
-        self.model_selection_data_type = model_selection_data_type
         # self._train_op = tf.train.GradientDescentOptimizer(self._learn_rate_placeholder).minimize(self._net.loss)
 
     def get_dimensions(self):
@@ -107,10 +106,11 @@ class BayesianResizingNet(object):
     SHRINK_MULTIPLYER = 1. / GROWTH_MULTIPLYER
     MINIMUM_GROW_AMOUNT = 3
 
-    def __init__(self, resizable_net):
+    def __init__(self, resizable_net, model_selection_data_type=EDataType.TRAIN):
         if not isinstance(resizable_net, AbstractResizableNet):
             raise TypeError("resizable_net must implement AbstractResizableNet")
         self._resizable_net = resizable_net
+        self.model_selection_data_type = model_selection_data_type
 
     def run(self, data_set):
         # DataSet must be multimodel for now
@@ -209,13 +209,13 @@ class BayesianResizingNet(object):
         return result
 
     def model_weight_score(self, data_set):
-        if self.model_selection == EDataType.TRAIN:
+        if self.model_selection_data_type == EDataType.TRAIN:
             evaluation_features = data_set.train.features
             evaluation_labels = data_set.train.labels
-        elif self.model_selection == EDataType.TEST:
+        elif self.model_selection_data_type == EDataType.TEST:
             evaluation_features = data_set.test.features
             evaluation_labels = data_set.test.labels
-        elif self.model_selection == EDataType.VALIDATION:
+        elif self.model_selection_data_type == EDataType.VALIDATION:
             evaluation_features = data_set.validation.features
             evaluation_labels = data_set.validation.labels
         else:

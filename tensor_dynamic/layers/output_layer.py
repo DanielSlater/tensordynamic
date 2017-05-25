@@ -105,7 +105,7 @@ class CategoricalOutputLayer(OutputLayer):
     @lazyprop
     def target_loss(self):
         return tf.reduce_sum(
-            tf.nn.softmax_cross_entropy_with_logits(self.activation_train, self._target_placeholder),
+            tf.nn.softmax_cross_entropy_with_logits(logits=self.activation_train, labels=self._target_placeholder),
         )
 
     @lazyprop
