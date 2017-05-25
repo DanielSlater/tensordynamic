@@ -235,7 +235,7 @@ def log_probability_of_targets_given_weights_multimodal(network_prediction_funct
 
 def bayesian_information_criterion(log_liklihood, number_of_parameters, number_of_data_points):
     logger.info("log_liklihood %s number_of_parameters %s", log_liklihood, number_of_parameters)
-    return 2*log_liklihood-log(number_of_parameters)#log(number_of_data_points)#*number_of_parameters
+    return log_liklihood-log(number_of_parameters)#log(number_of_data_points)#*number_of_parameters
 
 
 if __name__ == '__main__':
