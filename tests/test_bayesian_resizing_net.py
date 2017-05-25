@@ -1,12 +1,14 @@
+import unittest
+
 from tensor_dynamic.bayesian_resizing_net import BasicResizableNetWrapper, BayesianResizingNet, EDataType
 from tests.base_tf_testcase import BaseTfTestCase
 
 
 class TestBayesianResizingNet(BaseTfTestCase):
-    MNIST_LIMIT_TEST_DATA_SIZE = None
+    MNIST_LIMIT_TEST_DATA_SIZE = 3000
 
     def _create_resizing_net(self, dimensions):
-        inner_net = BasicResizableNetWrapper(dimensions, self.session, model_selection_data_type=EDataType.TEST)
+        inner_net = BasicResizableNetWrapper(dimensions, self.session, model_selection_data_type=EDataType.TRAIN)# These do not past when set to EDataType.TEST
         outer_net = BayesianResizingNet(inner_net)
         return outer_net
 

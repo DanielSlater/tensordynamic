@@ -7,3 +7,9 @@ Net2Net and Net2DeeperNet
 IRBM?
 OptimalBrainDamage
 LimitNeurons with gradiant descent like that paper...
+
+More importantly
+Set default weight extension to be net 2 wider net (don't use noise weight extender)
+Test adding depth
+Support convolutions
+Test ImageNet

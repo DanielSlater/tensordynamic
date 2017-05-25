@@ -309,7 +309,9 @@ class BaseLayer(object):
             return True
         return False
 
-    def resize(self, new_output_nodes=None, output_nodes_to_prune=None, input_nodes_to_prune=None,
+    def resize(self, new_output_nodes=None,
+               output_nodes_to_prune=None,
+               input_nodes_to_prune=None,
                split_output_nodes=None,
                split_input_nodes=None,
                split_nodes_noise_std=.1):
@@ -358,32 +360,26 @@ class BaseLayer(object):
                 if isinstance(bound_variable.variable, tf.Variable):
                     old_values = self._session.run(bound_variable.variable)
                     if output_nodes_to_prune or split_output_nodes:
-                        try:
-                            output_bound_axis = bound_variable.dimensions.index(self.OUTPUT_BOUND_VALUE)
-                            if output_nodes_to_prune:
-                                old_values = np.delete(old_values, output_nodes_to_prune, output_bound_axis)
-                            else:  # split
-                                old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
-                                                          noise_std=split_nodes_noise_std)
-                        except ValueError, e:
-                            pass
+                        output_bound_axis = bound_variable.dimensions.index(self.OUTPUT_BOUND_VALUE)
+                        if output_nodes_to_prune:
+                            old_values = np.delete(old_values, output_nodes_to_prune, output_bound_axis)
+                        else:  # split
+                            old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
+                                                      noise_std=split_nodes_noise_std)
                     if input_nodes_to_prune or split_input_nodes:
-                        try:
-                            input_bound_axis = bound_variable.dimensions.index(self.INPUT_BOUND_VALUE)
-                            if input_nodes_to_prune:
-                                old_values = np.delete(old_values, input_nodes_to_prune, input_bound_axis)
-                            else:  # split
-                                old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
-                                                          noise_std=split_nodes_noise_std)
-                        except ValueError, e:
-                            pass
+                        input_bound_axis = bound_variable.dimensions.index(self.INPUT_BOUND_VALUE)
+                        if input_nodes_to_prune:
+                            old_values = np.delete(old_values, input_nodes_to_prune, input_bound_axis)
+                        else:  # split
+                            old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
+                                                      noise_std=split_nodes_noise_std)
 
                     new_values = self._weight_extender_func(old_values, int_dims)
 
                     tf_resize(self._session, bound_variable.variable, int_dims,
                               new_values)
                 else:
-                    # this is a tensor so no need to provide values
+                    # this is a tensor, not a variable so has no weights
                     tf_resize(self._session, bound_variable.variable, int_dims)
 
         if output_nodes_changed:
@@ -395,7 +391,7 @@ class BaseLayer(object):
             tf_resize(self._session, self.bactivation_predict, (None, self._input_nodes))
 
         if self._next_layer and self._next_layer.resize_needed():
-            self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_input_nodes)
+            self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes)
 
     def _bound_dimensions_to_ints(self, bound_dims):
         int_dims = ()
@@ -446,6 +442,13 @@ class BaseLayer(object):
         return any(x for x in bound_dimensions if x == self.OUTPUT_BOUND_VALUE)
 
     def detach_output(self):
+        """Detaches the connect between this layer and the next layer
+
+        Returns:
+            BaseLayer : The next layer, now detached from this layer
+        """
+        if self._next_layer is None:
+            raise ValueError("Cannot detach_output if there is no next layer")
         next_layer = self._next_layer
 
         next_layer._input_layer = None
@@ -457,6 +460,12 @@ class BaseLayer(object):
         return next_layer
 
     def add_intermediate_layer(self, layer_creation_func):
+        """Adds a layer to the network between this layer
+
+        Args:
+            layer_creation_func (BaseLayer->None): Method that creates the intermediate layer, takes this layer as a
+                parameter
+        """
         old_next_layer = self.detach_output()
         new_next_layer = layer_creation_func(self)
 

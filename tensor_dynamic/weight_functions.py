@@ -29,6 +29,7 @@ def noise_weight_extender(array, new_dimensions, mean=0.0, var=None):
             new_values = np.resize(new_values, new_dimensions)
     else:
         if new_dimensions[0] > array.shape[0]:
+            # TODO: split the largest nodes
             new_values = np.append(new_values,
                                    np.random.normal(scale=var or (1.0 / math.sqrt(float(new_dimensions[0]))),
                                                     loc=mean,
@@ -41,9 +42,10 @@ def noise_weight_extender(array, new_dimensions, mean=0.0, var=None):
             # TODO: smarter downsizing
             new_values = np.resize(new_values, new_dimensions)
         if new_dimensions[1] > array.shape[1]:
+            # TODO: split the largest nodes
             new_values = np.append(new_values,
                                    np.random.normal(
-                                       scale=var or (1.0 / math.sqrt(float(new_dimensions[1])) / 100.),
+                                       scale=var or (1.0 / math.sqrt(float(new_dimensions[1]))),
                                        loc=mean,
                                        size=(new_values.shape[0], new_dimensions[1] - new_values.shape[1]))
                                    .astype(array.dtype),
