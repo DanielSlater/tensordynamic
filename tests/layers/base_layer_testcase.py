@@ -15,14 +15,14 @@ class BaseLayerWrapper(object):
         pass
 
     class BaseLayerTestCase(BaseTfTestCase):
-        INPUT_NODES = 10
-        OUTPUT_NODES = 6
+        INPUT_NODES = (10,)
+        OUTPUT_NODES = (6, )
 
         def setUp(self):
             super(BaseLayerWrapper.BaseLayerTestCase, self).setUp()
-            self._input_placeholder = tf.placeholder("float", shape=(None, self.INPUT_NODES))
+            self._input_placeholder = tf.placeholder("float", shape=(None,) + self.INPUT_NODES)
             self._input_layer = InputLayer(self._input_placeholder)
-            self._target_placeholder = tf.placeholder("float", shape=(None, self.OUTPUT_NODES))
+            self._target_placeholder = tf.placeholder("float", shape=(None,) + self.OUTPUT_NODES)
 
         def _create_layer_for_test(self):
             raise NotImplementedError('Override in sub class to return a new instance of the layer to be tested')
@@ -30,7 +30,7 @@ class BaseLayerWrapper(object):
         def test_clone(self):
             layer = self._create_layer_for_test()
             clone = layer.clone()
-            input_noise = np.random.normal(size=[1, layer.input_nodes])
+            input_noise = np.random.normal(size=[1, layer.input_nodes[0]])
             layer_activation = self.session.run(layer.activation_predict,
                                                 feed_dict={layer.input_placeholder: input_noise})
             clone_activation = self.session.run(clone.activation_predict,

@@ -42,13 +42,13 @@ class Layer(BaseLayer):
 
         self._bias = self._create_variable("bias",
                                            (BaseLayer.OUTPUT_BOUND_VALUE,),
-                                           bias if bias is not None else tf.zeros((self._output_nodes,)))
+                                           bias if bias is not None else tf.zeros(self._output_nodes))
 
         if self.bactivate:
             self._back_bias = self._create_variable("back_bias",
                                                     (BaseLayer.INPUT_BOUND_VALUE,),
                                                     back_bias if back_bias is not None else tf.zeros(
-                                                        (self._input_nodes,)))
+                                                        self._input_nodes))
         else:
             self._back_bias = None
 

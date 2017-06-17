@@ -24,6 +24,15 @@ class TestWeightFunctions(TestCase):
                                                                        [4, 5, 6],
                                                                        [1, 2, 3]]))
 
+    def test_array_split_extention_axis_3(self):
+        a = np.array([[[1, 2], [3, 4]],
+                      [[5, 6], [7, 8]]])
+
+        split_extended = array_extend(a, {2: [0]})
+
+        np.testing.assert_array_almost_equal(split_extended, np.array([[[1, 2, 1], [3, 4, 3]],
+                                                                       [[5, 6, 5], [7, 8, 7]]]))
+
     def test_array_split_extention_vector(self):
         a = np.array([1, 2, 3])
 

@@ -27,7 +27,7 @@ class BaseLayer(object):
 
         Args:
             input_layer (tensor_dynamic.base_layer.BaseLayer): This layer will work on the activation of the input_layer
-            output_nodes (int): Number of output nodes for this layer
+            output_nodes (int | tuple of ints): Number of output nodes for this layer, can be a tuple of multi dimensional output, e.g. convolutional network
             session (tensorflow.Session): The session within which all these variables should be created
             weight_extender_func (func): Method that extends the size of matrix or vectors
             name (str): Used for identifying the layer and when initializing tensorflow variables
@@ -36,10 +36,13 @@ class BaseLayer(object):
         if not isinstance(input_layer, BaseLayer):
             raise TypeError("input_layer must be of type %s" % BaseLayer)
 
+        assert isinstance(output_nodes, (int, tuple))
+        assert isinstance(input_layer, BaseLayer)
+
         self._session = session or input_layer.session
         self._name = name
         self._input_layer = input_layer
-        self._output_nodes = output_nodes
+        self._output_nodes = (output_nodes,) if type(output_nodes) == int else output_nodes
         self._input_nodes = self._input_layer._output_nodes
         self._next_layer = None
         self._weight_extender_func = weight_extender_func
@@ -119,7 +122,7 @@ class BaseLayer(object):
         """The number of output nodes
 
         Returns:
-            int
+            tuple of ints
         """
         return self._output_nodes
 
@@ -128,7 +131,7 @@ class BaseLayer(object):
         """The number of input nodes to this layer
 
         Returns:
-            int
+            tuple of ints
         """
         return self._input_nodes
 
@@ -318,7 +321,7 @@ class BaseLayer(object):
         """Resize this layer by changing the number of output nodes. Will also resize any downstream layers
 
         Args:
-            new_output_nodes (int): If passed we change the number of output nodes of this layer to be new_output_nodes
+            new_output_nodes (int | tuple of ints): If passed we change the number of output nodes of this layer to be new_output_nodes
             output_nodes_to_prune ([int]): list of indexes of the output nodes we want pruned e.g. [1, 3] would remove
                 the 1st and 3rd output node from this layer
             input_nodes_to_prune ([int]): list of indexes of the input nodes we want pruned e.g. [1, 3] would remove the
@@ -327,18 +330,20 @@ class BaseLayer(object):
             split_input_nodes: ([int]): list of indexes of nodes that where split in the previous layer.
             split_nodes_noise_std (float): standard deviation of noise to add when splitting a node
         """
-        if new_output_nodes is not None and new_output_nodes <= 0:
-            raise ValueError("new_output_nodes must all be greater than 0 was %s" % (new_output_nodes,))
+        if isinstance(new_output_nodes, int):
+            new_output_nodes = (new_output_nodes,)
+        elif new_output_nodes is not None and not isinstance(new_output_nodes, tuple):
+            raise ValueError("new_output_nodes must be tuple of int %s" % (new_output_nodes,))
 
         if output_nodes_to_prune:
             if split_output_nodes:
                 raise NotImplementedError("At the moment must either split or prune")
-            if not (new_output_nodes is None or new_output_nodes != self._output_nodes - len(output_nodes_to_prune)):
+            if not (new_output_nodes is None or new_output_nodes != self._output_nodes - len(output_nodes_to_prune)): # TODO, needs some work
                 raise Exception("Different number of output nodes set from that left after pruning")
             else:
                 new_output_nodes = self._output_nodes - len(output_nodes_to_prune)
         elif split_output_nodes:
-            if not (new_output_nodes is None or new_output_nodes != self._output_nodes + len(split_output_nodes)):
+            if not (new_output_nodes is None or new_output_nodes != self._output_nodes + len(split_output_nodes)): # TODO, needs some work
                 raise Exception("Different number of output nodes set from that left after splitting")
             else:
                 new_output_nodes = self._output_nodes + len(split_output_nodes)
@@ -383,12 +388,12 @@ class BaseLayer(object):
                     tf_resize(self._session, bound_variable.variable, int_dims)
 
         if output_nodes_changed:
-            tf_resize(self._session, self.activation_train, (None, self._output_nodes))
-            tf_resize(self._session, self.activation_predict, (None, self._output_nodes))
+            tf_resize(self._session, self.activation_train, (None,) + self._output_nodes)
+            tf_resize(self._session, self.activation_predict, (None,) + self._output_nodes)
 
         if input_nodes_changed and self.bactivate:
-            tf_resize(self._session, self.bactivation_train, (None, self._input_nodes))
-            tf_resize(self._session, self.bactivation_predict, (None, self._input_nodes))
+            tf_resize(self._session, self.bactivation_train, (None,) + self._input_nodes)
+            tf_resize(self._session, self.bactivation_predict, (None,) + self._input_nodes)
 
         if self._next_layer and self._next_layer.resize_needed():
             self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes)
@@ -402,9 +407,11 @@ class BaseLayer(object):
                 else:
                     int_dims += (x,)
             elif x == self.OUTPUT_BOUND_VALUE:
-                int_dims += (self._output_nodes,)
+                assert len(self._output_nodes) == 1, "only single dimensions are supported"
+                int_dims += self._output_nodes
             elif x == self.INPUT_BOUND_VALUE:
-                int_dims += (self._input_nodes,)
+                assert len(self._input_nodes) == 1, "only single dimensions are supported"
+                int_dims += self._input_nodes
             else:
                 raise Exception("bound dimension must be either int or 'input' or 'output' found %s" % (x,))
         return int_dims

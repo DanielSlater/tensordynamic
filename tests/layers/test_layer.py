@@ -60,7 +60,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
         print layer._bias.get_shape()
 
         self.assertEqual(layer.activation_predict.get_shape().as_list(), [None, output_nodes + 1])
-        self.assertEquals(layer.output_nodes, output_nodes + 1)
+        self.assertEquals(layer.output_nodes, (output_nodes + 1,))
 
     def test_get_layers_list(self):
         input_p = tf.placeholder("float", (None, 10))

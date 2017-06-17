@@ -1,4 +1,6 @@
 import logging
+
+import itertools
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework.tensor_shape import TensorShape
@@ -11,18 +13,38 @@ def xavier_init(fan_in, fan_out, constant=1.0):
     https://stackoverflow.com/questions/33640581/how-to-do-xavier-initialization-on-tensorflow
 
     Args:
-        fan_in (int): Number of input connections to this matrix
-        fan_out (int): Number of output connections from this matrix
+        fan_in (int | tuple of ints): Number of input connections to this matrix
+        fan_out (int | tuple of ints): Number of output connections from this matrix
         constant (float32): Scales the output
 
     Returns:
         tensorflow.Tensor: A tensor of the specified shape filled with random uniform values.
     """
+    if isinstance(fan_in, tuple):
+        fan_in = get_product_of_iterable(fan_in)
+    if isinstance(fan_out, tuple):
+        fan_out = get_product_of_iterable(fan_out)
+
     low = -constant * np.sqrt(6.0 / (fan_in + fan_out))
     high = constant * np.sqrt(6.0 / (fan_in + fan_out))
     return tf.random_uniform((fan_in, fan_out),
                              minval=low, maxval=high,
                              dtype="float")
+
+
+def get_product_of_iterable(fan_in):
+    """Product of the items in the input e.g. [1,2,3] => 6
+
+    Args:
+        fan_in (iterable of ints):
+
+    Returns:
+        int
+    """
+    product = 1
+    for x in fan_in:
+        product *= x
+    return product
 
 
 def tf_resize(session, tensor, new_dims=None, new_values=None):
