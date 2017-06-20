@@ -74,3 +74,21 @@ class TestTensorflowFeatures(BaseTfTestCase):
         result3 = self.session.run(output)
         print(result3)
         assert result3.shape == (1, 5, 5, 32)
+
+    # COULD NOT FIND A WAY TO MAKE WORK...
+    # def test_resize_reshape_func(self):
+    #     input_var = tf.Variable(np.random.normal(0., 1., (1, 2, 2, 3)).astype(np.float32))
+    #     reshaper = tf.reshape(input_var, (-1, 2*2*3))
+    #
+    #     self.session.run(tf.initialize_variables([input_var]))
+    #
+    #     result1 = self.session.run(reshaper)
+    #
+    #     tf_resize(self.session, input_var, new_dims=(1, 2, 2, 4))
+    #     tf_resize(self.session, reshaper, new_dims=(1, 2*2*4))
+    #
+    #     result2 = self.session.run(reshaper)
+    #
+    #
+    #     print(result1)
+    #     print(result2)
