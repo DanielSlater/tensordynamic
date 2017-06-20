@@ -62,7 +62,7 @@ class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):
         RESIZE_NODES = 3
         layer.resize(RESIZE_NODES)
 
-        self.assertEqual(batchLayer.output_nodes, RESIZE_NODES)
+        self.assertEqual(batchLayer.output_nodes, (RESIZE_NODES, ))
 
         self.session.run(batchLayer.activation_predict, feed_dict={batchLayer.input_placeholder: [np.ones(2)]})
 

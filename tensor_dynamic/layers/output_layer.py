@@ -83,24 +83,8 @@ class CategoricalOutputLayer(OutputLayer):
         self._target_weighting = target_weighting
         self._regularizer_weighting = regularizer_weighting
 
-    def _layer_activation(self, input_activation):
-        return tf.matmul(input_activation, self._weights) + self._bias
-
-    @lazyprop
-    def _linear_activation_predict(self):
-        return self._layer_activation(self.input_layer.activation_predict)
-
-    @lazyprop
-    def _linear_activation_train(self):
-        return self._layer_activation(self.input_layer.activation_train)
-
-    @lazyprop
-    def activation_predict(self):
-        return tf.nn.softmax(self._linear_activation_predict)
-
-    @lazyprop
-    def activation_train(self):
-        return tf.nn.softmax(self._linear_activation_train)
+    def _layer_activation(self, input_activation, is_train):
+        return tf.nn.softmax(tf.matmul(input_activation, self._weights) + self._bias)
 
     @lazyprop
     def target_loss(self):
@@ -125,7 +109,7 @@ class CategoricalOutputLayer(OutputLayer):
 
     @lazyprop
     def _accuracy(self):
-        return tf.reduce_mean(tf.cast(tf.nn.in_top_k(self._linear_activation_predict, tf.argmax(self.target_placeholder, 1), 1),
+        return tf.reduce_mean(tf.cast(tf.nn.in_top_k(self.activation_predict, tf.argmax(self.target_placeholder, 1), 1),
                        tf.float32))
 
     def accuracy(self, data, targets):

@@ -14,7 +14,10 @@ class BaseLayer(object):
 
     OUTPUT_BOUND_VALUE = 'output'
     INPUT_BOUND_VALUE = 'input'
-    _BoundVariable = namedtuple('BoundVariable', ['name', 'dimensions', 'variable', 'is_kwarg'])
+    INPUT_DIM_3_BOUND_VALUE = 'input_3'
+    OUTPUT_DIM_3_BOUND_VALUE = 'output_3'
+
+    _BoundVariable = namedtuple('_BoundVariable', ['name', 'dimensions', 'variable', 'is_kwarg'])
 
     def __init__(self,
                  input_layer,
@@ -66,8 +69,7 @@ class BaseLayer(object):
         name = str(self.layer_number) + "_" + self._name
         return tf.name_scope(name)
 
-    @property
-    @abstractmethod
+    @lazyprop
     def activation_train(self):
         """The activation used for training this layer, this will often be the same as prediction except with dropout or
         random noise applied.
@@ -75,13 +77,25 @@ class BaseLayer(object):
         Returns:
             tensorflow.Tensor
         """
-        raise NotImplementedError()
+        return self._layer_activation(self.input_layer.activation_train, True)
 
-    @property
-    @abstractmethod
+    @lazyprop
     def activation_predict(self):
         """The activation used for predictions from this layer, this will often be the same as training except without
         dropout or random noise applied.
+
+        Returns:
+            tensorflow.Tensor
+        """
+        return self._layer_activation(self.input_layer.activation_predict, False)
+
+    @abstractmethod
+    def _layer_activation(self, input_tensor, is_train):
+        """The activation for this layer
+
+        Args:
+            input_tensor (tensorflow.Tensor):
+            is_train (bool): If true this is activation for training, if false for prediction
 
         Returns:
             tensorflow.Tensor
@@ -144,12 +158,37 @@ class BaseLayer(object):
         """
         return self._session
 
-    @property
-    def bactivation_predict(self):
-        raise NotImplementedError()
-
-    @property
+    @lazyprop
     def bactivation_train(self):
+        """The activation used for training this layer, this will often be the same as prediction except with dropout or
+        random noise applied.
+
+        Returns:
+            tensorflow.Tensor
+        """
+        return self._layer_bactivation(self.activation_train, True)
+
+    @lazyprop
+    def bactivation_predict(self):
+        """The activation used for predictions from this layer, this will often be the same as training except without
+        dropout or random noise applied.
+
+        Returns:
+            tensorflow.Tensor
+        """
+        return self._layer_bactivation(self.activation_predict, False)
+
+    # @abstractmethod
+    def _layer_bactivation(self, input_tensor, is_train):
+        """The bactivation for this layer
+
+        Args:
+            input_tensor (tensorflow.Tensor):
+            is_train (bool): If true this is activation for training, if false for prediction
+
+        Returns:
+            tensorflow.Tensor
+        """
         raise NotImplementedError()
 
     @property
@@ -338,12 +377,14 @@ class BaseLayer(object):
         if output_nodes_to_prune:
             if split_output_nodes:
                 raise NotImplementedError("At the moment must either split or prune")
-            if not (new_output_nodes is None or new_output_nodes != self._output_nodes - len(output_nodes_to_prune)): # TODO, needs some work
+            if not (new_output_nodes is None or new_output_nodes != self._output_nodes - len(
+                    output_nodes_to_prune)):  # TODO, needs some work
                 raise Exception("Different number of output nodes set from that left after pruning")
             else:
                 new_output_nodes = self._output_nodes - len(output_nodes_to_prune)
         elif split_output_nodes:
-            if not (new_output_nodes is None or new_output_nodes != self._output_nodes + len(split_output_nodes)): # TODO, needs some work
+            if not (new_output_nodes is None or new_output_nodes != self._output_nodes + len(
+                    split_output_nodes)):  # TODO, needs some work
                 raise Exception("Different number of output nodes set from that left after splitting")
             else:
                 new_output_nodes = self._output_nodes + len(split_output_nodes)
@@ -407,11 +448,15 @@ class BaseLayer(object):
                 else:
                     int_dims += (x,)
             elif x == self.OUTPUT_BOUND_VALUE:
-                assert len(self._output_nodes) == 1, "only single dimensions are supported"
-                int_dims += self._output_nodes
+                int_dims += (self._output_nodes[0], )
             elif x == self.INPUT_BOUND_VALUE:
-                assert len(self._input_nodes) == 1, "only single dimensions are supported"
-                int_dims += self._input_nodes
+                int_dims += (self._input_nodes[0], )
+            elif x == self.INPUT_DIM_3_BOUND_VALUE:
+                assert len(self._input_nodes) == 3, "must have 3 input dimensions"
+                int_dims += (self._input_nodes[2], )
+            elif x == self.OUTPUT_DIM_3_BOUND_VALUE:
+                assert len(self._input_nodes) == 3, "must have 3 output dimensions"
+                int_dims += (self._output_nodes[2], )
             else:
                 raise Exception("bound dimension must be either int or 'input' or 'output' found %s" % (x,))
         return int_dims

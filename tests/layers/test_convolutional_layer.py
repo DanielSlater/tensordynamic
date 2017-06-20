@@ -3,7 +3,6 @@ import tensorflow as tf
 
 from tensor_dynamic.layers.convolutional_layer import ConvolutionalLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
@@ -33,7 +32,7 @@ class TestConvolutionalLayer(BaseLayerWrapper.BaseLayerTestCase):
         output_nodes = 2
         input_p = tf.placeholder("float", (None, 2))
         layer = ConvolutionalLayer(InputLayer(input_p), output_nodes, session=self.session,
-                      weights=np.array([[100.0]], dtype=np.float32))
+                                   weights=np.array([[100.0]], dtype=np.float32))
 
         result1 = self.session.run(layer.activation_predict, feed_dict={layer.input_placeholder: [[1., 1.]]})
 
@@ -46,33 +45,22 @@ class TestConvolutionalLayer(BaseLayerWrapper.BaseLayerTestCase):
         self.assertEquals(len(result2[0]), 3)
 
     def test_create_extra_weight_dimensions_fail_case(self):
-        output_nodes = 2
-        input_p = tf.placeholder("float", (None, 4))
-        layer = ConvolutionalLayer(InputLayer(input_p), output_nodes, session=self.session,
-                      weights=np.array([[10., 10.],
-                                        [10., 10.],
-                                        [10., 10.]], dtype=np.float32))
+        input_p = tf.placeholder("float", (None, 10, 10, 3))
+        layer = ConvolutionalLayer(InputLayer(input_p), (2, 2, 2), session=self.session,
+                                   weights=np.random.normal(size=(2, 2, 1)).astype(np.float32))
 
-        self.assertEqual(layer._weights.get_shape().as_list(), [4, 2])
+        self.assertEqual(layer._weights.get_shape().as_list(), [2, 2, 2])
 
     def test_resize(self):
-        output_nodes = 10
-        input_p = tf.placeholder("float", (None, 10))
-        layer = ConvolutionalLayer(InputLayer(input_p), output_nodes, session=self.session)
-        layer.resize(output_nodes + 1)
+        convolution_nodes = (4, 4, 8)
+        input_p = tf.placeholder("float", (None, 20, 20, 3))
+        layer = ConvolutionalLayer(InputLayer(input_p), convolution_nodes, session=self.session)
+        layer.resize((4, 4, 9))
 
         print layer._bias.get_shape()
 
-        self.assertEqual(layer.activation_predict.get_shape().as_list(), [None, output_nodes + 1])
-        self.assertEquals(layer.output_nodes, (output_nodes + 1,))
-
-    def test_get_layers_list(self):
-        input_p = tf.placeholder("float", (None, 10))
-        layer = ConvolutionalLayer(InputLayer(input_p), 1, session=self.session)
-        layer2 = ConvolutionalLayer(layer, 2, session=self.session)
-        layer3 = ConvolutionalLayer(layer2, 3, session=self.session)
-
-        self.assertEquals(layer.get_forward_layers(), [layer, layer2, layer3])
+        self.assertEqual(layer.activation_predict.get_shape().as_list(), [None, 20, 20, 9])
+        self.assertEquals(layer.output_nodes, (20, 20, 9))
 
     def test_get_output_layer_activation(self):
         input_p = tf.placeholder("float", (None, 10))
@@ -87,11 +75,11 @@ class TestConvolutionalLayer(BaseLayerWrapper.BaseLayerTestCase):
         noise_std = 1.
         input_p = tf.placeholder("float", (None, input_size))
         layer = ConvolutionalLayer(InputLayer(input_p), input_size,
-                      weights=np.diag(np.ones(input_size, dtype=np.float32)),
-                      bias=np.zeros(input_size, dtype=np.float32),
-                      session=self.session,
-                      non_liniarity=tf.identity,
-                      noise_std=noise_std)
+                                   weights=np.diag(np.ones(input_size, dtype=np.float32)),
+                                   bias=np.zeros(input_size, dtype=np.float32),
+                                   session=self.session,
+                                   non_liniarity=tf.identity,
+                                   noise_std=noise_std)
 
         result_noisy = self.session.run(layer.activation_train,
                                         feed_dict={

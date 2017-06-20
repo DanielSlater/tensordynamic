@@ -52,13 +52,6 @@ class Layer(BaseLayer):
         else:
             self._back_bias = None
 
-        if self._noise_std is not None:
-            self._activation_corrupted = self.input_layer.activation_train + tf.random_normal(
-                tf.shape(self.input_layer.activation_train),
-                stddev=self._noise_std)
-        else:
-            self._activation_corrupted = self.input_layer.activation_train
-
     @property
     def bactivate(self):
         return self._bactivate
@@ -80,39 +73,28 @@ class Layer(BaseLayer):
     def has_bactivation(self):
         return self.bactivate
 
-    def _layer_activation(self, input_activation):
+    @lazyprop
+    def activation_corrupted(self):
+        if self._noise_std is None:
+            raise Exception("No corrupted activation without noise std")
+        return self.input_layer.activation_train + tf.random_normal(
+            tf.shape(self.input_layer.activation_train),
+            stddev=self._noise_std)
+
+    def _layer_activation(self, input_activation, is_train):
+        if self._noise_std is not None and is_train:
+            input_activation = self.activation_corrupted
+
         return self._non_liniarity(tf.matmul(input_activation, self._weights) + self._bias)
 
-    @lazyprop
-    def activation_predict(self):
-        return self._layer_activation(self.input_layer.activation_predict)
-
-    @lazyprop
-    def activation_train(self):
-        return self._layer_activation(self._activation_corrupted)
-
-    def _layer_bactivation(self, activation):
+    def _layer_bactivation(self, activation, is_train):
         if self.bactivate:
             return self._non_liniarity(
                     tf.matmul(activation, tf.transpose(self._weights)) + self._back_bias)
 
-    @lazyprop
-    def bactivation_train(self):
-        return self._layer_bactivation(self.activation_train)
-
-    @lazyprop
-    def bactivation_predict(self):
-        return self._layer_bactivation(self.activation_predict)
-
     @property
     def non_liniarity(self):
         return self._non_liniarity
-
-    def get_forward_layers(self):
-        result = [self]
-        if self.next_layer is not None:
-            result.extend(self.next_layer.get_forward_layers())
-        return result
 
     def supervised_cost_train(self, targets):
         if not self.next_layer:

@@ -42,26 +42,18 @@ class BatchNormLayer(BaseLayer):
         self._beta = beta
         self._gamma = gamma
 
-        mean, var = tf.nn.moments(self._input_layer.activation_train, axes=[0])
-        self._register_variable("mean", (self.INPUT_BOUND_VALUE,), mean)
-        self._register_variable("var", (self.INPUT_BOUND_VALUE,), var)
+        self._mean, self._var = tf.nn.moments(self._input_layer.activation_train, axes=[0])
+        self._register_variable("mean", (self.INPUT_BOUND_VALUE,), self._mean)
+        self._register_variable("var", (self.INPUT_BOUND_VALUE,), self._var)
 
-        self._activation_train = self._batch_normalize(self.input_layer.activation_train, mean, var)
-        self._activation_predict = self._batch_normalize(self.input_layer.activation_predict, mean,
-                                                         var)
         #self._register_variable()
 
-    @property
-    def activation_predict(self):
-        return self._activation_predict
+    def _layer_activation(self, input_tensor, is_train):
+        return self._batch_normalize(input_tensor, self._mean, self._var)
 
     # @property
     # def assign_op(self):
     #     return self._assign_op
-
-    @property
-    def activation_train(self):
-        return self._activation_train
 
     def clone(self, session=None):
         return self.__class__(self.input_layer.clone(session or self._session),

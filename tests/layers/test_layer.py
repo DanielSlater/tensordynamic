@@ -62,14 +62,6 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
         self.assertEqual(layer.activation_predict.get_shape().as_list(), [None, output_nodes + 1])
         self.assertEquals(layer.output_nodes, (output_nodes + 1,))
 
-    def test_get_layers_list(self):
-        input_p = tf.placeholder("float", (None, 10))
-        layer = Layer(InputLayer(input_p), 1, session=self.session)
-        layer2 = Layer(layer, 2, session=self.session)
-        layer3 = Layer(layer2, 3, session=self.session)
-
-        self.assertEquals(layer.get_forward_layers(), [layer, layer2, layer3])
-
     def test_get_output_layer_activation(self):
         input_p = tf.placeholder("float", (None, 10))
         layer = Layer(InputLayer(input_p), 1, session=self.session)
@@ -95,8 +87,6 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         self.assertAlmostEqual(result_noisy.std(), noise_std, delta=noise_std / 5.,
                                msg="the result std should be the noise_std")
-
-        layer.predict = True
 
         result_clean = self.session.run(layer.activation_predict, feed_dict={
             input_p: np.ones(input_size, dtype=np.float32).reshape((1, input_size))})

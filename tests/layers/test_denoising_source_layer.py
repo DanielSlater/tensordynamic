@@ -5,8 +5,8 @@ from tensor_dynamic.layers.denoising_source_layer import DenoisingSourceLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
-
-class TestBackWeightCandidateLayer(BaseLayerWrapper.BaseLayerTestCase):
+# CURRENTLY BROKEN
+class TestDenoisingSourceLayer(BaseLayerWrapper.BaseLayerTestCase):
     def _create_layer_for_test(self):
         return DenoisingSourceLayer(self._input_layer, self.OUTPUT_NODES, session=self.session)
 
