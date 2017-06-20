@@ -488,10 +488,10 @@ class BaseLayer(object):
         self._bound_variables.append(self._BoundVariable(name, bound_dimensions, variable, is_constructor_variable))
 
     def _bound_dimensions_contains_input(self, bound_dimensions):
-        return any(x for x in bound_dimensions if x == self.INPUT_BOUND_VALUE)
+        return any(x for x in bound_dimensions if x == self.INPUT_BOUND_VALUE or x == self.INPUT_DIM_3_BOUND_VALUE)
 
     def _bound_dimensions_contains_output(self, bound_dimensions):
-        return any(x for x in bound_dimensions if x == self.OUTPUT_BOUND_VALUE)
+        return any(x for x in bound_dimensions if x == self.OUTPUT_BOUND_VALUE or x == self.OUTPUT_DIM_3_BOUND_VALUE)
 
     def detach_output(self):
         """Detaches the connect between this layer and the next layer

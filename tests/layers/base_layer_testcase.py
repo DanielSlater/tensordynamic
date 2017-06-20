@@ -31,11 +31,11 @@ class BaseLayerWrapper(object):
         def test_clone(self):
             layer = self._create_layer_for_test()
             clone = layer.clone()
-            input_noise = np.random.normal(size=[1, layer.input_nodes[0]])
+            input_values = np.random.normal(size=(1,) + layer.input_nodes)
             layer_activation = self.session.run(layer.activation_predict,
-                                                feed_dict={layer.input_placeholder: input_noise})
+                                                feed_dict={layer.input_placeholder: input_values})
             clone_activation = self.session.run(clone.activation_predict,
-                                                feed_dict={layer.input_placeholder: input_noise})
+                                                feed_dict={layer.input_placeholder: input_values})
 
             np.testing.assert_array_almost_equal(
                 layer_activation, clone_activation,
@@ -43,9 +43,9 @@ class BaseLayerWrapper(object):
 
             if layer.bactivate:
                 layer_bactivation = self.session.run(layer.bactivation_predict,
-                                                    feed_dict={layer.input_placeholder: input_noise})
+                                                    feed_dict={layer.input_placeholder: input_values})
                 clone_bactivation = self.session.run(clone.bactivation_predict,
-                                                    feed_dict={layer.input_placeholder: input_noise})
+                                                    feed_dict={layer.input_placeholder: input_values})
 
                 np.testing.assert_array_almost_equal(
                     layer_bactivation, clone_bactivation,

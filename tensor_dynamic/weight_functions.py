@@ -16,44 +16,32 @@ def noise_weight_extender(array, new_dimensions, mean=0.0, var=None):
     Returns:
         np.array : Array will be of size new_dims
     """
+    assert len(array.shape) == len(new_dimensions)
+
     if any(x <= 0 for x in new_dimensions):
         raise ValueError("new_dimensions must all be greater than 0 was %s" % (new_dimensions,))
     new_values = array
 
-    if len(new_dimensions) == 1:
-        if new_dimensions[0] > array.shape[-1]:
-            new_values = np.append(array, np.zeros([new_dimensions[0] - array.shape[-1]])) \
-                .astype(array.dtype)
-        elif new_dimensions[0] < array.shape[-1]:
-            # TODO: smarter downsizing
-            new_values = np.resize(new_values, new_dimensions)
-    else:
-        if new_dimensions[0] > array.shape[0]:
+    for index in range(len(new_dimensions)):
+        if new_dimensions[index] > array.shape[index]:
             # TODO: split the largest nodes
+            append_size = tuple(
+                new_dimensions[index] - new_values.shape[index] if index == i else new_values.shape[i] for i in
+                range(len(new_dimensions)))
             new_values = np.append(new_values,
-                                   np.random.normal(scale=var or (1.0 / math.sqrt(float(new_dimensions[0]))),
+                                   np.random.normal(scale=var or (1.0 / math.sqrt(float(new_dimensions[index]))),
                                                     loc=mean,
-                                                    size=(
-                                                        new_dimensions[0] - new_values.shape[0],
-                                                        new_values.shape[1]))
+                                                    size=append_size)
                                    .astype(array.dtype),
-                                   axis=0)
-        elif new_dimensions[0] < new_values.shape[0]:
+                                   axis=index)
+        elif new_dimensions[index] < new_values.shape[index]:
             # TODO: smarter downsizing
-            new_values = np.resize(new_values, new_dimensions)
-        if new_dimensions[1] > array.shape[1]:
-            # TODO: split the largest nodes
-            new_values = np.append(new_values,
-                                   np.random.normal(
-                                       scale=var or (1.0 / math.sqrt(float(new_dimensions[1]))),
-                                       loc=mean,
-                                       size=(new_values.shape[0], new_dimensions[1] - new_values.shape[1]))
-                                   .astype(array.dtype),
-                                   axis=1)
-        while new_dimensions[1] < new_values.shape[1]:
-            # TODO: smarter downsizing
-            new_values = np.delete(new_values, -1, 1)
+            temp_size = tuple(
+                new_dimensions[index] if index == i else new_values.shape[i] for i in
+                range(len(new_dimensions)))
+            new_values = np.resize(new_values, temp_size)
 
+    assert new_values.shape == new_dimensions
     return new_values
 
 

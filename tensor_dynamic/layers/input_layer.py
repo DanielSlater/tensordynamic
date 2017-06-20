@@ -23,7 +23,6 @@ class InputLayer(BaseLayer):
         self._placeholder = placeholder
         self._next_layer = None
         self._input_layer = None
-        self._deterministic = True
 
     @property
     def activation(self):

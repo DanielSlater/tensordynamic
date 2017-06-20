@@ -57,3 +57,35 @@ class TestWeightFunctions(TestCase):
         b = noise_weight_extender(a, (2, 2))
 
         self.assertEqual(b.shape, (2, 2))
+
+    def test_noise_weight_extender_4_dim(self):
+        a = np.random.normal(size=(5, 4, 3, 2))
+
+        new_dimensions = (5, 4, 3, 3)
+        b = noise_weight_extender(a, new_dimensions)
+
+        self.assertEqual(b.shape, new_dimensions)
+
+    def test_noise_weight_extender_4_dim_2(self):
+        a = np.random.normal(size=(5, 4, 3, 3))
+
+        new_dimensions = (5, 4, 3, 1)
+        b = noise_weight_extender(a, new_dimensions)
+
+        self.assertEqual(b.shape, new_dimensions)
+
+    def test_noise_weight_extender_4_dim_3(self):
+        a = np.random.normal(size=(5, 4, 3, 2))
+
+        new_dimensions = (2, 3, 4, 5)
+        b = noise_weight_extender(a, new_dimensions)
+
+        self.assertEqual(b.shape, new_dimensions)
+
+    def test_noise_weight_extender_1_dim(self):
+        a = np.random.normal(size=(5,))
+
+        new_dimensions = (10,)
+        b = noise_weight_extender(a, new_dimensions)
+
+        self.assertEqual(b.shape, new_dimensions)
