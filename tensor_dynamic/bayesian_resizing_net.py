@@ -56,7 +56,11 @@ class BasicResizableNetWrapper(AbstractResizableNet):
         list(self._net.all_layers)[layer_index].resize(new_output_nodes=new_size)
 
     def train_till_convergence(self, data_set):
-        optimizer = tf.train.RMSPropOptimizer(0.001, name="prop_for_%s" % (self.get_dimensions()[1],))
+        optimizer = tf.train.RMSPropOptimizer(0.001,
+                                              name="prop_for_%s" % (str(self.get_dimensions())
+                                                   .replace('(', '_').replace(')', '_')
+                                                   .replace('[', '_').replace(']', '_')
+                                                   .replace(',', '_').replace(' ', '_'),))
         train_op = optimizer.minimize(self._net.loss)
 
         self._net.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer))))

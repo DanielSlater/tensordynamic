@@ -36,7 +36,7 @@ class OutputLayer(Layer):
                                           noise_std=noise_std,
                                           name=name)
         with self.name_scope():
-            self._target_placeholder = tf.placeholder('float', shape=(None, self.output_nodes), name='target')
+            self._target_placeholder = tf.placeholder('float', shape=(None, ) + self.output_nodes, name='target')
 
     @property
     def target_placeholder(self):
