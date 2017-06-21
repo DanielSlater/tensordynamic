@@ -1,16 +1,27 @@
+import functools
+import logging
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
 import numpy as np
+import operator
+
+import sys
 import tensorflow as tf
 
 from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop
 from tensor_dynamic.utils import tf_resize
 from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
+logger = logging.getLogger(__name__)
+
 
 class BaseLayer(object):
     __metaclass__ = ABCMeta
+
+    GROWTH_MULTIPLYER = 1.1
+    SHRINK_MULTIPLYER = 1. / GROWTH_MULTIPLYER
+    MINIMUM_GROW_AMOUNT = 3
 
     OUTPUT_BOUND_VALUE = 'output'
     INPUT_BOUND_VALUE = 'input'
@@ -554,3 +565,181 @@ class BaseLayer(object):
         for layer in self.all_layers:
             for variable in layer.variables:
                 yield variable
+
+    def get_parameters_all_layers(self):
+        """The number of parameters in this layer
+
+        Returns:
+            int
+        """
+        total = 0
+
+        for layer in self.all_layers:
+            total += layer.get_parameters()
+
+        return total
+
+    def get_parameters(self):
+        """The number of parameters in this layer
+
+        Returns:
+            int
+        """
+        total = 0
+
+        for bound_variable in self._bound_variables:
+            total += int(functools.reduce(operator.mul, bound_variable.variable.get_shape()))
+
+        return total
+
+    def has_resizable_dimension(self):
+        """True if this layer can be resized, otherwise false
+
+        Returns:
+            bool
+        """
+        return False
+
+    def get_resizable_dimension_size(self):
+        """Get the size of the dimension that is resized by the resize method.
+        In the future may support multiple of these for conv layers
+
+        Returns:
+            int
+        """
+        return None
+
+    def get_all_resizable_layers(self):
+        """Yields all layers connected to this one that are resiable, orders them by how close
+        to the input layer they are
+
+        Returns:
+            Generator of BaseLayer
+        """
+        for layer in self.all_connected_layers:
+            if layer.has_resizable_dimension():
+                yield layer
+
+    def get_resizable_dimension_size_all_layers(self):
+        """
+
+        Returns:
+            (int,): Tuple of each layer size for each layer that is resizable in the network
+        """
+        return tuple(layer.get_resizable_dimension_size() for layer in self.get_all_resizable_layers())
+
+    def _get_new_node_count(self, size_multiplier, from_size=None):
+        from_size = from_size or self.get_resizable_dimension_size()
+
+        new_size = int(from_size * size_multiplier)
+        # in case the multiplier is too small to changes values
+        if abs(new_size - from_size) < self.MINIMUM_GROW_AMOUNT:
+            if size_multiplier > 1.:
+                new_size = from_size + self.MINIMUM_GROW_AMOUNT
+            else:
+                new_size = from_size - self.MINIMUM_GROW_AMOUNT
+
+        return new_size
+
+    def _layer_resize_converge(self, data_set_train, data_set_validation, new_size,
+                               model_evaluation_function,
+                               learning_rate):
+        if new_size <= 0:
+            logger.info("layer too small stopping downsize")
+            return -sys.float_info.max
+
+        self.resize(new_output_nodes=new_size)  # TODO: resize based on data_set analysis
+
+        self.last_layer.train_till_convergence(data_set_train, data_set_validation,
+                                               learning_rate=learning_rate)
+        result = model_evaluation_function(self, data_set_validation)
+        logger.info("layer resize converge for dim: %s result: %s", self.get_resizable_dimension_size_all_layers(),
+                    result)
+        return result
+
+    def find_best_size(self, data_set_train, data_set_validation,
+                       model_evaluation_function, best_score=None,
+                       initial_learning_rate=0.001, tuning_learning_rate=0.0001):
+        """Attempts to resize this layer to minimize the loss against the validation dataset by resizing this layer
+
+        Args:
+            data_set_train (tensor_dynamic.data.data_set.DataSet):
+            data_set_validation (tensor_dynamic.data.data_set.DataSet):
+            model_evaluation_function (BaseLayer, tensor_dynamic.data.data_set.DataSet -> float): Method for judging
+                success of training. We try to maximize this
+            best_score (float): Best score achieved so far, this is purly for optimization. If it is not passed this is
+                calculated in the method
+            initial_learning_rate (float): Learning rate to use for first run
+            tuning_learning_rate (float): Learning rate to use for subsequent runs, normally smaller than
+                initial_learning_rate
+
+        Returns:
+            (bool, float) : if we resized, the best score we achieved from the evaluation function
+        """
+        if self.has_resizable_dimension():
+            raise Exception("Can not resize unresizable layer %s" % (self,))
+
+        if best_score is None:
+            self.last_layer.train_till_convergence(data_set_train, data_set_validation,
+                                                   learning_rate=initial_learning_rate)
+            best_score = model_evaluation_function(self, data_set_validation)
+
+        start_size = self.get_resizable_dimension_size_all_layers()
+        best_layer_size = self.get_resizable_dimension_size()
+        resized = False
+
+        # try bigger
+        new_score = self._layer_resize_converge(data_set_train, data_set_validation,
+                                                model_evaluation_function,
+                                                self._get_new_node_count(self.GROWTH_MULTIPLYER),
+                                                tuning_learning_rate)
+
+        # keep getting bigger until we stop improving
+        while new_score > best_score:
+            resized = True
+            best_score = new_score
+            best_layer_size = self.get_resizable_dimension_size()
+            new_score = self._layer_resize_converge(data_set_train, data_set_validation,
+                                                    model_evaluation_function,
+                                                    self._get_new_node_count(self.GROWTH_MULTIPLYER),
+                                                    tuning_learning_rate)
+        if not resized:
+            logger.info("From start_size %s Bigger failed, trying smaller", start_size)
+            # try smaller
+            two_smaller = self._get_new_node_count(self.SHRINK_MULTIPLYER, from_size=self._get_new_node_count(self.SHRINK_MULTIPLYER))
+            new_score = self._layer_resize_converge(data_set_train, data_set_validation,
+                                                    model_evaluation_function,
+                                                    two_smaller,
+                                                    tuning_learning_rate)
+
+            while new_score > best_score:
+                resized = True
+                best_score = new_score
+                best_layer_size = self.get_resizable_dimension_size()
+                new_score = self._layer_resize_converge(data_set_train, data_set_validation,
+                                                        model_evaluation_function,
+                                                        self.SHRINK_MULTIPLYER,
+                                                        tuning_learning_rate)
+
+        logger.info("From start_size %s Found best was %s", start_size, best_layer_size)
+
+        # return to the best size we found
+        self.resize(best_layer_size)
+
+        self._output_layer.train_till_convergence(data_set_train, data_set_validation,
+                                                  learning_rate=tuning_learning_rate)
+
+        return resized, best_score
+
+
+    # def save_network(self):
+    #     obj = {}
+    #     layer = self.last_layer
+    #
+    # def _save_layer(self):
+    #     obj = {'__class__': self.__class__.__name__}
+    #
+    #
+    # @staticmethod
+    # def load_network(session):
+    #     pass

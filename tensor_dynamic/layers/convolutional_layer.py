@@ -5,6 +5,8 @@ import tensorflow as tf
 
 
 class ConvolutionalLayer(BaseLayer):
+    MINIMUM_GROW_AMOUNT = 1
+
     def __init__(self,
                  input_layer,
                  convolution_dimensions,  # 3d (width, height, convolutions)
@@ -86,3 +88,9 @@ class ConvolutionalLayer(BaseLayer):
                                   **self.kwargs)
 
         return new_self
+
+    def has_resizable_dimension(self):
+        return True
+
+    def get_resizable_dimension_size(self):
+        return self.convolutional_nodes[2]

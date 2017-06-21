@@ -126,6 +126,12 @@ class Layer(BaseLayer):
         else:
             return None
 
+    def has_resizable_dimension(self):
+        return True
+
+    def get_resizable_dimension_size(self):
+        return self.output_nodes[0]
+
 
 if __name__ == '__main__':
     with tf.Session() as session:

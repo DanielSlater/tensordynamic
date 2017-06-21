@@ -2,6 +2,7 @@ import numpy
 
 from tensor_dynamic.data.data_set import DataSet
 
+
 # TODO: Fix this it's broken
 class SemiDataSet(object):
     def __init__(self, features, labels, unlabeled_features):

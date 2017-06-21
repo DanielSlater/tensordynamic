@@ -8,6 +8,7 @@ import urllib
 import numpy
 
 from tensor_dynamic.data.data_set import DataSet
+from tensor_dynamic.data.data_set_collection import DataSetCollection
 from tensor_dynamic.data.semi_data_set import SemiDataSet
 
 SOURCE_URL = 'http://yann.lecun.com/exdb/mnist/'
@@ -75,16 +76,11 @@ def extract_labels(filename, one_hot=False):
 
 
 def read_data_sets(train_dir, n_labeled=None, fake_data=False, one_hot=False, validation_size=0, limit_train_size=None):
-    class DataSets(object):
-        pass
-
-    data_sets = DataSets()
-
     if fake_data:
-        data_sets.train = DataSet([], [], fake_data=True)
-        data_sets.validation = DataSet([], [], fake_data=True)
-        data_sets.test = DataSet([], [], fake_data=True)
-        return data_sets
+        train = DataSet([], [], fake_data=True)
+        validation = DataSet([], [], fake_data=True)
+        test = DataSet([], [], fake_data=True)
+        return DataSetCollection(train, test, validation)
 
     TRAIN_IMAGES = 'train-images-idx3-ubyte.gz'
     TRAIN_LABELS = 'train-labels-idx1-ubyte.gz'
@@ -113,14 +109,14 @@ def read_data_sets(train_dir, n_labeled=None, fake_data=False, one_hot=False, va
         train_labels = train_labels[validation_size:]
 
     if n_labeled is None:
-        data_sets.train = DataSet(train_images, train_labels)
+        train = DataSet(train_images, train_labels)
     else:
-        data_sets.train = SemiDataSet(train_images, train_labels, n_labeled)
+        train = SemiDataSet(train_images, train_labels, n_labeled)
 
-    data_sets.validation = DataSet(validation_images, validation_labels)
-    data_sets.test = DataSet(test_images, test_labels)
+    validation = DataSet(validation_images, validation_labels)
+    test = DataSet(test_images, test_labels)
 
-    return data_sets
+    return DataSetCollection(train, test, validation)
 
 
 if __name__ == '__main__':

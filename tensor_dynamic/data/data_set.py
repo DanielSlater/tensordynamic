@@ -42,7 +42,12 @@ class DataSet(object):
         return self._epochs_completed
 
     def next_batch(self, batch_size, fake_data=False):
-        """Return the next `batch_size` examples from this data set."""
+        """Return the next `batch_size` examples from this data set.
+
+        Args:
+            fake_data (bool): If True create dummy data of 1. for everything
+            batch_size (int):
+        """
         if fake_data:
             fake_image = [1.0 for _ in xrange(self._features.shape[1])]
             fake_label = 0

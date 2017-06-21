@@ -5,11 +5,9 @@ from math import log
 import tensorflow as tf
 from enum import Enum
 
-from tensor_dynamic.abstract_resizable_net import AbstractResizableNet
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.layer import Layer
-from tensor_dynamic.layers.output_layer import CategoricalOutputLayer
-from tensor_dynamic.utils import train_till_convergence, get_tf_optimizer_variables, get_model_parameters
+from tensor_dynamic.layers.output_layer import CategoricalOutputLayer, OutputLayer
 
 logger = logging.getLogger(__name__)
 
@@ -20,92 +18,15 @@ class EDataType(Enum):
     VALIDATION = 2
 
 
-class BasicResizableNetWrapper(AbstractResizableNet):
-    def __init__(self, initial_size, session, regularizer_coeff=0.0001, beta=.9999, learning_rate=.1,
-                 model_selection_data_type=EDataType.TRAIN):
-        last_layer = InputLayer(initial_size[0])
+def create_network(initial_size, session, regularizer_coeff=0.0001, beta=.9999):
+    last_layer = InputLayer(initial_size[0])
 
-        for hidden_nodes in initial_size[1:-1]:
-            last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=tf.sigmoid)
+    for hidden_nodes in initial_size[1:-1]:
+        last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=tf.sigmoid)
 
-        output = CategoricalOutputLayer(last_layer, initial_size[-1], session,
-                                        regularizer_weighting=regularizer_coeff, target_weighting=beta)
-
-        self._net = output
-        self._learn_rate_placeholder = tf.placeholder("float", shape=[], name="learn_rate")
-        self._start_learning_rate = learning_rate
-        self._learning_rate = learning_rate
-        self.optimizer_dict = {}
-        self._current_optimizer = None
-        self.model_selection_data_type = model_selection_data_type
-
-    def get_dimensions(self):
-        return [layer.output_nodes for layer in self._net.all_layers]
-
-    def predict(self, inputs):
-        return self._net.activate_predict(inputs)
-
-    def accuracy(self, inputs, labels):
-        return self._net.accuracy(inputs, labels)
-
-    def resize_layer(self, layer_index, new_size, data_set):
-        if new_size <= 0:
-            raise ValueError("new_size must all be greater than 0 was %s" % (new_size,))
-        assert type(new_size) == int
-        # TODO improve
-        list(self._net.all_layers)[layer_index].resize(new_output_nodes=new_size)
-
-    def train_till_convergence(self, data_set):
-        optimizer = tf.train.RMSPropOptimizer(0.001,
-                                              name="prop_for_%s" % (str(self.get_dimensions())
-                                                   .replace('(', '_').replace(')', '_')
-                                                   .replace('[', '_').replace(']', '_')
-                                                   .replace(',', '_').replace(' ', '_'),))
-        train_op = optimizer.minimize(self._net.loss)
-
-        self._net.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer))))
-        print(optimizer._name)
-
-        iterations = [0]
-
-        def train():
-            iterations[0] += 1
-            error = 0.
-
-            for images, labels in data_set.train.one_iteration_in_batches(100):
-                _, batch_error = self._net.session.run([train_op, self._net.loss],
-                                                       feed_dict={self._net.input_placeholder: images,
-                                                                  self._net.target_placeholder: labels,
-                                                                  self._learn_rate_placeholder: self._learning_rate})
-
-                error += batch_error
-
-            self._learning_rate *= .99
-
-            if self.model_selection_data_type == EDataType.VALIDATION:
-                error, acc = self._net.session.run([self._net.loss, self._net._accuracy],
-                                              feed_dict={
-                                                  self._net.input_placeholder: data_set.validation.features,
-                                                  self._net.target_placeholder: data_set.validation.labels})
-                print(error, acc)
-            elif self.model_selection_data_type == EDataType.TEST:
-                error, acc = self._net.session.run([self._net.loss, self._net._accuracy],
-                                              feed_dict={
-                                                  self._net.input_placeholder: data_set.test.features,
-                                                  self._net.target_placeholder: data_set.test.labels})
-                print(error, acc)
-
-            return error
-
-        error = train_till_convergence(train, log=False, continue_epochs=2)
-
-        logger.info("iterations = %s error = %s", iterations[0], error)
-
-        return error
-
-    def add_layer(self, layer_index_to_add_after, hidden_nodes):
-        self._net.all_layers()[layer_index_to_add_after].add_intermediate_layer(
-            lambda input_layer: Layer(input_layer, hidden_nodes, self.session, non_liniarity=tf.sigmoid))
+    output = CategoricalOutputLayer(last_layer, initial_size[-1], session,
+                                    regularizer_weighting=regularizer_coeff, target_weighting=beta)
+    return output
 
 
 class BayesianResizingNet(object):
@@ -113,124 +34,81 @@ class BayesianResizingNet(object):
     SHRINK_MULTIPLYER = 1. / GROWTH_MULTIPLYER
     MINIMUM_GROW_AMOUNT = 3
 
-    def __init__(self, resizable_net):
-        if not isinstance(resizable_net, AbstractResizableNet):
+    def __init__(self, output_layer, model_selection_data_type = EDataType.TEST):
+        if not isinstance(output_layer, OutputLayer):
             raise TypeError("resizable_net must implement AbstractResizableNet")
-        self._resizable_net = resizable_net
+        self._output_layer = output_layer
+        self.model_selection_data_type = model_selection_data_type
 
     def run(self, data_set):
-        # DataSet must be multimodel for now
-        self._resizable_net.train_till_convergence(data_set)
-        best_score = self.model_weight_score(data_set)
-        best_dimensions = self._resizable_net.get_dimensions()
+        """
+
+        Args:
+            data_set (:
+
+        Returns:
+
+        """
+        # DataSet must be multi-model for now
+        self._output_layer.train_till_convergence(data_set.train, self.get_evaluation_data_set(data_set))
+        best_score = self.model_weight_score(self._output_layer, data_set)
+        best_dimensions = self._output_layer.get_resizable_dimension_size_all_layers()
 
         logger.info("starting dim %s score %s", best_score, best_dimensions)
 
-        current_layer_index = 1
-        layers_unsuccessfully_resized = 0
+        unresized_layers = list(layer for layer in self._output_layer.net.all_connected_layers
+                                if layer.has_resizable_dimension())
+        if len(unresized_layers) == 0:
+            # no layers to resize
+            print("Found no layers to resize")
+            return
+
+        current_resize_target = unresized_layers[0]
 
         while True:
-            resized, new_best_score = self.try_resize_layer(data_set, current_layer_index, best_score)
+            resized, new_best_score = current_resize_target.find_best_size(data_set.train,
+                                                                           self.get_evaluation_data_set(data_set),
+                                                                           self.model_weight_score,
+                                                                           best_score=best_score)
             if resized:
                 best_score = new_best_score
                 layers_unsuccessfully_resized = 0
-                if self._resizable_net.get_hidden_layers_count() == 1:
+                if len(unresized_layers) == 1:
                     break
-            else:
-                layers_unsuccessfully_resized += 1
-                if layers_unsuccessfully_resized >= self._resizable_net.get_hidden_layers_count():
-                    # we are done resizing
-                    break
+                else:
+                    layers_unsuccessfully_resized += 1
+                    if layers_unsuccessfully_resized >= len(unresized_layers):
+                        # we are done resizing
+                        break
 
-            current_layer_index += 1
-            if current_layer_index > len(self._resizable_net.get_dimensions()) - 1:
-                current_layer_index = 1
+            index = unresized_layers.index(current_resize_target) + 1
+            if index >= len(unresized_layers):
+                unresized_layers[0]
+            else:
+                unresized_layers[index]
 
         # TOOD adding layers
-        logger.info("Finished with best:%s dims:%s", best_score, self._resizable_net.get_dimensions())
+        logger.info("Finished with best:%s dims:%s", best_score, self._output_layer.get_resizable_dimensions())
 
-    def try_resize_layer(self, data_set, layer_index, best_score):
-        start_size = self._resizable_net.get_dimensions()
-        best_layer_size = start_size[layer_index]
-        resized = False
-
-        # try bigger
-        new_score = self._layer_resize_converge(data_set, layer_index,
-                                                self.GROWTH_MULTIPLYER)
-
-        # keep getting bigger until we stop improving
-        while new_score > best_score:
-            resized = True
-            best_score = new_score
-            best_layer_size = self._resizable_net.get_layer_size(layer_index)
-            new_score = self._layer_resize_converge(data_set, layer_index,
-                                                    self.GROWTH_MULTIPLYER)
-        if not resized:
-            logger.info("From start_size %s Bigger failed, trying smaller", start_size)
-            # try smaller, doing this twice feels wrong...
-            self._layer_resize_converge(data_set, layer_index,
-                                        self.SHRINK_MULTIPLYER)
-
-            new_score = self._layer_resize_converge(data_set, layer_index,
-                                                    self.SHRINK_MULTIPLYER)
-
-            while new_score > best_score:
-                resized = True
-                best_score = new_score
-                best_layer_size = self._resizable_net.get_layer_size(layer_index)
-                new_score = self._layer_resize_converge(data_set, layer_index,
-                                                        self.SHRINK_MULTIPLYER)
-
-        logger.info("From start_size %s Found best was %s", start_size, best_layer_size)
-
-        # return to the best size we found
-        self._resizable_net.resize_layer(layer_index,
-                                         best_layer_size,
-                                         data_set)
-
-        self._resizable_net.train_till_convergence(data_set)
-
-        return resized, best_score
-
-    def _layer_resize_converge(self, data_set, layer_index, size_multiplier):
-        new_size = int(self._resizable_net.get_layer_size(layer_index) * size_multiplier)
-        # in case the multiplier is too small to changes values
-        if abs(new_size - self._resizable_net.get_layer_size(layer_index)) < self.MINIMUM_GROW_AMOUNT:
-            if size_multiplier > 1.:
-                new_size = self._resizable_net.get_layer_size(layer_index) + self.MINIMUM_GROW_AMOUNT
-            else:
-                new_size = self._resizable_net.get_layer_size(layer_index) - self.MINIMUM_GROW_AMOUNT
-
-        if new_size <= 0:
-            logger.info("layer too small stopping downsize")
-            return -sys.float_info.max
-
-        self._resizable_net.resize_layer(layer_index,
-                                         new_size,
-                                         data_set)
-
-        self._resizable_net.train_till_convergence(data_set)
-        result = self.model_weight_score(data_set)
-        logger.info("layer resize converge for dim: %s result: %s", self._resizable_net.get_dimensions(), result)
-        return result
-
-    def model_weight_score(self, data_set):
-        if self._resizable_net.model_selection_data_type == EDataType.TRAIN:
-            evaluation_features = data_set.train.features
-            evaluation_labels = data_set.train.labels
-        elif self._resizable_net.model_selection_data_type == EDataType.TEST:
-            evaluation_features = data_set.test.features
-            evaluation_labels = data_set.test.labels
-        elif self._resizable_net.model_selection_data_type == EDataType.VALIDATION:
-            evaluation_features = data_set.validation.features
-            evaluation_labels = data_set.validation.labels
+    def get_evaluation_data_set(self, data_set):
+        if self.model_selection_data_type == EDataType.TRAIN:
+            return data_set.train
+        elif self.model_selection_data_type == EDataType.TEST:
+            return data_set.test
+        elif self.model_selection_data_type == EDataType.VALIDATION:
+            return data_set.validation
         else:
-            raise Exception("unknown model_selection_data_type %s", self._resizable_net.model_selection_data_type)
+            raise Exception("unknown model_selection_data_type %s", self._output_layer.model_selection_data_type)
 
-        log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: self._resizable_net.predict(x),
+    @staticmethod
+    def model_weight_score(layer, evaluation_data_set):
+        evaluation_features = evaluation_data_set.features
+        evaluation_labels = evaluation_data_set.labels
+
+        log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: layer.last_layer.predict(x),
                                                                             evaluation_features,
                                                                             evaluation_labels)
-        model_parameters = get_model_parameters(self._resizable_net.get_dimensions())
+        model_parameters = layer.get_parameters_all_layers()
         return bayesian_model_selection(log_liklihood, model_parameters, len(data_set.train.features))
 
 
@@ -256,8 +134,7 @@ if __name__ == '__main__':
     data_set = mnist.read_data_sets("data/MNIST_data", one_hot=True, limit_train_size=1000)
 
     with tf.Session() as session:
-        resizable_net = BasicResizableNetWrapper([784, 5, 10], session)
-        brn = BayesianResizingNet(resizable_net)
+        brn = BayesianResizingNet(create_network((784, 5, 10), session))
         brn.run(data_set)
 
         # when running with 10 starting nodes

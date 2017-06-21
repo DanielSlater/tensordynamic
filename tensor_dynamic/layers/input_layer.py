@@ -66,6 +66,9 @@ class InputLayer(BaseLayer):
     def _layer_activation(self, _1, _2):
         pass
 
+    def get_parameters(self):
+        return 0
+
 
 class NoisyInputLayer(InputLayer):
     def __init__(self, placeholder, session, noise_std=1.0, name='NoisyInput'):

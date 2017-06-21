@@ -143,29 +143,6 @@ def train_till_convergence(train_one_epoch_function, continue_epochs=3, max_epoc
     return error
 
 
-def get_model_parameters(layer_sizes):
-    """Get the number of parameters in a neural net of specified layers
-
-    Args:
-        layer_sizes (tuple of int): The sizes of the dimensions in the net, including input and output layers
-
-    Returns:
-        number: count of weights in the model
-    """
-    parameters = 0
-    for i in xrange(len(layer_sizes) - 1):
-        in_dim = layer_sizes[i]
-        out_dim = layer_sizes[i + 1]
-
-        # weights
-        parameters += in_dim * out_dim
-
-        # biases
-        parameters += out_dim
-
-    return parameters
-
-
 def get_tf_optimizer_variables(optimizer):
     """Get all the tensorflow variables in an optimzier, for use in initialization
 
