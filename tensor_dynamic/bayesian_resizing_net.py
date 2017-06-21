@@ -18,7 +18,7 @@ class EDataType(Enum):
     VALIDATION = 2
 
 
-def create_network(initial_size, session, regularizer_coeff=0.0001, beta=.9999):
+def create_network(initial_size, session, regularizer_coeff=0.001, beta=.999):
     last_layer = InputLayer(initial_size[0])
 
     for hidden_nodes in initial_size[1:-1]:
@@ -40,18 +40,19 @@ class BayesianResizingNet(object):
         self._output_layer = output_layer
         self.model_selection_data_type = model_selection_data_type
 
-    def run(self, data_set, initial_learning_rate=0.01, tuning_learning_rate=0.001):
+    def run(self, data_set_collection, initial_learning_rate=0.01, tuning_learning_rate=0.001):
         """Train the network to find the best size
 
         Args:
             tuning_learning_rate (float):
             initial_learning_rate (float):
-            data_set (tensor_dynamic.data.data_set_collection.DataSetCollection):
+            data_set_collection (tensor_dynamic.data.data_set_collection.DataSetCollection):
         """
         # DataSet must be multi-model for now
-        self._output_layer.train_till_convergence(data_set.train, self.get_evaluation_data_set(data_set),
+        self._output_layer.train_till_convergence(data_set_collection.train,
+                                                  self.get_evaluation_data_set(data_set_collection),
                                                   learning_rate=initial_learning_rate)
-        best_score = self.model_weight_score(self._output_layer, self.get_evaluation_data_set(data_set))
+        best_score = self.model_weight_score(self._output_layer, self.get_evaluation_data_set(data_set_collection))
         best_dimensions = self._output_layer.get_resizable_dimension_size_all_layers()
 
         logger.info("starting dim %s score %s", best_score, best_dimensions)
@@ -59,15 +60,13 @@ class BayesianResizingNet(object):
         unresized_layers = list(self._output_layer.get_all_resizable_layers())
 
         if len(unresized_layers) == 0:
-            # no layers to resize
-            print("Found no layers to resize")
-            return
+            raise Exception("Found no layers to resize")
 
         current_resize_target = unresized_layers[0]
 
         while True:
-            resized, new_best_score = current_resize_target.find_best_size(data_set.train,
-                                                                           self.get_evaluation_data_set(data_set),
+            resized, new_best_score = current_resize_target.find_best_size(data_set_collection.train,
+                                                                           self.get_evaluation_data_set(data_set_collection),
                                                                            self.model_weight_score,
                                                                            best_score=best_score,
                                                                            initial_learning_rate=initial_learning_rate,

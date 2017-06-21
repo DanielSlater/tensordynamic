@@ -15,7 +15,7 @@ class TestBayesianResizingNet(BaseTfTestCase):
         net = self._create_resizing_net((self.MNIST_INPUT_NODES, 2000, self.MNIST_OUTPUT_NODES))
         net.run(self.mnist_data)
 
-        print net._output_layer.get_resizable_dimensions()
+        print net.get_resizable_dimension_size_all_layers()
 
         self.assertLess(net._output_layer.get_resizable_dimensions()[1], 2000)
 
@@ -24,7 +24,7 @@ class TestBayesianResizingNet(BaseTfTestCase):
         net = self._create_resizing_net((self.MNIST_INPUT_NODES, 5, self.MNIST_OUTPUT_NODES))
         net.run(self.mnist_data)
 
-        print net._output_layer.get_resizable_dimensions()
+        print net.get_resizable_dimension_size_all_layers()
 
         self.assertGreater(net._output_layer.get_resizable_dimensions()[1], 10)
 
