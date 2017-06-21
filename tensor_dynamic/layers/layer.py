@@ -1,3 +1,6 @@
+import numpy as np
+import sys
+
 import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
@@ -90,7 +93,7 @@ class Layer(BaseLayer):
     def _layer_bactivation(self, activation, is_train):
         if self.bactivate:
             return self._non_liniarity(
-                    tf.matmul(activation, tf.transpose(self._weights)) + self._back_bias)
+                tf.matmul(activation, tf.transpose(self._weights)) + self._back_bias)
 
     @property
     def non_liniarity(self):
@@ -98,21 +101,18 @@ class Layer(BaseLayer):
 
     def supervised_cost_train(self, targets):
         if not self.next_layer:
-            #return tf.reduce_mean(tf.square(self.activation_train - targets)) * self._supervised_cost
             return tf.reduce_mean(tf.reduce_sum(tf.square(self.activation_train - targets), 1))
         else:
             return None
 
     @lazyprop
     def bactivation_loss_train(self):
-        return tf.reduce_mean(tf.reduce_sum(tf.square(self.bactivation_train - self.input_layer.activation_train), 1))#self._bactivation_loss_func(self.bactivation_train,
-               #                            self.input_layer.activation_train)
+        return tf.reduce_mean(tf.reduce_sum(tf.square(self.bactivation_train - self.input_layer.activation_train), 1))
 
     @lazyprop
     def bactivation_loss_predict(self):
-        return tf.reduce_mean(tf.reduce_sum(tf.square(self.bactivation_predict - self.input_layer.activation_predict), 1))
-        #return self._bactivation_loss_func(self.bactivation_predict,
-        #                                   self.input_layer.activation_predict)
+        return tf.reduce_mean(
+            tf.reduce_sum(tf.square(self.bactivation_predict - self.input_layer.activation_predict), 1))
 
     def unsupervised_cost_train(self):
         if self.bactivate:
@@ -131,6 +131,46 @@ class Layer(BaseLayer):
 
     def get_resizable_dimension_size(self):
         return self.output_nodes[0]
+
+    def _choose_nodes_to_split(self, desired_size):
+        current_size = self.get_resizable_dimension_size()
+
+        if desired_size >= current_size:
+            return None
+
+        prediction = self._session.run(self.activation_predict,
+                                       feed_dict={self.input_placeholder:
+                                                      np.ones(shape=self.input_placeholder.get_shape(),
+                                                              dtype=np.float32)})
+
+        to_split = {}
+
+        while desired_size < current_size + len(to_split):
+            max_node = np.argmax(prediction)
+            prediction[max_node] = -sys.float_info.max
+            to_split.add(max_node)
+
+        return to_split
+
+    def _choose_nodes_to_prune(self, desired_size):
+        current_size = self.get_resizable_dimension_size()
+
+        if desired_size <= current_size:
+            return None
+
+        prediction = self._session.run(self.activation_predict,
+                                       feed_dict={self.input_placeholder:
+                                                      np.ones(shape=self.input_placeholder.get_shape(),
+                                                              dtype=np.float32)})
+
+        to_prune = {}
+
+        while desired_size < current_size - len(to_prune):
+            min_node = np.argmin(prediction)
+            prediction[min_node] = sys.float_info.max
+            to_prune.add(min_node)
+
+        return to_prune
 
 
 if __name__ == '__main__':

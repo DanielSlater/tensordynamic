@@ -736,6 +736,9 @@ class BaseLayer(object):
     def _choose_nodes_to_split(self):
         raise NotImplementedError()
 
+    def _choose_nodes_to_prune(self):
+        raise NotImplementedError()
+
     # def save_network(self):
     #     obj = {}
     #     layer = self.last_layer
