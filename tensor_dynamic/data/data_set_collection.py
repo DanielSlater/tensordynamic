@@ -1,12 +1,16 @@
+import numpy as np
+
 from tensor_dynamic.data.data_set import DataSet
 from tensor_dynamic.data.semi_data_set import SemiDataSet
 
 
 class DataSetCollection(object):
-    def __init__(self, train, test, validation=None):
+    def __init__(self, train, test, validation=None, normalize=False):
         """Collects data for doing full training and validation of a model
 
         Args:
+            normalize (bool): If True data is normalized, by taking the mean and std of the training set
+                and applying it to all other data sets
             train (DataSet): features and labels used for training
             test  (DataSet): features and labels used for testing
             validation (DataSet): optional features and labels used for validation
@@ -15,6 +19,20 @@ class DataSetCollection(object):
         assert isinstance(test, (DataSet, SemiDataSet))
         if validation is not None:
             assert isinstance(validation, (DataSet, SemiDataSet))
+
+        if normalize:
+            mean_image = np.mean(train.features, axis=0)
+            std = np.std(train.features)
+
+            train.features -= mean_image
+            test.features -= mean_image
+            train.features /= std
+            test.features /= std
+
+            if validation:
+                validation.features -= mean_image
+                validation.features /= std
+
         self._train = train
         self._test = test
         self._validation = validation

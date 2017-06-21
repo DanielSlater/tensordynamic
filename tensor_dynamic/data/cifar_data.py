@@ -107,7 +107,7 @@ def get_cifar_10_data_set_collection(root_path, one_hot=True):
 
     test = DataSet(features_test, labels_test, to_binary=True)
 
-    collection = DataSetCollection(train, test)
+    collection = DataSetCollection(train, test, normalize=True)
 
     return collection
 
@@ -138,7 +138,7 @@ def get_cifar_100_data_set_collection(root_path, one_hot=True, use_fine_labels=T
 
     test = DataSet(features_test, labels_test, to_binary=True)
 
-    collection = DataSetCollection(train, test)
+    collection = DataSetCollection(train, test, normalize=True)
 
     return collection
 
