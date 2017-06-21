@@ -641,8 +641,9 @@ class BaseLayer(object):
 
         return new_size
 
-    def _layer_resize_converge(self, data_set_train, data_set_validation, new_size,
+    def _layer_resize_converge(self, data_set_train, data_set_validation,
                                model_evaluation_function,
+                               new_size,
                                learning_rate):
         if new_size <= 0:
             logger.info("layer too small stopping downsize")
@@ -676,7 +677,7 @@ class BaseLayer(object):
         Returns:
             (bool, float) : if we resized, the best score we achieved from the evaluation function
         """
-        if self.has_resizable_dimension():
+        if not self.has_resizable_dimension():
             raise Exception("Can not resize unresizable layer %s" % (self,))
 
         if best_score is None:

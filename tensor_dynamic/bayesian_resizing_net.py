@@ -40,24 +40,23 @@ class BayesianResizingNet(object):
         self._output_layer = output_layer
         self.model_selection_data_type = model_selection_data_type
 
-    def run(self, data_set):
-        """
+    def run(self, data_set, initial_learning_rate=0.01):
+        """Train the network to find the best size
 
         Args:
-            data_set (:
-
-        Returns:
-
+            initial_learning_rate (float):
+            data_set (tensor_dynamic.data.data_set_collection.DataSetCollection):
         """
         # DataSet must be multi-model for now
-        self._output_layer.train_till_convergence(data_set.train, self.get_evaluation_data_set(data_set))
-        best_score = self.model_weight_score(self._output_layer, data_set)
+        self._output_layer.train_till_convergence(data_set.train, self.get_evaluation_data_set(data_set),
+                                                  learning_rate=initial_learning_rate)
+        best_score = self.model_weight_score(self._output_layer, self.get_evaluation_data_set(data_set))
         best_dimensions = self._output_layer.get_resizable_dimension_size_all_layers()
 
         logger.info("starting dim %s score %s", best_score, best_dimensions)
 
-        unresized_layers = list(layer for layer in self._output_layer.net.all_connected_layers
-                                if layer.has_resizable_dimension())
+        unresized_layers = list(self._output_layer.get_all_resizable_layers())
+
         if len(unresized_layers) == 0:
             # no layers to resize
             print("Found no layers to resize")
@@ -105,11 +104,11 @@ class BayesianResizingNet(object):
         evaluation_features = evaluation_data_set.features
         evaluation_labels = evaluation_data_set.labels
 
-        log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: layer.last_layer.predict(x),
+        log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: layer.last_layer.activate_predict(x),
                                                                             evaluation_features,
                                                                             evaluation_labels)
         model_parameters = layer.get_parameters_all_layers()
-        return bayesian_model_selection(log_liklihood, model_parameters, len(data_set.train.features))
+        return bayesian_model_selection(log_liklihood, model_parameters)
 
 
 def log_probability_of_targets_given_weights_multimodal(network_prediction_function, inputs, targets):
@@ -122,7 +121,7 @@ def log_probability_of_targets_given_weights_multimodal(network_prediction_funct
     return result
 
 
-def bayesian_model_selection(log_liklihood, number_of_parameters, number_of_data_points):
+def bayesian_model_selection(log_liklihood, number_of_parameters):
     logger.info("log_liklihood %s number_of_parameters %s", log_liklihood, number_of_parameters)
     return log_liklihood - log(number_of_parameters)
 
