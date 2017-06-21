@@ -385,6 +385,11 @@ class BaseLayer(object):
         elif new_output_nodes is not None and not isinstance(new_output_nodes, tuple):
             raise ValueError("new_output_nodes must be tuple of int %s" % (new_output_nodes,))
 
+        # choose nodes to split or prune
+        if new_output_nodes and output_nodes_to_prune is None and input_nodes_to_prune is None:
+            output_nodes_to_prune=self._choose_nodes_to_prune(new_output_nodes)
+            split_input_nodes=self._choose_nodes_to_split(new_output_nodes)
+
         if output_nodes_to_prune:
             if split_output_nodes:
                 raise NotImplementedError("At the moment must either split or prune")

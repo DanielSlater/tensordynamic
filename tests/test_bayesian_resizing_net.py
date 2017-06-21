@@ -54,15 +54,15 @@ class TestBayesianResizingNet(BaseTfTestCase):
     def test_loss_does_not_decrease_when_returning_to_old_size_from_small(self):
         dimensions = (self.MNIST_INPUT_NODES, 20, self.MNIST_OUTPUT_NODES)
         inner_net = create_network(dimensions, self.session)
-        start_loss = inner_net.train_till_convergence(self.mnist_data.train)
+        start_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("start_loss: ", start_loss)
 
         next(iter(inner_net.get_all_resizable_layers())).resize(5)
-        small_size_loss = inner_net.train_till_convergence(self.mnist_data.train)
+        small_size_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("small_size_loss: ", small_size_loss)
 
         next(iter(inner_net.get_all_resizable_layers())).resize(20)
-        return_to_old_size_loss = inner_net.train_till_convergence(self.mnist_data.train)
+        return_to_old_size_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("return_to_old_size_loss: ", return_to_old_size_loss)
 
         self.assertAlmostEqual(start_loss, return_to_old_size_loss, delta=20)
@@ -70,15 +70,15 @@ class TestBayesianResizingNet(BaseTfTestCase):
     def test_loss_does_not_decrease_when_returning_to_old_size_from_big(self):
         dimensions = (self.MNIST_INPUT_NODES, 10, self.MNIST_OUTPUT_NODES)
         inner_net = create_network(dimensions, self.session)
-        start_loss = inner_net.train_till_convergence(self.mnist_data.train)
+        start_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("start_loss: ", start_loss)
 
         next(iter(inner_net.get_all_resizable_layers())).resize(50)
-        small_size_loss = inner_net.train_till_convergence(self.mnist_data.train)
+        small_size_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("small_size_loss: ", small_size_loss)
 
         next(iter(inner_net.get_all_resizable_layers())).resize(10)
-        return_to_old_size_loss = inner_net.train_till_convergence(self.mnist_data.train)
+        return_to_old_size_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("return_to_old_size_loss: ", return_to_old_size_loss)
 
         self.assertAlmostEqual(start_loss, return_to_old_size_loss, delta=20)

@@ -140,8 +140,8 @@ class Layer(BaseLayer):
 
         prediction = self._session.run(self.activation_predict,
                                        feed_dict={self.input_placeholder:
-                                                      np.ones(shape=self.input_placeholder.get_shape(),
-                                                              dtype=np.float32)})
+                                                      np.ones(shape=(1,) + self.input_layer.output_nodes,
+                                                              dtype=np.float32)})[0]
 
         to_split = {}
 
@@ -160,8 +160,8 @@ class Layer(BaseLayer):
 
         prediction = self._session.run(self.activation_predict,
                                        feed_dict={self.input_placeholder:
-                                                      np.ones(shape=self.input_placeholder.get_shape(),
-                                                              dtype=np.float32)})
+                                                      np.ones(shape=(1,) + self.input_layer.output_nodes,
+                                                              dtype=np.float32)})[0]
 
         to_prune = {}
 
