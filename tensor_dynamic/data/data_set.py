@@ -2,7 +2,9 @@ import numpy
 
 
 class DataSet(object):
-    def __init__(self, features, labels, fake_data=False):
+    def __init__(self, features, labels, fake_data=False,
+                 flatten=False,
+                 to_binary=False):
         if fake_data:
             self._num_examples = 10000
         else:
@@ -13,9 +15,12 @@ class DataSet(object):
 
             # Convert shape from [num examples, rows, columns, depth]
             # to [num examples, rows*columns]
-            if features.shape[3] == 1:
+            if flatten:
+                assert features.shape[3] == 1
                 features = features.reshape(features.shape[0],
                                             features.shape[1] * features.shape[2])
+
+            if to_binary:
                 # Convert from [0, 255] -> [0.0, 1.0].
                 features = features.astype(numpy.float32)
                 features = numpy.multiply(features, 1.0 / 255.0)

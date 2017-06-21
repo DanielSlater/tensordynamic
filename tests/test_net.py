@@ -80,7 +80,7 @@ class TestNet(BaseTfTestCase):
         import tensor_dynamic.data.data_set as ds
         import os
 
-        data = mnist.read_data_sets(os.path.dirname(ds.__file__) + "/MNIST_data", one_hot=True)
+        data = mnist.get_mnist_data_set_collection(os.path.dirname(ds.__file__) + "/MNIST_data", one_hot=True)
 
         inputs = tf.placeholder(tf.float32, shape=(None, 784))
         input_layer = InputLayer(inputs)

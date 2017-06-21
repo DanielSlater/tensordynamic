@@ -147,7 +147,7 @@ if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     import tensor_dynamic.data.mnist_data as mnist
 
-    data_set = mnist.read_data_sets("data/MNIST_data", one_hot=True, limit_train_size=1000)
+    data_set = mnist.get_mnist_data_set_collection("data/MNIST_data", one_hot=True, limit_train_size=1000)
 
     with tf.Session() as session:
         brn = BayesianResizingNet(create_flat_network((784, 5, 10), session))

@@ -13,7 +13,7 @@ checkpoint_path = "bayesian_neural_network_hidden_40"
 
 restore = False
 
-data = mnist.read_data_sets("../data/MNIST_data", one_hot=True)
+data = mnist.get_mnist_data_set_collection("../data/MNIST_data", one_hot=True)
 
 input_nodes = 784
 output_nodes = 10

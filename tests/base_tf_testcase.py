@@ -13,8 +13,8 @@ def get_mnist_data(limit_size=None):
     import tensor_dynamic.data.mnist_data as mnist
     import tensor_dynamic.data.data_set as ds
     import os
-    return mnist.read_data_sets(os.path.dirname(ds.__file__) + BaseTfTestCase.MNIST_DATA_DIR, one_hot=True,
-                                limit_train_size=limit_size)
+    return mnist.get_mnist_data_set_collection(os.path.dirname(ds.__file__) + BaseTfTestCase.MNIST_DATA_DIR, one_hot=True,
+                                               limit_train_size=limit_size)
 
 
 class BaseTfTestCase(TestCase):

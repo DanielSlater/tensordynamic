@@ -10,7 +10,7 @@ from tensor_dynamic.categorical_trainer import CategoricalTrainer
 
 batch_size = 100
 
-data = mnist.read_data_sets("../data/MNIST_data", one_hot=True, validation_size=5000)
+data = mnist.get_mnist_data_set_collection("../data/MNIST_data", one_hot=True, validation_size=5000)
 
 with tf.Session() as sess:
     inputs = tf.placeholder(tf.float32, shape=(None, 784))

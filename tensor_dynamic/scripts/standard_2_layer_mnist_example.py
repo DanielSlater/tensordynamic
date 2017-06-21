@@ -1,6 +1,6 @@
 # Import MINST data
 import tensor_dynamic.data.mnist_data as input_data
-mnist = input_data.read_data_sets("../data/MNIST_data", one_hot=True)
+mnist = input_data.get_mnist_data_set_collection("../data/MNIST_data", one_hot=True)
 
 import tensorflow as tf
 

@@ -66,7 +66,7 @@ class TestLadderLayer(BaseLayerWrapper.BaseLayerTestCase):
         import tensor_dynamic.data.mnist_data as mnist
 
         num_labeled = 100
-        data = mnist.read_data_sets("../data/MNIST_data", n_labeled=num_labeled, one_hot=True)
+        data = mnist.get_mnist_data_set_collection("../data/MNIST_data", number_labeled_examples=num_labeled, one_hot=True)
 
         batch_size = 100
         num_epochs = 1

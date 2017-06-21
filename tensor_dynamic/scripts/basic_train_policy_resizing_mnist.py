@@ -19,7 +19,7 @@ hidden_layers = [200, 100, 50, 10]
 checkpoint_path = 'resizeing_results'
 SAVE = True
 
-data = mnist.read_data_sets("../data/MNIST_data", one_hot=True, validation_size=5000)
+data = mnist.get_mnist_data_set_collection("../data/MNIST_data", one_hot=True, validation_size=5000)
 
 
 def create_network(sess, hidden_layers):

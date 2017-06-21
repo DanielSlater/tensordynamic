@@ -10,7 +10,7 @@ from tensor_dynamic.layers.ladder_layer import LadderLayer, LadderGammaLayer
 from tensor_dynamic.layers.ladder_output_layer import LadderOutputLayer
 
 num_labeled = 100
-data = mnist.read_data_sets("../data/MNIST_data", n_labeled=num_labeled, one_hot=True)
+data = mnist.get_mnist_data_set_collection("../data/MNIST_data", number_labeled_examples=num_labeled, one_hot=True)
 
 NOISE_STD = 0.3
 batch_size = 100
