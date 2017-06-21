@@ -40,10 +40,11 @@ class BayesianResizingNet(object):
         self._output_layer = output_layer
         self.model_selection_data_type = model_selection_data_type
 
-    def run(self, data_set, initial_learning_rate=0.01):
+    def run(self, data_set, initial_learning_rate=0.01, tuning_learning_rate=0.001):
         """Train the network to find the best size
 
         Args:
+            tuning_learning_rate (float):
             initial_learning_rate (float):
             data_set (tensor_dynamic.data.data_set_collection.DataSetCollection):
         """
@@ -68,7 +69,9 @@ class BayesianResizingNet(object):
             resized, new_best_score = current_resize_target.find_best_size(data_set.train,
                                                                            self.get_evaluation_data_set(data_set),
                                                                            self.model_weight_score,
-                                                                           best_score=best_score)
+                                                                           best_score=best_score,
+                                                                           initial_learning_rate=initial_learning_rate,
+                                                                           tuning_learning_rate=tuning_learning_rate)
             if resized:
                 best_score = new_best_score
                 layers_unsuccessfully_resized = 0
@@ -87,7 +90,8 @@ class BayesianResizingNet(object):
                 unresized_layers[index]
 
         # TOOD adding layers
-        logger.info("Finished with best:%s dims:%s", best_score, self._output_layer.get_resizable_dimensions())
+        logger.info("Finished with best:%s dims:%s", best_score,
+                    self._output_layer.get_resizable_dimension_size_all_layers())
 
     def get_evaluation_data_set(self, data_set):
         if self.model_selection_data_type == EDataType.TRAIN:

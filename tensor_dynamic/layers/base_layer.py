@@ -459,15 +459,15 @@ class BaseLayer(object):
                 else:
                     int_dims += (x,)
             elif x == self.OUTPUT_BOUND_VALUE:
-                int_dims += (self._output_nodes[0], )
+                int_dims += (self._output_nodes[0],)
             elif x == self.INPUT_BOUND_VALUE:
-                int_dims += (self._input_nodes[0], )
+                int_dims += (self._input_nodes[0],)
             elif x == self.INPUT_DIM_3_BOUND_VALUE:
                 assert len(self._input_nodes) == 3, "must have 3 input dimensions"
-                int_dims += (self._input_nodes[2], )
+                int_dims += (self._input_nodes[2],)
             elif x == self.OUTPUT_DIM_3_BOUND_VALUE:
                 assert len(self._input_nodes) == 3, "must have 3 output dimensions"
-                int_dims += (self._output_nodes[2], )
+                int_dims += (self._output_nodes[2],)
             else:
                 raise Exception("bound dimension must be either int or 'input' or 'output' found %s" % (x,))
         return int_dims
@@ -707,7 +707,8 @@ class BaseLayer(object):
         if not resized:
             logger.info("From start_size %s Bigger failed, trying smaller", start_size)
             # try smaller
-            two_smaller = self._get_new_node_count(self.SHRINK_MULTIPLYER, from_size=self._get_new_node_count(self.SHRINK_MULTIPLYER))
+            two_smaller = self._get_new_node_count(self.SHRINK_MULTIPLYER,
+                                                   from_size=self._get_new_node_count(self.SHRINK_MULTIPLYER))
             new_score = self._layer_resize_converge(data_set_train, data_set_validation,
                                                     model_evaluation_function,
                                                     two_smaller,
@@ -727,11 +728,13 @@ class BaseLayer(object):
         # return to the best size we found
         self.resize(best_layer_size)
 
-        self._output_layer.train_till_convergence(data_set_train, data_set_validation,
-                                                  learning_rate=tuning_learning_rate)
+        self.last_layer.train_till_convergence(data_set_train, data_set_validation,
+                                               learning_rate=tuning_learning_rate)
 
         return resized, best_score
 
+    def _choose_nodes_to_split(self):
+        raise NotImplementedError()
 
     # def save_network(self):
     #     obj = {}
