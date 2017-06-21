@@ -18,13 +18,27 @@ class EDataType(Enum):
     VALIDATION = 2
 
 
-def create_network(initial_size, session, regularizer_coeff=0.001, beta=.999):
-    last_layer = InputLayer(initial_size[0])
+def create_flat_network(size, session, regularizer_coeff=0.001, beta=None):
+    """Create a network of connected flat layers with sigmoid activation func
 
-    for hidden_nodes in initial_size[1:-1]:
+    Args:
+        size (tuple of int): First int is number of input nodes, then each hidden layer, final is output layer
+        session (tf.Session):
+        regularizer_coeff (float):
+        beta (float):
+
+    Returns:
+        OutputLayer
+    """
+    if beta is None:
+        beta = 1.-regularizer_coeff
+
+    last_layer = InputLayer(size[0])
+
+    for hidden_nodes in size[1:-1]:
         last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=tf.sigmoid)
 
-    output = CategoricalOutputLayer(last_layer, initial_size[-1], session,
+    output = CategoricalOutputLayer(last_layer, size[-1], session,
                                     regularizer_weighting=regularizer_coeff, target_weighting=beta)
     return output
 
@@ -136,7 +150,7 @@ if __name__ == '__main__':
     data_set = mnist.read_data_sets("data/MNIST_data", one_hot=True, limit_train_size=1000)
 
     with tf.Session() as session:
-        brn = BayesianResizingNet(create_network((784, 5, 10), session))
+        brn = BayesianResizingNet(create_flat_network((784, 5, 10), session))
         brn.run(data_set)
 
         # when running with 10 starting nodes

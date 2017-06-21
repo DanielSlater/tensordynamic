@@ -30,3 +30,21 @@ class DataSetCollection(object):
     @property
     def validation(self):
         return self._validation
+
+    @property
+    def features_shape(self):
+        """Shape of a single instance of features for the dataset, ignores batch dimension
+
+        Returns:
+            (int)
+        """
+        return self._train.features.shape[1:]
+
+    @property
+    def labels_shape(self):
+        """Shape of a single instance of labels for the dataset, ignores batch dimension
+
+        Returns:
+            (int)
+        """
+        return self._train.labels.shape[1:]

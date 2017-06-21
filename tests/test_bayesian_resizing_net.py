@@ -1,5 +1,5 @@
 from tensor_dynamic.bayesian_resizing_net import BayesianResizingNet, EDataType, \
-    create_network
+    create_flat_network
 from tests.base_tf_testcase import BaseTfTestCase
 
 
@@ -7,7 +7,7 @@ class TestBayesianResizingNet(BaseTfTestCase):
     MNIST_LIMIT_TEST_DATA_SIZE = 3000
 
     def _create_resizing_net(self, dimensions):
-        outer_net = BayesianResizingNet(create_network(dimensions, self.session),
+        outer_net = BayesianResizingNet(create_flat_network(dimensions, self.session),
                                         model_selection_data_type=EDataType.TRAIN)
         return outer_net
 
@@ -30,21 +30,21 @@ class TestBayesianResizingNet(BaseTfTestCase):
 
     def test_resizing_net_grow(self):
         dimensions = (self.MNIST_INPUT_NODES, 20, self.MNIST_OUTPUT_NODES)
-        inner_net = create_network(dimensions, self.session)
+        inner_net = create_flat_network(dimensions, self.session)
         inner_net.train_till_convergence(self.mnist_data.train)
         next(iter(inner_net.get_all_resizable_layers())).resize(25)
         inner_net.train_till_convergence(self.mnist_data.train)
 
     def test_resizing_net_shrink(self):
         dimensions = (self.MNIST_INPUT_NODES, 20, self.MNIST_OUTPUT_NODES)
-        inner_net = create_network(dimensions, self.session)
+        inner_net = create_flat_network(dimensions, self.session)
         inner_net.train_till_convergence(self.mnist_data.train)
         next(iter(inner_net.get_all_resizable_layers())).resize(15)
         inner_net.train_till_convergence(self.mnist_data.train)
 
     def test_resizing_net_shrink_twice(self):
         dimensions = (self.MNIST_INPUT_NODES, 20, self.MNIST_OUTPUT_NODES)
-        inner_net = create_network(dimensions, self.session)
+        inner_net = create_flat_network(dimensions, self.session)
         inner_net.train_till_convergence(self.mnist_data.train)
         next(iter(inner_net.get_all_resizable_layers())).resize(15)
         inner_net.train_till_convergence(self.mnist_data.train)
@@ -53,7 +53,7 @@ class TestBayesianResizingNet(BaseTfTestCase):
 
     def test_loss_does_not_decrease_when_returning_to_old_size_from_small(self):
         dimensions = (self.MNIST_INPUT_NODES, 20, self.MNIST_OUTPUT_NODES)
-        inner_net = create_network(dimensions, self.session)
+        inner_net = create_flat_network(dimensions, self.session)
         start_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("start_loss: ", start_loss)
 
@@ -69,7 +69,7 @@ class TestBayesianResizingNet(BaseTfTestCase):
 
     def test_loss_does_not_decrease_when_returning_to_old_size_from_big(self):
         dimensions = (self.MNIST_INPUT_NODES, 10, self.MNIST_OUTPUT_NODES)
-        inner_net = create_network(dimensions, self.session)
+        inner_net = create_flat_network(dimensions, self.session)
         start_loss = inner_net.train_till_convergence(self.mnist_data.train, learning_rate=0.01)
         print("start_loss: ", start_loss)
 
