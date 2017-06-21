@@ -10,53 +10,6 @@ from tensor_dynamic.data.data_set_collection import DataSetCollection
 from tensor_dynamic.data.mnist_data import dense_to_one_hot
 
 
-def _get_CIFAR10_data(cifar10_dir, num_training=49000, num_validation=1000, num_test=1000):
-    """
-    Load the CIFAR-10 dataset from disk and perform preprocessing to prepare
-    it for the neural net classifier.
-    """
-    # Load the raw CIFAR-10 data
-    X_train, y_train, X_test, y_test = _load(cifar10_dir)
-
-    # Subsample the data
-    mask = range(num_training, num_training + num_validation)
-    X_val = X_train[mask]
-    y_val = y_train[mask]
-    mask = range(num_training)
-    X_train = X_train[mask]
-    y_train = y_train[mask]
-    mask = range(num_test)
-    X_test = X_test[mask]
-    y_test = y_test[mask]
-
-    X_train = X_train.astype(np.float64)
-    X_val = X_val.astype(np.float64)
-    X_test = X_test.astype(np.float64)
-
-    # Transpose so that channels come first
-    X_train = X_train.transpose(0, 3, 1, 2)
-    X_val = X_val.transpose(0, 3, 1, 2)
-    X_test = X_test.transpose(0, 3, 1, 2)
-
-    mean_image = np.mean(X_train, axis=0)
-    std = np.std(X_train)
-
-    X_train -= mean_image
-    X_val -= mean_image
-    X_test -= mean_image
-
-    X_train /= std
-    X_val /= std
-    X_test /= std
-
-    return {
-        'X_train': X_train, 'y_train': y_train,
-        'X_val': X_val, 'y_val': y_val,
-        'X_test': X_test, 'y_test': y_test,
-        'mean': mean_image, 'std': std
-    }
-
-
 def _load_CIFAR_batch(filename):
     """ load single batch of cifar """
     with open(filename, 'r') as f:
@@ -149,6 +102,12 @@ def _load_cifar_100_set(filepath, use_fine_labels):
 
     features = data['data'].reshape(data['data'].shape[0],
                                     3, 32, 32)
+
+    # change from channel, width, height to width, height, channel
+    features = features.transpose(0, 2, 3, 1)
+
+    features = features.astype(np.float32)
+
     if use_fine_labels:
         labels = np.array(data['fine_labels'],
                           dtype=np.uint8)
@@ -159,7 +118,38 @@ def _load_cifar_100_set(filepath, use_fine_labels):
     return features, labels
 
 
+# TODO: Fix and maybe use this in the future
+def _maybe_download_and_extract(data_dir):
+    """Download and extract the tarball from Alex's website."""
+    import sys
+    import urllib
+    import tarfile
+
+    DATA_URL_10 = 'http://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz'
+    DATA_URL_100 = 'http://www.cs.toronto.edu/~kriz/cifar-100-binary.tar.gz'
+
+    dest_directory = data_dir
+    if not os.path.exists(dest_directory):
+        os.makedirs(dest_directory)
+    filename = DATA_URL_10.split('/')[-1]
+    filepath = os.path.join(dest_directory, filename)
+    if not os.path.exists(filepath):
+        def _progress(count, block_size, total_size):
+            sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename,
+                                                             float(count * block_size) / float(total_size) * 100.0))
+            sys.stdout.flush()
+
+        filepath, _ = urllib.request.urlretrieve(DATA_URL_10, filepath, _progress)
+        print()
+        statinfo = os.stat(filepath)
+        print('Successfully downloaded', filename, statinfo.st_size, 'bytes.')
+    extracted_dir_path = os.path.join(dest_directory, 'cifar-10-batches-bin')
+    if not os.path.exists(extracted_dir_path):
+        tarfile.open(filepath, 'r:gz').extractall(dest_directory)
+
+
 if __name__ == '__main__':
+    # data_set = _get_CIFAR10_data("CIFAR_data/cifar-10-batches-py")
     data_set = get_cifar_100_data_set_collection("CIFAR_data", one_hot=True)
     print(len(data_set))
     data_set = get_cifar_10_data_set_collection("CIFAR_data", one_hot=True)

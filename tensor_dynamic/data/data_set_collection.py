@@ -24,14 +24,14 @@ class DataSetCollection(object):
             mean_image = np.mean(train.features, axis=0)
             std = np.std(train.features)
 
-            train.features -= mean_image
-            test.features -= mean_image
-            train.features /= std
-            test.features /= std
+            train._features -= mean_image
+            test._features -= mean_image
+            train._features /= std
+            test._features /= std
 
             if validation:
-                validation.features -= mean_image
-                validation.features /= std
+                validation._features -= mean_image
+                validation._features /= std
 
         self._train = train
         self._test = test
