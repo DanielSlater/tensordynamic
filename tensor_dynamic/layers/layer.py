@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.tf_loss_functions import squared_loss
-from tensor_dynamic.utils import xavier_init
+from tensor_dynamic.utils import xavier_init, create_hessian_variable_op
 from tensor_dynamic.weight_functions import noise_weight_extender
 
 
@@ -138,19 +138,49 @@ class Layer(BaseLayer):
         if desired_size >= current_size:
             return None
 
-        prediction = self._session.run(self.activation_predict,
-                                       feed_dict={self.input_placeholder:
-                                                      np.ones(shape=(1,) + self.input_layer.output_nodes,
-                                                              dtype=np.float32)})[0]
+        importance = self._get_node_importance()
 
         to_split = {}
 
         while desired_size < current_size + len(to_split):
-            max_node = np.argmax(prediction)
-            prediction[max_node] = -sys.float_info.max
+            max_node = np.argmax(importance)
+            importance[max_node] = -sys.float_info.max
             to_split.add(max_node)
 
         return to_split
+
+    def _get_node_importance(self):
+        importance = self._session.run(self.activation_predict,
+                                       feed_dict={self.input_placeholder:
+                                                      np.ones(shape=(1,) + self.input_layer.output_nodes,
+                                                              dtype=np.float32)})[0]
+        return importance
+
+    def _get_node_importance_hessian(self, features, labels):
+        # TODO: Lazy prop these?
+        weights_hessian_op = create_hessian_variable_op(self.last_layer.target_loss_op_train,
+                                                        self._weights)
+
+        bias_hessian_op = create_hessian_variable_op(self.last_layer.target_loss_op_train,
+                                                     self._bias)
+
+        weights_hessian, bias_hessian = self.session.run(
+            [weights_hessian_op, bias_hessian_op],
+            feed_dict={self.input_placeholder: features,
+                       self.target_placeholder: labels}
+        )
+
+        node_importance = []
+
+        for i in range(len(self.output_nodes[-1])):
+            sum = bias_hessian[i]
+            # TODO: Optimal brian damage recommends multiplying this by the value squared...
+            for j in range(len(self.input_nodes[-1])):
+                sum += weights_hessian[j][i]
+
+            node_importance.append(sum)
+
+        return node_importance
 
     def _choose_nodes_to_prune(self, desired_size):
         current_size = self.get_resizable_dimension_size()
@@ -158,16 +188,13 @@ class Layer(BaseLayer):
         if desired_size <= current_size:
             return None
 
-        prediction = self._session.run(self.activation_predict,
-                                       feed_dict={self.input_placeholder:
-                                                      np.ones(shape=(1,) + self.input_layer.output_nodes,
-                                                              dtype=np.float32)})[0]
+        importance = self._get_node_importance()
 
         to_prune = {}
 
         while desired_size < current_size - len(to_prune):
-            min_node = np.argmin(prediction)
-            prediction[min_node] = sys.float_info.max
+            min_node = np.argmin(importance)
+            importance[min_node] = sys.float_info.max
             to_prune.add(min_node)
 
         return to_prune

@@ -5,22 +5,24 @@ from tensor_dynamic.lazyprop import lazyprop
 
 
 class InputLayer(BaseLayer):
-    def __init__(self, placeholder, name='Input'):
+    def __init__(self, input_nodes, name='Input'):
         """Input layer to a neural network
 
         Args:
-            placeholder (tensorflow.placeholder or (int) or int): If an int then a tensorflow.placeholder is created
+            input_nodes (tensorflow.placeholder or (int) or int): If an int then a tensorflow.placeholder is created
                 with dimensions (None, placholder) if a tuple a placeholder is created of that dimension
             name(str): the name for this layer
         """
-        if isinstance(placeholder, (tuple, list)):
-            placeholder = tf.placeholder('float', placeholder)
-        elif isinstance(placeholder, int):
-            placeholder = tf.placeholder('float', (None, placeholder))
+        if isinstance(input_nodes, int):
+            input_nodes = (input_nodes,)
+        if isinstance(input_nodes, (tuple, list)):
+            input_nodes = tf.placeholder('float', (None,) + input_nodes)
+        else:
+            raise TypeError("Expected input_nodes to be int or tuple")
 
-        self._output_nodes = tuple(int(x) for x in placeholder.get_shape()[1:])
+        self._output_nodes = tuple(int(x) for x in input_nodes.get_shape()[1:])
         self._name = name
-        self._placeholder = placeholder
+        self._placeholder = input_nodes
         self._next_layer = None
         self._input_layer = None
 
@@ -71,13 +73,10 @@ class InputLayer(BaseLayer):
 
 
 class NoisyInputLayer(InputLayer):
-    def __init__(self, placeholder, session, noise_std=1.0, name='NoisyInput'):
-        super(NoisyInputLayer, self).__init__(placeholder, name)
+    def __init__(self, input_nodes, session, noise_std=1.0, name='NoisyInput'):
+        super(NoisyInputLayer, self).__init__(input_nodes, name)
         self._noise_std = noise_std
         self._session = session
-        with self.name_scope():
-            self._predict = tf.Variable(noise_std, name='predict')
-            self._session.run(tf.initialize_variables([self._predict]))
 
     @lazyprop
     def activation_train(self):

@@ -98,7 +98,7 @@ def get_mnist_data_set_collection(train_dir, number_labeled_examples=None, fake_
         train = DataSet([], [], fake_data=True)
         validation = DataSet([], [], fake_data=True)
         test = DataSet([], [], fake_data=True)
-        return DataSetCollection(train, test, validation)
+        return DataSetCollection('FAKE', train, test, validation)
 
     TRAIN_IMAGES = 'train-images-idx3-ubyte.gz'
     TRAIN_LABELS = 'train-labels-idx1-ubyte.gz'
@@ -138,7 +138,7 @@ def get_mnist_data_set_collection(train_dir, number_labeled_examples=None, fake_
 
     test = DataSet(test_images, test_labels, flatten=flatten, to_binary=True)
 
-    return DataSetCollection(train, test, validation)
+    return DataSetCollection('MNIST', train, test, validation)
 
 
 if __name__ == '__main__':

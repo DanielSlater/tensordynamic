@@ -527,15 +527,15 @@ class BaseLayer(object):
 
         return next_layer
 
-    def add_intermediate_layer(self, layer_creation_func):
-        """Adds a layer to the network between this layer
+    def add_intermediate_layer(self, layer_creation_func, *args, **kwargs):
+        """Adds a layer to the network between this layer and the next one.
 
         Args:
-            layer_creation_func (BaseLayer->None): Method that creates the intermediate layer, takes this layer as a
-                parameter
+            layer_creation_func (BaseLayer->BaseLayer): Method that creates the intermediate layer, takes this layer as a
+                parameter. Any args or kwargs get passed in after passing in this layer
         """
         old_next_layer = self.detach_output()
-        new_next_layer = layer_creation_func(self)
+        new_next_layer = layer_creation_func(self, *args, **kwargs)
 
         new_next_layer._next_layer = old_next_layer
         old_next_layer._input_layer = new_next_layer

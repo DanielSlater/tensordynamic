@@ -5,7 +5,7 @@ from math import log
 import tensorflow as tf
 from enum import Enum
 
-from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.layers.input_layer import InputLayer, NoisyInputLayer
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.layers.output_layer import CategoricalOutputLayer, OutputLayer
 
@@ -18,28 +18,29 @@ class EDataType(Enum):
     VALIDATION = 2
 
 
-def create_flat_network(size, session, regularizer_coeff=0.001, beta=None):
+def create_flat_network(size, session, regularizer_coeff=0.001,
+                        activation_func=tf.nn.relu,
+                        use_noisy_input_layer=False):
     """Create a network of connected flat layers with sigmoid activation func
 
     Args:
         size (tuple of int): First int is number of input nodes, then each hidden layer, final is output layer
         session (tf.Session):
         regularizer_coeff (float):
-        beta (float):
 
     Returns:
         OutputLayer
     """
-    if beta is None:
-        beta = 1.-regularizer_coeff
-
-    last_layer = InputLayer(size[0])
+    if use_noisy_input_layer:
+        last_layer = NoisyInputLayer(size[0], session)
+    else:
+        last_layer = InputLayer(size[0])
 
     for hidden_nodes in size[1:-1]:
-        last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=tf.sigmoid)
+        last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=activation_func)
 
     output = CategoricalOutputLayer(last_layer, size[-1], session,
-                                    regularizer_weighting=regularizer_coeff, target_weighting=beta)
+                                    regularizer_weighting=regularizer_coeff)
     return output
 
 

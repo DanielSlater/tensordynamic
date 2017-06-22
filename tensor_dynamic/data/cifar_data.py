@@ -9,6 +9,8 @@ from tensor_dynamic.data.data_set import DataSet
 from tensor_dynamic.data.data_set_collection import DataSetCollection
 from tensor_dynamic.data.mnist_data import dense_to_one_hot
 
+CIFAR_DATA_DIR = os.path.dirname(__file__) + "/CIFAR_data"
+
 
 def _load_CIFAR_batch(filename):
     """ load single batch of cifar """
@@ -37,7 +39,7 @@ def _load(ROOT):
     return Xtr, Ytr, Xte, Yte
 
 
-def get_cifar_10_data_set_collection(root_path, one_hot=True):
+def get_cifar_10_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True):
     """Get the cifar 100 data set requires files to be downloaded and extracted into cifar-10-batches-py
     directory within root path
 
@@ -60,12 +62,12 @@ def get_cifar_10_data_set_collection(root_path, one_hot=True):
 
     test = DataSet(features_test, labels_test, to_binary=True)
 
-    collection = DataSetCollection(train, test, normalize=True)
+    collection = DataSetCollection('CIFAR-10', train, test, normalize=True)
 
     return collection
 
 
-def get_cifar_100_data_set_collection(root_path, one_hot=True, use_fine_labels=True):
+def get_cifar_100_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True, use_fine_labels=True):
     """Get the cifar 100 data set requires files to be downloaded and extracted into cifar-100-python
     directory within root path
 
@@ -91,7 +93,8 @@ def get_cifar_100_data_set_collection(root_path, one_hot=True, use_fine_labels=T
 
     test = DataSet(features_test, labels_test, to_binary=True)
 
-    collection = DataSetCollection(train, test, normalize=True)
+    collection = DataSetCollection('CIFAR-100' + ('-fine' if use_fine_labels else '-coarse'),
+                                   train, test, normalize=True)
 
     return collection
 
@@ -150,7 +153,7 @@ def _maybe_download_and_extract(data_dir):
 
 if __name__ == '__main__':
     # data_set = _get_CIFAR10_data("CIFAR_data/cifar-10-batches-py")
-    data_set = get_cifar_100_data_set_collection("CIFAR_data", one_hot=True)
+    data_set = get_cifar_100_data_set_collection(CIFAR_DATA_DIR, one_hot=True)
     print(len(data_set))
-    data_set = get_cifar_10_data_set_collection("CIFAR_data", one_hot=True)
+    data_set = get_cifar_10_data_set_collection(CIFAR_DATA_DIR, one_hot=True)
     print(len(data_set))

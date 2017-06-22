@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 from unittest import TestCase
@@ -9,13 +10,13 @@ import tensorflow as tf
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
-def get_mnist_data(limit_size=None):
+def get_mnist_data(limit_size=None, flatten=True):
     import tensor_dynamic.data.mnist_data as mnist
     import tensor_dynamic.data.data_set as ds
     import os
     return mnist.get_mnist_data_set_collection(os.path.dirname(ds.__file__) + BaseTfTestCase.MNIST_DATA_DIR, one_hot=True,
+                                               flatten=flatten,
                                                limit_train_size=limit_size)
-
 
 class BaseTfTestCase(TestCase):
     MNIST_DATA = None

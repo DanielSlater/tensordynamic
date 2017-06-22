@@ -1,7 +1,7 @@
-from tensor_dynamic.layers.base_layer import BaseLayer
-from tensor_dynamic.lazyprop import lazyprop
-from tensor_dynamic.weight_functions import noise_weight_extender
 import tensorflow as tf
+
+from tensor_dynamic.layers.base_layer import BaseLayer
+from tensor_dynamic.weight_functions import noise_weight_extender
 
 
 class ConvolutionalLayer(BaseLayer):
@@ -10,7 +10,7 @@ class ConvolutionalLayer(BaseLayer):
     def __init__(self,
                  input_layer,
                  convolution_dimensions,  # 3d (width, height, convolutions)
-                 stride=(1, 1),
+                 stride=(1, 1, 1),
                  padding='SAME',  # only same currently supported
                  session=None,
                  weights=None,
@@ -25,7 +25,7 @@ class ConvolutionalLayer(BaseLayer):
 
         output_nodes = (input_layer.output_nodes[0] / stride[0],
                         input_layer.output_nodes[1] / stride[1],
-                        convolution_dimensions[2])
+                        convolution_dimensions[2] / stride[2])
 
         super(ConvolutionalLayer, self).__init__(input_layer,
                                                  output_nodes,
@@ -52,7 +52,8 @@ class ConvolutionalLayer(BaseLayer):
         return self._convolution_dimensions
 
     def _layer_activation(self, input_activation, is_train):
-        x = tf.nn.conv2d(input_activation, self._weights, strides=[1, self._stride[0], self._stride[1], 1], padding='SAME')
+        x = tf.nn.conv2d(input_activation, self._weights, strides=(1,) + self._stride,
+                         padding='SAME')
         x = tf.nn.bias_add(x, self._bias)
         return self._non_liniarity(x)
 
@@ -63,7 +64,7 @@ class ConvolutionalLayer(BaseLayer):
                split_input_nodes=None, split_nodes_noise_std=.1):
         if isinstance(new_output_nodes, int):
             temp = list(self.output_nodes)
-            temp[2] = new_output_nodes
+            temp[2] = new_output_nodes / self._stride[2]
             new_output_nodes = tuple(temp)
 
         super(ConvolutionalLayer, self).resize(new_output_nodes,

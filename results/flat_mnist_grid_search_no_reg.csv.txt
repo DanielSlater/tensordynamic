@@ -1,0 +1,9 @@
+data_set=MNIST
+data_set_normalized=True
+learning_rate=0.001
+continue_epochs=4
+optimizer=<class 'tensorflow.python.training.adam.AdamOptimizer'>
+activation_func=relu
+use_noisy_input_layer=True
+network=flat
+regularizer=0.0
