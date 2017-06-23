@@ -7,7 +7,8 @@ from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.input_layer import NoisyInputLayer, InputLayer
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.layers.max_pool_layer import MaxPoolLayer
-from tensor_dynamic.layers.output_layer import CategoricalOutputLayer, OutputLayer, BinaryLayer
+from tensor_dynamic.layers.output_layer import OutputLayer, BinaryOutputLayer
+from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 
 data_set_collection = get_two_spirals_data_set_collection()
 
@@ -29,7 +30,7 @@ with tf.Session() as session:
     #
     # last_layer = Layer(last_layer, 300, session, non_liniarity=non_liniarity)
 
-    output = BinaryLayer(last_layer, session, regularizer_weighting=regularizer_coeff)
+    output = BinaryOutputLayer(last_layer, session, regularizer_weighting=regularizer_coeff)
 
     output.train_till_convergence(data_set_collection.train, data_set_collection.test, learning_rate=0.0001,
                                   continue_epochs=3)

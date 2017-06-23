@@ -18,7 +18,9 @@ def do_grid_search(data_set_collection, model_functions, file_name, learning_rat
         extra_parameters (dict):
         learning_rate (float):
     """
-    write_parameters_file(data_set_collection, extra_parameters, file_name, learning_rate, continue_epochs)
+    extra_parameters['learning_rate'] = learning_rate
+    extra_parameters['continue_epochs'] = continue_epochs
+    write_parameters_file(data_set_collection, file_name, **extra_parameters)
     with open(file_name, 'w') as result_file:
         result_file.write(
             'log_prob_train, error_train, accuracy_train, error_test, accuracy_test, log_prob_test, dimensions, parameters\n')
@@ -43,13 +45,11 @@ def do_grid_search(data_set_collection, model_functions, file_name, learning_rat
                                                                  model.get_parameters_all_layers()))
 
 
-def write_parameters_file(data_set_collection, extra_parameters, file_name, learning_rate, continue_epochs):
+def write_parameters_file(data_set_collection, file_name, **kwargs):
     with open(file_name + '.txt', 'w') as param_file:
         param_file.write("data_set=%s\n" % (data_set_collection.name,))
         param_file.write("data_set_normalized=%s\n" % (data_set_collection.normlized,))
-        param_file.write("learning_rate=%s\n" % (learning_rate,))
-        param_file.write("continue_epochs=%s\n" % (continue_epochs,))
-        for key, value in extra_parameters.iteritems():
+        for key, value in kwargs.iteritems():
             param_file.write("%s=%s\n" % (key, value))
 
 
@@ -74,18 +74,18 @@ def flat_model_functions(data_set_collection, regularizer, activation_func, use_
 
 
 if __name__ == '__main__':
-    regularizer = 0.0
+    regularizer = 0.01
 
     data_set_collection = get_mnist_data()
-    use_noisy_input_layer = True
+    use_noisy_input_layer = False
     do_grid_search(data_set_collection,
                    functools.partial(flat_model_functions,
                                      regularizer=regularizer,
                                      activation_func=tf.nn.relu,
                                      use_noisy_input_layer=use_noisy_input_layer),
-                   'flat_mnist_grid_search_no_reg.csv',
+                   'flat_adam_reg_softmax_fix.csv',
                    regularizer=regularizer,
                    use_noisy_input_layer=use_noisy_input_layer,
-                   activation_func='relu',
+                   activation_func=tf.nn.relu,
                    network='flat',
                    optimizer=tf.train.AdamOptimizer)

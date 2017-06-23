@@ -7,7 +7,8 @@ from enum import Enum
 
 from tensor_dynamic.layers.input_layer import InputLayer, NoisyInputLayer
 from tensor_dynamic.layers.layer import Layer
-from tensor_dynamic.layers.output_layer import CategoricalOutputLayer, OutputLayer
+from tensor_dynamic.layers.output_layer import OutputLayer
+from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 
 logger = logging.getLogger(__name__)
 

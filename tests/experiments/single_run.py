@@ -6,7 +6,7 @@ from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.input_layer import NoisyInputLayer
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.layers.max_pool_layer import MaxPoolLayer
-from tensor_dynamic.layers.output_layer import CategoricalOutputLayer
+from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 
 data_set_collection = get_cifar_100_data_set_collection()
 
