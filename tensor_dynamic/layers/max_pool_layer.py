@@ -10,6 +10,8 @@ class MaxPoolLayer(BaseLayer):
                  input_layer,
                  ksize=(2, 2, 1),
                  strides=(2, 2, 1),
+                 padding="SAME",
+                 input_noise_std=None,
                  session=None,
                  name='MaxPoolLayer'):
         assert len(input_layer.output_nodes) == 3, "expected 3 output dimensions"
@@ -20,11 +22,13 @@ class MaxPoolLayer(BaseLayer):
 
         super(MaxPoolLayer, self).__init__(input_layer,
                                            output_nodes,
+                                           input_noise_std=input_noise_std,
                                            session=session,
                                            name=name)
 
         self._strides = strides
         self._ksize = ksize
+        self._padding = padding
 
     @staticmethod
     def _calculate_output_nodes(input_layer, strides):
@@ -35,7 +39,7 @@ class MaxPoolLayer(BaseLayer):
     def _layer_activation(self, input_tensor, is_train):
         return tf.nn.max_pool(input_tensor, ksize=(1,) + self._strides,
                               strides=(1,) + self._ksize,
-                              padding="SAME")
+                              padding=self._padding)
 
     def resize(self, new_output_nodes=None,
                output_nodes_to_prune=None,
@@ -72,3 +76,13 @@ class MaxPoolLayer(BaseLayer):
                                   name=self._name)
 
         return new_self
+
+    @property
+    def kwargs(self):
+        kwargs = super(MaxPoolLayer, self).kwargs
+
+        kwargs['stride'] = self._stride
+        kwargs['padding'] = self._padding
+        kwargs['ksize'] = self._ksize
+
+        return kwargs

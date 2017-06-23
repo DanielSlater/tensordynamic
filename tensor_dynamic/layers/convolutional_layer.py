@@ -20,7 +20,8 @@ class ConvolutionalLayer(BaseLayer):
                  weight_extender_func=None,
                  name='ConvolutionalLayer',
                  freeze=False,
-                 non_liniarity=tf.nn.relu):
+                 input_noise_std=None,
+                 non_liniarity=None):
         assert len(input_layer.output_nodes) == 3, "expected input to have 3 dimensions"
         assert len(convolution_dimensions) == 3, "expected output to have 3 dimensions"
         self._convolution_dimensions = convolution_dimensions
@@ -34,6 +35,7 @@ class ConvolutionalLayer(BaseLayer):
                                                  session=session,
                                                  weight_extender_func=weight_extender_func,
                                                  freeze=freeze,
+                                                 input_noise_std=input_noise_std,
                                                  name=name)
 
         self._weights = self._create_variable("weights",
@@ -110,3 +112,12 @@ class ConvolutionalLayer(BaseLayer):
 
     def get_resizable_dimension(self):
         return 2
+
+    @property
+    def kwargs(self):
+        kwargs = super(ConvolutionalLayer, self).kwargs
+
+        kwargs['stride'] = self._stride
+        kwargs['padding'] = self._padding
+
+        return kwargs
