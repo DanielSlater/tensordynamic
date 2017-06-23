@@ -21,7 +21,7 @@ class ConvolutionalLayer(BaseLayer):
                  name='ConvolutionalLayer',
                  freeze=False,
                  input_noise_std=None,
-                 non_liniarity=None):
+                 non_liniarity=tf.nn.relu):
         assert len(input_layer.output_nodes) == 3, "expected input to have 3 dimensions"
         assert len(convolution_dimensions) == 3, "expected output to have 3 dimensions"
         self._convolution_dimensions = convolution_dimensions
@@ -57,7 +57,7 @@ class ConvolutionalLayer(BaseLayer):
 
     def _layer_activation(self, input_activation, is_train):
         x = tf.nn.conv2d(input_activation, self._weights, strides=(1,) + self._stride,
-                         padding='SAME')
+                         padding=self._padding)
         x = tf.nn.bias_add(x, self._bias)
         return self._non_liniarity(x)
 
@@ -119,5 +119,6 @@ class ConvolutionalLayer(BaseLayer):
 
         kwargs['stride'] = self._stride
         kwargs['padding'] = self._padding
+        kwargs['non_liniarity'] = self._non_liniarity
 
         return kwargs
