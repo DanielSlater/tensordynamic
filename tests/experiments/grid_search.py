@@ -3,6 +3,7 @@ import functools
 import tensorflow as tf
 
 from tensor_dynamic.bayesian_resizing_net import create_flat_network
+from tensor_dynamic.data.cifar_data import get_cifar_100_data_set_collection
 from tests.base_tf_testcase import get_mnist_data
 
 
@@ -55,8 +56,7 @@ def write_parameters_file(data_set_collection, file_name, **kwargs):
 
 def flat_model_functions(data_set_collection, regularizer, activation_func, use_noisy_input_layer):
     def get_model(session, parameters):
-        dims = data_set_collection.features_shape + parameters + data_set_collection.labels_shape
-        return create_flat_network(dims, session, regularizer_coeff=regularizer, activation_func=activation_func,
+        return create_flat_network(data_set_collection, parameters, session, regularizer_coeff=regularizer, activation_func=activation_func,
                                    use_noisy_input_layer=use_noisy_input_layer)
 
     # 1 layer
@@ -76,15 +76,16 @@ def flat_model_functions(data_set_collection, regularizer, activation_func, use_
 if __name__ == '__main__':
     regularizer = 0.01
 
-    data_set_collection = get_mnist_data()
+    data_set_collection = get_cifar_100_data_set_collection()
     use_noisy_input_layer = False
     do_grid_search(data_set_collection,
                    functools.partial(flat_model_functions,
                                      regularizer=regularizer,
                                      activation_func=tf.nn.relu,
                                      use_noisy_input_layer=use_noisy_input_layer),
-                   'flat_adam_reg_softmax_fix.csv',
+                   'cifar-100.csv',
                    regularizer=regularizer,
+                   learning_rate=0.0001,
                    use_noisy_input_layer=use_noisy_input_layer,
                    activation_func=tf.nn.relu,
                    network='flat',

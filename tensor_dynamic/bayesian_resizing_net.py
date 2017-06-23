@@ -5,6 +5,7 @@ from math import log
 import tensorflow as tf
 from enum import Enum
 
+from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.input_layer import InputLayer, NoisyInputLayer
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.layers.output_layer import OutputLayer
@@ -19,13 +20,13 @@ class EDataType(Enum):
     VALIDATION = 2
 
 
-def create_flat_network(size, session, regularizer_coeff=0.001,
+def create_flat_network(data_set_collection, hidden_layers, session, regularizer_coeff=0.001,
                         activation_func=tf.nn.relu,
                         use_noisy_input_layer=False):
     """Create a network of connected flat layers with sigmoid activation func
 
     Args:
-        size (tuple of int): First int is number of input nodes, then each hidden layer, final is output layer
+        hidden_layers (tuple of int): First int is number of input nodes, then each hidden layer, final is output layer
         session (tf.Session):
         regularizer_coeff (float):
 
@@ -33,14 +34,17 @@ def create_flat_network(size, session, regularizer_coeff=0.001,
         OutputLayer
     """
     if use_noisy_input_layer:
-        last_layer = NoisyInputLayer(size[0], session)
+        last_layer = NoisyInputLayer(data_set_collection.features_shape, session)
     else:
-        last_layer = InputLayer(size[0])
+        last_layer = InputLayer(data_set_collection.features_shape)
 
-    for hidden_nodes in size[1:-1]:
+    if len(last_layer.output_nodes) > 1:
+        last_layer = FlattenLayer(last_layer, session)
+
+    for hidden_nodes in hidden_layers:
         last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=activation_func)
 
-    output = CategoricalOutputLayer(last_layer, size[-1], session,
+    output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
                                     regularizer_weighting=regularizer_coeff)
     return output
 
