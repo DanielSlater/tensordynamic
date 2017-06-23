@@ -21,9 +21,7 @@ class BaseLayerWrapper(object):
 
         def setUp(self):
             super(BaseLayerWrapper.BaseLayerTestCase, self).setUp()
-            self._input_placeholder = tf.placeholder("float", shape=(None,) + self.INPUT_NODES)
-            self._input_layer = InputLayer(self._input_placeholder)
-            self._target_placeholder = tf.placeholder("float", shape=(None,) + self.OUTPUT_NODES)
+            self._input_layer = InputLayer(self.INPUT_NODES)
 
         def _create_layer_for_test(self):
             raise NotImplementedError('Override in sub class to return a new instance of the layer to be tested')
@@ -35,7 +33,7 @@ class BaseLayerWrapper(object):
             layer_activation = self.session.run(layer.activation_predict,
                                                 feed_dict={layer.input_placeholder: input_values})
             clone_activation = self.session.run(clone.activation_predict,
-                                                feed_dict={layer.input_placeholder: input_values})
+                                                feed_dict={clone.input_placeholder: input_values})
 
             np.testing.assert_array_almost_equal(
                 layer_activation, clone_activation,

@@ -132,23 +132,6 @@ class Layer(BaseLayer):
     def get_resizable_dimension_size(self):
         return self.output_nodes[0]
 
-    def _choose_nodes_to_split(self, desired_size):
-        current_size = self.get_resizable_dimension_size()
-
-        if desired_size >= current_size:
-            return None
-
-        importance = self._get_node_importance()
-
-        to_split = {}
-
-        while desired_size < current_size + len(to_split):
-            max_node = np.argmax(importance)
-            importance[max_node] = -sys.float_info.max
-            to_split.add(max_node)
-
-        return to_split
-
     def _get_node_importance(self):
         importance = self._session.run(self.activation_predict,
                                        feed_dict={self.input_placeholder:
@@ -181,23 +164,6 @@ class Layer(BaseLayer):
             node_importance.append(sum)
 
         return node_importance
-
-    def _choose_nodes_to_prune(self, desired_size):
-        current_size = self.get_resizable_dimension_size()
-
-        if desired_size <= current_size:
-            return None
-
-        importance = self._get_node_importance()
-
-        to_prune = {}
-
-        while desired_size < current_size - len(to_prune):
-            min_node = np.argmin(importance)
-            importance[min_node] = sys.float_info.max
-            to_prune.add(min_node)
-
-        return to_prune
 
 
 if __name__ == '__main__':

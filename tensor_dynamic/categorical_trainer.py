@@ -1,7 +1,7 @@
 import itertools
 import tensorflow as tf
 
-
+# I think this can be depricated
 class CategoricalTrainer(object):
     def __init__(self, net, learn_rate):
         """Sets up an optimizer and various helper methods against a network

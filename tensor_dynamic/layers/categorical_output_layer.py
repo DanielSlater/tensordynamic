@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from tensor_dynamic.data.data_set import DataSet
 from tensor_dynamic.layers.output_layer import OutputLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
@@ -55,7 +56,7 @@ class CategoricalOutputLayer(OutputLayer):
         return self._target_loss_op(self._pre_softmax_activation_predict)
 
     def _target_loss_op(self, input_tensor):
-        return tf.reduce_sum(
+        return tf.reduce_sum( # TODO: Change to mean?
             tf.nn.softmax_cross_entropy_with_logits(logits=input_tensor, labels=self._target_placeholder),
         )
 
@@ -64,18 +65,20 @@ class CategoricalOutputLayer(OutputLayer):
         return tf.reduce_mean(tf.cast(tf.nn.in_top_k(self._pre_softmax_activation_predict, tf.argmax(self.target_placeholder, 1), 1),
                                       tf.float32))
 
-    def accuracy(self, inputs, targets):
+    def accuracy(self, data_set):
         """Get the accuracy of our predictions against the real targets, returns a value in the range 0. to 1.
 
         Args:
-            inputs (np.array):
-            targets (np.array):
+            data_set (DataSet):
 
         Returns:
             float: accuracy in the range 0. to 1.
         """
+        assert isinstance(data_set, DataSet)
+
         return self.session.run(self.accuracy_op,
-                                feed_dict={self.input_placeholder: inputs, self._target_placeholder: targets})
+                                feed_dict={self.input_placeholder: data_set.features,
+                                           self._target_placeholder: data_set.labels})
 
     @lazyprop
     def log_probability_of_targets_op(self):

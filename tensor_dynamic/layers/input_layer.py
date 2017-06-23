@@ -17,10 +17,13 @@ class InputLayer(BaseLayer):
             input_nodes = (input_nodes,)
         if isinstance(input_nodes, (tuple, list)):
             input_nodes = tf.placeholder('float', (None,) + input_nodes)
+            self._output_nodes = tuple(int(x) for x in input_nodes.get_shape()[1:])
+        elif isinstance(input_nodes, tf.Tensor):
+            # assume it's a placeholder
+            self._output_nodes = tuple(int(x) for x in input_nodes.get_shape()[1:])
         else:
             raise TypeError("Expected input_nodes to be int or tuple")
 
-        self._output_nodes = tuple(int(x) for x in input_nodes.get_shape()[1:])
         self._name = name
         self._placeholder = input_nodes
         self._next_layer = None
@@ -59,7 +62,7 @@ class InputLayer(BaseLayer):
         return True
 
     def clone(self, session=None):
-        return self.__class__(self._placeholder, name=self._name)
+        return self.__class__(self.output_nodes, name=self._name)
 
     @property
     def variables(self):
@@ -88,7 +91,7 @@ class NoisyInputLayer(InputLayer):
         return self.activation
 
     def clone(self, session):
-        return self.__class__(self._placeholder, session, noise_std=self._noise_std, name=self._name)
+        return self.__class__(self.output_nodes, session, noise_std=self._noise_std, name=self._name)
 
 
 class SemiSupervisedInputLayer(InputLayer):

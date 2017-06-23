@@ -22,17 +22,15 @@ class TestConvolutionalLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def test_create_extra_weight_dimensions(self):
         convolutional_nodes = 3, 3, 16
-        input_p = tf.placeholder("float", (None, 10, 10, 2))
-        layer = ConvolutionalLayer(InputLayer(input_p), convolutional_nodes, session=self.session,
+        layer = ConvolutionalLayer(InputLayer((10, 10, 2)), convolutional_nodes, session=self.session,
                                    weights=np.array([[[[100.0]]]], dtype=np.float32))
 
         self.assertEqual(layer._weights.get_shape().as_list(), [3, 3, 2, 16])
 
     def test_reshape(self):
         convolution_nodes = (4, 4, 8)
-        input_p = tf.placeholder("float", (None, 20, 20, 3))
         input_vals = np.random.normal(size=(1, 20, 20, 3)).astype(np.float32)
-        layer = ConvolutionalLayer(InputLayer(input_p), convolution_nodes, session=self.session)
+        layer = ConvolutionalLayer(InputLayer((20, 20, 3)), convolution_nodes, session=self.session)
 
         result1 = self.session.run(layer.activation_predict, feed_dict={layer.input_placeholder: input_vals})
 
@@ -45,8 +43,7 @@ class TestConvolutionalLayer(BaseLayerWrapper.BaseLayerTestCase):
         self.assertEquals(result2.shape[3], 9)
 
     def test_create_extra_weight_dimensions_fail_case(self):
-        input_p = tf.placeholder("float", (None, 10, 10, 3))
-        layer = ConvolutionalLayer(InputLayer(input_p), (2, 2, 4), session=self.session,
+        layer = ConvolutionalLayer(InputLayer((10, 10, 3)), (2, 2, 4), session=self.session,
                                    weights=np.random.normal(size=(2, 2, 1, 1)).astype(np.float32))
 
         self.assertEqual(layer._weights.get_shape().as_list(), [2, 2, 3, 4])

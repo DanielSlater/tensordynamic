@@ -1,6 +1,13 @@
 import tensorflow as tf
 import numpy as np
+
+from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.utils import xavier_init
+
+
+class MyLayer(BaseLayer):
+    def get_activation(self):
+        return tf.nn.relu(tf.matmul(self.input_layer.get_activation(), self._weights) + self._bias)
 
 
 class VariationalAutoencoder(object):

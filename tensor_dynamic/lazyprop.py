@@ -1,4 +1,7 @@
-_LAZYPROP_PREFIX = '__lazy__'
+from collections import defaultdict
+
+_LAZY_PROP_VALUES = '__lazy_prop_values__'
+_LAZY_PROP_SUBSCRIBERS = '__lazy_prop_subscribers__'
 
 
 def lazyprop(fn):
@@ -20,23 +23,67 @@ def lazyprop(fn):
     Returns:
         (method as lazy prop)
     """
-    attr_name = _LAZYPROP_PREFIX + fn.__name__
 
     @property
     def _lazyprop(self):
-        if not hasattr(self, attr_name):
-            setattr(self, attr_name, fn(self))
-        return getattr(self, attr_name)
+        if not hasattr(self, _LAZY_PROP_VALUES):
+            setattr(self, _LAZY_PROP_VALUES, {})
+        lazy_props_dict = self.__dict__[_LAZY_PROP_VALUES]
+        if fn.__name__ not in lazy_props_dict:
+            lazy_props_dict[fn.__name__] = fn(self)
+        return lazy_props_dict[fn.__name__]
 
     return _lazyprop
 
 
-def clear_all_lazyprops(self):
+def subscribe_to_lazy_prop(object, property_name, on_change_func):
+    assert isinstance(property_name, str)
+
+    if not hasattr(object, _LAZY_PROP_SUBSCRIBERS):
+        setattr(object, _LAZY_PROP_SUBSCRIBERS, defaultdict(lambda: set()))
+
+    object.__dict__[_LAZY_PROP_SUBSCRIBERS][property_name].add(on_change_func)
+
+
+def unsubscribe_from_lazy_prop(object, property_name, on_change_func):
+    assert isinstance(property_name, str)
+
+    if hasattr(object, _LAZY_PROP_SUBSCRIBERS):
+        object.__dict__[_LAZY_PROP_SUBSCRIBERS][property_name].remove(on_change_func)
+
+
+def clear_lazyprop(object, property_name):
+    assert isinstance(property_name, str)
+
+    if _LAZY_PROP_VALUES in object.__dict__:
+        if property_name in object.__dict__[_LAZY_PROP_VALUES]:
+            del object.__dict__[_LAZY_PROP_VALUES][property_name]
+
+    if _LAZY_PROP_SUBSCRIBERS in object.__dict__:
+        if property_name in object.__dict__[_LAZY_PROP_SUBSCRIBERS]:
+            for fn in object.__dict__[_LAZY_PROP_SUBSCRIBERS][property_name]:
+                fn(object)
+
+
+def clear_all_lazyprops(object):
     """Clears all lazy prop from an object. This means they will be re-evaluated next time they are run
 
     Args:
-        self (object): The object we want to clear the lazy props from
+        object (object): The object we want to clear the lazy props from
     """
-    for key in self.__dict__.keys():
-        if key.startswith(_LAZYPROP_PREFIX):
-            del self.__dict__[key]
+    if _LAZY_PROP_VALUES in object.__dict__:
+        del object.__dict__[_LAZY_PROP_VALUES]
+
+    if _LAZY_PROP_SUBSCRIBERS in object.__dict__:
+        for subscribers in object.__dict__[_LAZY_PROP_SUBSCRIBERS].values():
+            for fn in subscribers:
+                fn(object)
+
+
+def clear_lazyprop_on_lazyprop_cleared(subscriber_object, subscriber_lazyprop,
+                                       listen_to_object, listen_to_property):
+    assert isinstance(listen_to_property, str)
+    assert isinstance(subscriber_lazyprop, str)
+
+    subscribe_to_lazy_prop(listen_to_object, listen_to_property,
+                           lambda _: clear_lazyprop(subscriber_object, subscriber_lazyprop))

@@ -56,8 +56,7 @@ class TrainPolicy(object):
         if use_validation:
             def train_one_epoch_validation():
                 self.train_one_epoch()
-                _, validation_loss = self._trainer.accuracy(self._data_set.validation.features,
-                                                            self._data_set.validation.labels)
+                _, validation_loss = self._trainer.accuracy(self._data_set.validation)
                 return validation_loss
 
             train_till_convergence(train_one_epoch_validation, continue_epochs=continue_epochs, max_epochs=max_epochs)
@@ -79,8 +78,7 @@ class TrainPolicy(object):
 
         while True:
             train_loss = self.train_one_epoch()
-            validation_accuracy, validation_loss = self._trainer.accuracy(self._data_set.validation.features,
-                                                                          self._data_set.validation.labels)
+            validation_accuracy, validation_loss = self._trainer.accuracy(self._data_set.validation)
             if verbose:
                 print(self._data_set.train.epochs_completed, train_loss, validation_accuracy, validation_loss)
 

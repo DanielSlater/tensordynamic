@@ -60,21 +60,21 @@ def flat_model_functions(data_set_collection, regularizer, activation_func, use_
                                    use_noisy_input_layer=use_noisy_input_layer)
 
     # 1 layer
-    for layer_1 in [10, 20, 30, 50, 100, 200]:
+    for layer_1 in [100, 200, 300, 500, 1000]:
         yield functools.partial(get_model, parameters=(layer_1,))
 
-        for layer_2 in [10, 20, 30, 50, 100]:
+        for layer_2 in [100, 200, 300, 500]:
             if layer_2 <= layer_1:
                 yield functools.partial(get_model, parameters=(layer_1, layer_2))
 
-                for layer_3 in [10, 20, 30, 50, 100]:
+                for layer_3 in [100, 200, 300, 500]:
 
                     if layer_3 <= layer_2:
                         yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3))
 
 
 if __name__ == '__main__':
-    regularizer = 0.01
+    regularizer = 0.0001
 
     data_set_collection = get_cifar_100_data_set_collection()
     use_noisy_input_layer = False
@@ -83,7 +83,7 @@ if __name__ == '__main__':
                                      regularizer=regularizer,
                                      activation_func=tf.nn.relu,
                                      use_noisy_input_layer=use_noisy_input_layer),
-                   'cifar-100.csv',
+                   'cifar-100_lower_reg.csv',
                    regularizer=regularizer,
                    learning_rate=0.0001,
                    use_noisy_input_layer=use_noisy_input_layer,

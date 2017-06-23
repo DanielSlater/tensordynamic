@@ -1,6 +1,5 @@
 *Bayesian resizing net
 shrink over big net 1 layer - works badly
 growing small net 1 layer - works badly
-vs grid search
-Add weight prior term?
-Integrate across weights
+On cifar-100 overfitting appears to be a huge issue
+Use difference between test and train results in growth?

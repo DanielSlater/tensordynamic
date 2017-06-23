@@ -3,6 +3,7 @@ import math
 
 import tensorflow as tf
 
+from tensor_dynamic.data.data_set import DataSet
 from tensor_dynamic.layers.layer import Layer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.tf_loss_functions import squared_loss
@@ -122,6 +123,10 @@ class OutputLayer(Layer):
         Returns:
             float: Error/Accuracy we finally converged on
         """
+        assert isinstance(data_set_train, DataSet)
+        if data_set_validation is not None:
+            assert isinstance(data_set_validation, DataSet)
+
         optimizer_instance = optimizer(learning_rate,
                                        name="prop_for_%s" % (str(self.get_resizable_dimension_size_all_layers())
                                                              .replace('(', '_').replace(')', '_')
@@ -133,8 +138,10 @@ class OutputLayer(Layer):
         print(optimizer_instance._name)
 
         iterations = [0]
-        validation_part_size = data_set_validation.num_examples / \
-                               int(math.ceil(data_set_validation.num_examples / 1000.))
+
+        validation_size = data_set_validation.num_examples if data_set_validation is not None else data_set_train.num_examples
+
+        validation_part_size = validation_size / int(math.ceil(validation_size / 1000.))
 
         def train():
             iterations[0] += 1
@@ -221,5 +228,3 @@ class BinaryOutputLayer(OutputLayer):
 
         return tf.reduce_mean(tf.cast(correct_prediction,
                                       tf.float32))
-
-

@@ -386,9 +386,11 @@ class BaseLayer(object):
             raise ValueError("new_output_nodes must be tuple of int %s" % (new_output_nodes,))
 
         # choose nodes to split or prune
-        if new_output_nodes and output_nodes_to_prune is None and input_nodes_to_prune is None:
-            output_nodes_to_prune=self._choose_nodes_to_prune(new_output_nodes)
-            split_input_nodes=self._choose_nodes_to_split(new_output_nodes)
+        if new_output_nodes and output_nodes_to_prune is None and split_output_nodes is None:
+            if new_output_nodes < self.get_resizable_dimension_size():
+                output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes[self.get_resizable_dimension()])
+            elif new_output_nodes > self.get_resizable_dimension_size():
+                split_output_nodes = self._choose_nodes_to_split(new_output_nodes[self.get_resizable_dimension()])
 
         if output_nodes_to_prune:
             if split_output_nodes:
@@ -525,6 +527,8 @@ class BaseLayer(object):
         self._next_layer = None
         clear_all_lazyprops(self)
 
+        raise NotImplementedError("Need to chain lazyprop clearing down the network, also what about bactivation?")
+
         return next_layer
 
     def add_intermediate_layer(self, layer_creation_func, *args, **kwargs):
@@ -624,6 +628,9 @@ class BaseLayer(object):
         for layer in self.all_connected_layers:
             if layer.has_resizable_dimension():
                 yield layer
+
+    def get_resizable_dimension(self):
+        return 0
 
     def get_resizable_dimension_size_all_layers(self):
         """
@@ -738,20 +745,52 @@ class BaseLayer(object):
 
         return resized, best_score
 
-    def _choose_nodes_to_split(self):
-        raise NotImplementedError()
+    def _choose_nodes_to_split(self, desired_size):
+        assert isinstance(desired_size, int)
 
-    def _choose_nodes_to_prune(self):
-        raise NotImplementedError()
+        current_size = self.get_resizable_dimension_size()
 
-    # def save_network(self):
-    #     obj = {}
-    #     layer = self.last_layer
-    #
-    # def _save_layer(self):
-    #     obj = {'__class__': self.__class__.__name__}
-    #
-    #
-    # @staticmethod
-    # def load_network(session):
-    #     pass
+        if desired_size <= current_size:
+            return None
+
+        importance = self._get_node_importance()
+
+        to_split = {}
+
+        while desired_size < current_size + len(to_split):
+            max_node = np.argmax(importance)
+            importance[max_node] = -sys.float_info.max
+            to_split.add(max_node)
+
+        return to_split
+
+    def _choose_nodes_to_prune(self, desired_size):
+        assert isinstance(desired_size, int)
+
+        current_size = self.get_resizable_dimension_size()
+
+        if desired_size <= current_size:
+            return None
+
+        importance = self._get_node_importance()
+
+        to_prune = {}
+
+        while desired_size < current_size - len(to_prune):
+            min_node = np.argmin(importance)
+            importance[min_node] = sys.float_info.max
+            to_prune.add(min_node)
+
+        return to_prune
+
+        # def save_network(self):
+        #     obj = {}
+        #     layer = self.last_layer
+        #
+        # def _save_layer(self):
+        #     obj = {'__class__': self.__class__.__name__}
+        #
+        #
+        # @staticmethod
+        # def load_network(session):
+        #     pass
