@@ -17,7 +17,7 @@ import tensorflow as tf
 
 from tensor_dynamic.categorical_trainer import CategoricalTrainer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tests.base_tf_testcase import BaseTfTestCase
 
 HIDDEN_NOES = 100
@@ -53,8 +53,8 @@ class TestGrowingLayers(BaseTfTestCase):
     def test_increase_layers_until_stop_decreasing_test_error(self):
         data = self.mnist_data
         input = InputLayer(784)
-        hidden = Layer(input, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid, bactivate=False)
-        output = Layer(hidden, 10, self.session, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
+        hidden = HiddenLayer(input, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid, bactivate=False)
+        output = HiddenLayer(hidden, 10, self.session, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
 
         best_score = train_until_no_improvement_for_epochs(data, output, 3)
 
@@ -64,8 +64,8 @@ class TestGrowingLayers(BaseTfTestCase):
             candidate = output.clone()
             last_hidden_layer = candidate.last_layer.input_layer
             last_hidden_layer.add_intermediate_layer(
-                lambda input_layer: Layer(input_layer, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid,
-                                          bactivate=False))
+                lambda input_layer: HiddenLayer(input_layer, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid,
+                                                bactivate=False))
 
             new_best_score = train_until_no_improvement_for_epochs(data, candidate, 3)
             if new_best_score > best_score:

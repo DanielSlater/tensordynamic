@@ -9,7 +9,7 @@ import operator
 import sys
 import tensorflow as tf
 
-from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop
+from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop, clear_lazyprop_on_lazyprop_cleared
 from tensor_dynamic.utils import tf_resize
 from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
@@ -34,12 +34,15 @@ class BaseLayer(object):
                  input_layer,
                  output_nodes,
                  session=None,
-                 weight_extender_func=noise_weight_extender,
+                 weight_extender_func=None,
+                 input_noise_std=None,
                  name=None,
                  freeze=False):
         """Base class from which all layers will inherit. This is an abstract class
 
         Args:
+            input_noise_std (float): If not None gaussian noise with mean 0 and this std is applied to the input of this
+                layer
             input_layer (tensor_dynamic.base_layer.BaseLayer): This layer will work on the activation of the input_layer
             output_nodes (int | tuple of ints): Number of output nodes for this layer, can be a tuple of multi dimensional output, e.g. convolutional network
             session (tensorflow.Session): The session within which all these variables should be created
@@ -53,16 +56,35 @@ class BaseLayer(object):
         assert isinstance(output_nodes, (int, tuple))
         assert isinstance(input_layer, BaseLayer)
 
-        self._session = session or input_layer.session
-        self._name = name
         self._input_layer = input_layer
+        self._input_noise_std = input_noise_std
+        self._name = name
         self._output_nodes = (output_nodes,) if type(output_nodes) == int else output_nodes
         self._input_nodes = self._input_layer._output_nodes
         self._next_layer = None
-        self._weight_extender_func = weight_extender_func
+
+        self._session = self._get_property_or_default(session, '_session',
+                                                      None)
+        self._weight_extender_func = self._get_property_or_default(weight_extender_func, '_weight_extender_func',
+                                                                   noise_weight_extender)
+
         self._freeze = freeze
         self._bound_variables = []
         input_layer._attach_next_layer(self)
+
+    def _get_property_or_default(self, init_value, property_name, default_value):
+        if init_value is not None:
+            return init_value
+        if self.input_layer is not None:
+            if hasattr(self.input_layer, property_name):
+                return getattr(self.input_layer, property_name)
+            else:
+                earlier_in_stream_result = self.input_layer._get_property_or_default(init_value, property_name,
+                                                                                     default_value)
+                if earlier_in_stream_result is not None:
+                    return earlier_in_stream_result
+
+        return default_value
 
     def name_scope(self):
         """Used for naming variables associated with this layer in TensorFlow in a consistent way
@@ -88,6 +110,13 @@ class BaseLayer(object):
         Returns:
             tensorflow.Tensor
         """
+        clear_lazyprop_on_lazyprop_cleared(self, 'activation_train', self.input_layer)
+
+        # apply noise to input if this is set
+        if self._input_noise_std is not None:
+            return self._layer_activation(self.input_layer.activation_train +
+                                          tf.random_normal(tf.shape(self.input_layer.activation_train), stddev=self._input_noise_std),
+                                          True)
         return self._layer_activation(self.input_layer.activation_train, True)
 
     @lazyprop
@@ -98,6 +127,7 @@ class BaseLayer(object):
         Returns:
             tensorflow.Tensor
         """
+        clear_lazyprop_on_lazyprop_cleared(self, 'activation_predict', self.input_layer)
         return self._layer_activation(self.input_layer.activation_predict, False)
 
     @abstractmethod
@@ -177,6 +207,7 @@ class BaseLayer(object):
         Returns:
             tensorflow.Tensor
         """
+        clear_lazyprop_on_lazyprop_cleared(self, 'bactivation_train', self, 'activation_train')
         return self._layer_bactivation(self.activation_train, True)
 
     @lazyprop
@@ -187,6 +218,7 @@ class BaseLayer(object):
         Returns:
             tensorflow.Tensor
         """
+        clear_lazyprop_on_lazyprop_cleared(self, 'bactivation_predict', self, 'activation_predict')
         return self._layer_bactivation(self.activation_predict, False)
 
     # @abstractmethod
@@ -321,6 +353,7 @@ class BaseLayer(object):
     def kwargs(self):
         kwargs = {
             'weight_extender_func': self._weight_extender_func,
+            'input_noise_std': self._input_noise_std,
             'freeze': self._freeze,
             'name': self._name}
         kwargs.update(self._bound_variables_as_kwargs())
@@ -526,8 +559,6 @@ class BaseLayer(object):
 
         self._next_layer = None
         clear_all_lazyprops(self)
-
-        raise NotImplementedError("Need to chain lazyprop clearing down the network, also what about bactivation?")
 
         return next_layer
 

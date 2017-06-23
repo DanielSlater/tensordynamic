@@ -5,7 +5,7 @@ from tensor_dynamic.data.two_spirals import get_two_spirals_data_set_collection
 from tensor_dynamic.layers.convolutional_layer import ConvolutionalLayer
 from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.input_layer import NoisyInputLayer, InputLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.layers.max_pool_layer import MaxPoolLayer
 from tensor_dynamic.layers.output_layer import OutputLayer, BinaryOutputLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
@@ -18,11 +18,11 @@ with tf.Session() as session:
     regularizer_coeff = 0.001
     last_layer = InputLayer(data_set_collection.features_shape, session)
 
-    last_layer = Layer(last_layer, 5, session, non_liniarity=non_liniarity)
+    last_layer = HiddenLayer(last_layer, 5, session, non_liniarity=non_liniarity)
 
-    last_layer = Layer(last_layer, 5, session, non_liniarity=non_liniarity)
+    last_layer = HiddenLayer(last_layer, 5, session, non_liniarity=non_liniarity)
 
-    last_layer = Layer(last_layer, 5, session, non_liniarity=non_liniarity)
+    last_layer = HiddenLayer(last_layer, 5, session, non_liniarity=non_liniarity)
     #
     # last_layer = Layer(last_layer, 300, session, non_liniarity=non_liniarity)
     #

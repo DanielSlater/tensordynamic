@@ -1,8 +1,7 @@
 import numpy as np
-import tensorflow as tf
 
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
 from tests.base_tf_testcase import BaseTfTestCase
 
 
@@ -66,7 +65,7 @@ class BaseLayerWrapper(object):
         def test_downstream_layers(self):
             layer = self._create_layer_for_test()
 
-            layer2 = Layer(layer, 2, session=self.session)
-            layer3 = Layer(layer2, 3, session=self.session)
+            layer2 = HiddenLayer(layer, 2, session=self.session)
+            layer3 = HiddenLayer(layer2, 3, session=self.session)
 
             self.assertEquals(list(layer.downstream_layers), [layer2, layer3])

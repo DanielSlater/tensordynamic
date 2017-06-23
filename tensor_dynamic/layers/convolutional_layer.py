@@ -17,7 +17,7 @@ class ConvolutionalLayer(BaseLayer):
                  session=None,
                  weights=None,
                  bias=None,
-                 weight_extender_func=noise_weight_extender,
+                 weight_extender_func=None,
                  name='ConvolutionalLayer',
                  freeze=False,
                  non_liniarity=tf.nn.relu):

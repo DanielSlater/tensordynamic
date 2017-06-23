@@ -4,7 +4,7 @@ from tensor_dynamic.categorical_trainer import CategoricalTrainer
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.duel_state_relu_layer import DuelStateReluLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.train_policy import DuelStateReluTrainPolicy
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
@@ -18,7 +18,7 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         input_layer = InputLayer(784)
         hidden_1 = DuelStateReluLayer(input_layer, 200, session=self.session, inactive_nodes_to_leave=200)
-        output = Layer(hidden_1, self.MNIST_OUTPUT_NODES, session=self.session)
+        output = HiddenLayer(hidden_1, self.MNIST_OUTPUT_NODES, session=self.session)
         trainer = CategoricalTrainer(output, 0.1)
 
         end_epoch = data.train.epochs_completed + 5
@@ -49,7 +49,7 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
         np.fill_diagonal(y, 1.)
         layer_1 = DuelStateReluLayer(InputLayer(self.INPUT_NODES), self.INPUT_NODES, session=self.session, weights=x,
                                      width_regularizer_constant=1e-2)
-        layer_2 = Layer(layer_1, self.OUTPUT_NODES, weights=y, freeze=True)
+        layer_2 = HiddenLayer(layer_1, self.OUTPUT_NODES, weights=y, freeze=True)
         trainer = CategoricalTrainer(layer_2, 0.1)
 
         data_1 = [1.0] * self.INPUT_NODES
@@ -96,7 +96,7 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
         # bn_1 = BatchNormLayer(d_1)
         d_2 = DuelStateReluLayer(d_1, 3, width_regularizer_constant=1e-7, width_binarizer_constant=1e-10, )
         # bn_2 = BatchNormLayer(d_2)
-        output = Layer(d_2, self.MNIST_OUTPUT_NODES)
+        output = HiddenLayer(d_2, self.MNIST_OUTPUT_NODES)
 
         trainer = CategoricalTrainer(output, 0.1)
         end_epoch = data.train.epochs_completed + 20
@@ -118,7 +118,7 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
         bn_1 = BatchNormLayer(d_1)
         d_2 = DuelStateReluLayer(bn_1, 1, width_regularizer_constant=1e-7, width_binarizer_constant=1e-9, )
         bn_2 = BatchNormLayer(d_2)
-        output = Layer(bn_2, self.MNIST_OUTPUT_NODES)
+        output = HiddenLayer(bn_2, self.MNIST_OUTPUT_NODES)
         trainer = CategoricalTrainer(output, 0.1)
         trainer = DuelStateReluTrainPolicy(trainer, data, 100, max_iterations=300, stop_accuracy=90.,
                                            grow_after_turns_without_improvement=1,)

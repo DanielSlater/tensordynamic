@@ -2,34 +2,34 @@ import numpy as np
 import tensorflow as tf
 
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
 class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
     def _create_layer_for_test(self):
-        return Layer(self._input_layer, self.OUTPUT_NODES, session=self.session)
+        return HiddenLayer(self._input_layer, self.OUTPUT_NODES, session=self.session)
 
     def test_create_layer(self):
         output_nodes = 20
         input_p = tf.placeholder("float", (None, 10))
-        layer = Layer(InputLayer(input_p), output_nodes, session=self.session)
+        layer = HiddenLayer(InputLayer(input_p), output_nodes, session=self.session)
 
         self.assertEqual(layer.activation_predict.get_shape().as_list(), [None, output_nodes])
 
     def test_create_extra_weight_dimensions(self):
         output_nodes = 2
         input_p = tf.placeholder("float", (None, 2))
-        layer = Layer(InputLayer(input_p), output_nodes, session=self.session,
-                      weights=np.array([[100.0]], dtype=np.float32))
+        layer = HiddenLayer(InputLayer(input_p), output_nodes, session=self.session,
+                            weights=np.array([[100.0]], dtype=np.float32))
 
         self.assertEqual(layer._weights.get_shape().as_list(), [2, 2])
 
     def test_reshape(self):
         output_nodes = 2
         input_p = tf.placeholder("float", (None, 2))
-        layer = Layer(InputLayer(input_p), output_nodes, session=self.session,
-                      weights=np.array([[100.0]], dtype=np.float32))
+        layer = HiddenLayer(InputLayer(input_p), output_nodes, session=self.session,
+                            weights=np.array([[100.0]], dtype=np.float32))
 
         result1 = self.session.run(layer.activation_predict, feed_dict={layer.input_placeholder: [[1., 1.]]})
 
@@ -44,8 +44,8 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
     def test_create_extra_weight_dimensions_fail_case(self):
         output_nodes = 2
         input_p = tf.placeholder("float", (None, 4))
-        layer = Layer(InputLayer(input_p), output_nodes, session=self.session,
-                      weights=np.array([[10., 10.],
+        layer = HiddenLayer(InputLayer(input_p), output_nodes, session=self.session,
+                            weights=np.array([[10., 10.],
                                         [10., 10.],
                                         [10., 10.]], dtype=np.float32))
 
@@ -54,7 +54,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
     def test_resize(self):
         output_nodes = 10
         input_p = tf.placeholder("float", (None, 10))
-        layer = Layer(InputLayer(input_p), output_nodes, session=self.session)
+        layer = HiddenLayer(InputLayer(input_p), output_nodes, session=self.session)
         layer.resize(output_nodes + 1)
 
         print layer._bias.get_shape()
@@ -64,9 +64,9 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def test_get_output_layer_activation(self):
         input_p = tf.placeholder("float", (None, 10))
-        layer = Layer(InputLayer(input_p), 1, session=self.session)
-        layer2 = Layer(layer, 2, session=self.session)
-        layer3 = Layer(layer2, 3, session=self.session)
+        layer = HiddenLayer(InputLayer(input_p), 1, session=self.session)
+        layer2 = HiddenLayer(layer, 2, session=self.session)
+        layer3 = HiddenLayer(layer2, 3, session=self.session)
 
         self.assertEquals(layer.last_layer.activation_predict, layer3.activation_predict)
 
@@ -74,12 +74,12 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
         input_size = 100
         noise_std = 1.
         input_p = tf.placeholder("float", (None, input_size))
-        layer = Layer(InputLayer(input_p), input_size,
-                      weights=np.diag(np.ones(input_size, dtype=np.float32)),
-                      bias=np.zeros(input_size, dtype=np.float32),
-                      session=self.session,
-                      non_liniarity=tf.identity,
-                      noise_std=noise_std)
+        layer = HiddenLayer(InputLayer(input_p), input_size,
+                            weights=np.diag(np.ones(input_size, dtype=np.float32)),
+                            bias=np.zeros(input_size, dtype=np.float32),
+                            session=self.session,
+                            non_liniarity=tf.identity,
+                            noise_std=noise_std)
 
         result_noisy = self.session.run(layer.activation_train,
                                         feed_dict={
@@ -98,14 +98,14 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
         input_size = 100
         noise_std = 1.
         input_p = tf.placeholder("float", (None, input_size))
-        layer = Layer(InputLayer(input_p), input_size,
-                      weights=np.diag(np.ones(input_size, dtype=np.float32)),
-                      bias=np.zeros(input_size, dtype=np.float32),
-                      back_bias=np.zeros(input_size, dtype=np.float32),
-                      session=self.session,
-                      bactivate=True,
-                      non_liniarity=tf.identity,
-                      noise_std=noise_std)
+        layer = HiddenLayer(InputLayer(input_p), input_size,
+                            weights=np.diag(np.ones(input_size, dtype=np.float32)),
+                            bias=np.zeros(input_size, dtype=np.float32),
+                            back_bias=np.zeros(input_size, dtype=np.float32),
+                            session=self.session,
+                            bactivate=True,
+                            non_liniarity=tf.identity,
+                            noise_std=noise_std)
 
         result_noisy = self.session.run(layer.bactivation_train,
                                         feed_dict={
@@ -131,7 +131,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def reconstruction_loss_for(self, output_nodes):
         data = self.mnist_data
-        bw_layer1 = Layer(InputLayer(784), output_nodes, session=self.session, noise_std=1.0, bactivate=True)
+        bw_layer1 = HiddenLayer(InputLayer(784), output_nodes, session=self.session, noise_std=1.0, bactivate=True)
 
         cost = bw_layer1.unsupervised_cost_train()
         optimizer = tf.train.AdamOptimizer(0.1).minimize(cost)
@@ -151,7 +151,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def test_reconstruction_of_single_input(self):
         input_layer = InputLayer(1)
-        layer = Layer(input_layer, 1, bactivate=True, session=self.session, noise_std=0.3)
+        layer = HiddenLayer(input_layer, 1, bactivate=True, session=self.session, noise_std=0.3)
 
         cost = layer.unsupervised_cost_train()
         optimizer = tf.train.AdamOptimizer(0.1).minimize(cost)
@@ -169,7 +169,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
     def test_noise_reconstruction(self):
         INPUT_DIM = 10
         HIDDEN_NODES = 1
-        bw_layer1 = Layer(InputLayer(INPUT_DIM), HIDDEN_NODES, session=self.session, noise_std=1.0, bactivate=True)
+        bw_layer1 = HiddenLayer(InputLayer(INPUT_DIM), HIDDEN_NODES, session=self.session, noise_std=1.0, bactivate=True)
 
         # single cluster reconstruct
         data = []

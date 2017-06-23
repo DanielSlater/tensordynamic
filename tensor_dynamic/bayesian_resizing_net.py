@@ -7,7 +7,7 @@ from enum import Enum
 
 from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.input_layer import InputLayer, NoisyInputLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.layers.output_layer import OutputLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 
@@ -42,7 +42,7 @@ def create_flat_network(data_set_collection, hidden_layers, session, regularizer
         last_layer = FlattenLayer(last_layer, session)
 
     for hidden_nodes in hidden_layers:
-        last_layer = Layer(last_layer, hidden_nodes, session, non_liniarity=activation_func)
+        last_layer = HiddenLayer(last_layer, hidden_nodes, session, non_liniarity=activation_func)
 
     output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
                                     regularizer_weighting=regularizer_coeff)

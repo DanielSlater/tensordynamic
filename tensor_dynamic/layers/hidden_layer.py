@@ -1,16 +1,13 @@
 import numpy as np
-import sys
-
 import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.tf_loss_functions import squared_loss
 from tensor_dynamic.utils import xavier_init, create_hessian_variable_op
-from tensor_dynamic.weight_functions import noise_weight_extender
 
 
-class Layer(BaseLayer):
+class HiddenLayer(BaseLayer):
     def __init__(self, input_layer, output_nodes,
                  session=None,
                  bias=None,
@@ -18,25 +15,22 @@ class Layer(BaseLayer):
                  back_bias=None,
                  bactivate=False,
                  freeze=False,
-                 non_liniarity=tf.nn.sigmoid,
-                 weight_extender_func=noise_weight_extender,
-                 unsupervised_cost=1.,
-                 supervised_cost=1.,
-                 noise_std=None,
-                 bactivation_loss_func=squared_loss,
+                 non_liniarity=None,
+                 weight_extender_func=None,
+                 input_noise_std=None,
+                 bactivation_loss_func=None,
                  name='Layer'):
-        super(Layer, self).__init__(input_layer,
-                                    output_nodes,
-                                    session=session,
-                                    weight_extender_func=weight_extender_func,
-                                    freeze=freeze,
-                                    name=name)
-        self._non_liniarity = non_liniarity
+        super(HiddenLayer, self).__init__(input_layer,
+                                          output_nodes,
+                                          session=session,
+                                          weight_extender_func=weight_extender_func,
+                                          input_noise_std=input_noise_std,
+                                          freeze=freeze,
+                                          name=name)
+        self._non_liniarity = self._get_property_or_default(non_liniarity, '_non_liniarity', tf.nn.sigmoid)
         self._bactivate = bactivate
-        self._unsupervised_cost = unsupervised_cost
-        self._supervised_cost = supervised_cost
-        self._noise_std = noise_std
-        self._bactivation_loss_func = bactivation_loss_func
+        self._bactivation_loss_func = self._get_property_or_default(bactivation_loss_func, '_bactivation_loss_func',
+                                                                    squared_loss)
 
         self._weights = self._create_variable("weights",
                                               (BaseLayer.INPUT_BOUND_VALUE, BaseLayer.OUTPUT_BOUND_VALUE),
@@ -61,14 +55,11 @@ class Layer(BaseLayer):
 
     @property
     def kwargs(self):
-        kwargs = super(Layer, self).kwargs
+        kwargs = super(HiddenLayer, self).kwargs
 
         kwargs['bactivate'] = self.bactivate
         kwargs['bactivation_loss_func'] = self._bactivation_loss_func
         kwargs['non_liniarity'] = self._non_liniarity
-        kwargs['unsupervised_cost'] = self._unsupervised_cost
-        kwargs['supervised_cost'] = self._supervised_cost
-        kwargs['noise_std'] = self._noise_std
 
         return kwargs
 
@@ -76,18 +67,7 @@ class Layer(BaseLayer):
     def has_bactivation(self):
         return self.bactivate
 
-    @lazyprop
-    def activation_corrupted(self):
-        if self._noise_std is None:
-            raise Exception("No corrupted activation without noise std")
-        return self.input_layer.activation_train + tf.random_normal(
-            tf.shape(self.input_layer.activation_train),
-            stddev=self._noise_std)
-
     def _layer_activation(self, input_activation, is_train):
-        if self._noise_std is not None and is_train:
-            input_activation = self.activation_corrupted
-
         return self._non_liniarity(tf.matmul(input_activation, self._weights) + self._bias)
 
     def _layer_bactivation(self, activation, is_train):
@@ -113,18 +93,6 @@ class Layer(BaseLayer):
     def bactivation_loss_predict(self):
         return tf.reduce_mean(
             tf.reduce_sum(tf.square(self.bactivation_predict - self.input_layer.activation_predict), 1))
-
-    def unsupervised_cost_train(self):
-        if self.bactivate:
-            return self.bactivation_loss_train * self._unsupervised_cost
-        else:
-            return None
-
-    def unsupervised_cost_predict(self):
-        if self.bactivate:
-            return self.bactivation_loss_predict
-        else:
-            return None
 
     def has_resizable_dimension(self):
         return True
@@ -169,5 +137,5 @@ class Layer(BaseLayer):
 if __name__ == '__main__':
     with tf.Session() as session:
         input_p = tf.placeholder("float", (None, 10))
-        layer = Layer(input_p, 20, session=session)
+        layer = HiddenLayer(input_p, 20, session=session)
         layer.activation.get_shape()

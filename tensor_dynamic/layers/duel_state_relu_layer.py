@@ -4,12 +4,12 @@ import operator
 import tensorflow as tf
 import numpy as np
 from tensor_dynamic.layers.base_layer import BaseLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
 
-class DuelStateReluLayer(Layer):
+class DuelStateReluLayer(HiddenLayer):
     ACTIVE_THRESHOLD = 0.25  # 0.2
 
     def __init__(self,

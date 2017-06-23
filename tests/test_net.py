@@ -3,11 +3,10 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from tensor_dynamic.categorical_trainer import CategoricalTrainer
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
 from tests.base_tf_testcase import BaseTfTestCase
 
 
@@ -16,9 +15,9 @@ class TestNet(BaseTfTestCase):
     def test_resize_shallow(self):
         bactivate = True
         net1 = InputLayer(784)
-        net2 = Layer(net1, 10, self.session, bactivate=bactivate)
+        net2 = HiddenLayer(net1, 10, self.session, bactivate=bactivate)
         bn1 = BatchNormLayer(net2, self.session)
-        output_net = Layer(bn1, 10, self.session, bactivate=False)
+        output_net = HiddenLayer(bn1, 10, self.session, bactivate=False)
 
         print(self.session.run(output_net.activation_predict, feed_dict={net1.input_placeholder: np.zeros(shape=(1, 784))}))
 
@@ -31,12 +30,12 @@ class TestNet(BaseTfTestCase):
         bactivate = True
         net1 = InputLayer(784)
         bn1 = BatchNormLayer(net1, self.session)
-        net2 = Layer(bn1, 8, self.session, bactivate=bactivate)
+        net2 = HiddenLayer(bn1, 8, self.session, bactivate=bactivate)
         bn2 = BatchNormLayer(net2, self.session)
-        net2 = Layer(bn2, 6, self.session, bactivate=bactivate)
+        net2 = HiddenLayer(bn2, 6, self.session, bactivate=bactivate)
         bn3 = BatchNormLayer(net2, self.session)
-        net3 = Layer(bn3, 4, self.session, bactivate=bactivate)
-        output_net = Layer(net3, 2, self.session, bactivate=False)
+        net3 = HiddenLayer(bn3, 4, self.session, bactivate=bactivate)
+        output_net = HiddenLayer(net3, 2, self.session, bactivate=False)
 
         print(self.session.run(output_net.activation_predict, feed_dict={net1.input_placeholder: np.zeros(shape=(1, 784))}))
 
@@ -47,8 +46,8 @@ class TestNet(BaseTfTestCase):
     def test_layers_with_noise(self):
         input_layer = InputLayer(784)
         bn1 = BatchNormLayer(input_layer, self.session)
-        net1 = Layer(bn1, 70, bactivate=True, noise_std=1.)
-        output_net = Layer(net1, 10, bactivate=False, non_liniarity=tf.identity)
+        net1 = HiddenLayer(bn1, 70, bactivate=True, input_noise_std=1.)
+        output_net = HiddenLayer(net1, 10, bactivate=False, non_liniarity=tf.identity)
 
         print(self.session.run(output_net.activation_train, feed_dict={
             input_layer.input_placeholder: np.zeros(shape=(1, 784))}))
@@ -56,12 +55,12 @@ class TestNet(BaseTfTestCase):
     def test_clone(self):
         net1 = InputLayer(784)
         bn1 = BatchNormLayer(net1, self.session)
-        net2 = Layer(bn1, 8, self.session)
+        net2 = HiddenLayer(bn1, 8, self.session)
         bn2 = BatchNormLayer(net2, self.session)
-        net2 = Layer(bn2, 6, self.session)
+        net2 = HiddenLayer(bn2, 6, self.session)
         bn3 = BatchNormLayer(net2, self.session)
-        net3 = Layer(bn3, 4, self.session)
-        output_net = Layer(net3, 2, self.session)
+        net3 = HiddenLayer(bn3, 4, self.session)
+        output_net = HiddenLayer(net3, 2, self.session)
 
         cloned_net = output_net.clone(self.session)
 

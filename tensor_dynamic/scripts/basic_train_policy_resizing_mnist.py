@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensor_dynamic.data.mnist_data as mnist
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.train_policy import TrainPolicy
 from tensor_dynamic.categorical_trainer import CategoricalTrainer
 
@@ -30,11 +30,11 @@ def create_network(sess, hidden_layers):
     input_layer = InputLayer(inputs)
     last = BatchNormLayer(input_layer, sess)
     for hidden_nodes in hidden_layers:
-        last = Layer(last, hidden_nodes, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1,
-                     noise_std=noise_std)
+        last = HiddenLayer(last, hidden_nodes, sess, bactivate=bactivate, non_liniarity=non_lin, unsupervised_cost=.1,
+                           noise_std=noise_std)
         last = BatchNormLayer(last, sess)
 
-    outputs = Layer(last, 10, sess, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
+    outputs = HiddenLayer(last, 10, sess, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
 
     trainer = CategoricalTrainer(outputs, initail_learning_rate)
 
@@ -76,7 +76,7 @@ with tf.Session() as sess:
     for x in range(len(hidden_layers)):
         print("resizing layer ", x)
         cloned = net.clone()
-        hidden_layers = [layer for layer in cloned.all_connected_layers if type(layer) == Layer]
+        hidden_layers = [layer for layer in cloned.all_connected_layers if type(layer) == HiddenLayer]
         hidden_layers[x].resize()  # add 1 node
         new_trainer = CategoricalTrainer(net, resize_learning_rate)
         new_tp = TrainPolicy(new_trainer, data, batch_size, learn_rate_decay=learn_rate_decay)

@@ -81,9 +81,20 @@ def clear_all_lazyprops(object):
 
 
 def clear_lazyprop_on_lazyprop_cleared(subscriber_object, subscriber_lazyprop,
-                                       listen_to_object, listen_to_property):
-    assert isinstance(listen_to_property, str)
+                                       listen_to_object, listen_to_lazyprop=None):
+    """Clear the lazyprop on the subscriber_object if the listen_to_object property is cleared
+
+    Args:
+        subscriber_object (object):
+        subscriber_lazyprop (str):
+        listen_to_object (object):
+        listen_to_lazyprop (str):
+    """
+    if listen_to_lazyprop is None:
+        listen_to_lazyprop = subscriber_lazyprop
+
+    assert isinstance(listen_to_lazyprop, str)
     assert isinstance(subscriber_lazyprop, str)
 
-    subscribe_to_lazy_prop(listen_to_object, listen_to_property,
+    subscribe_to_lazy_prop(listen_to_object, listen_to_lazyprop,
                            lambda _: clear_lazyprop(subscriber_object, subscriber_lazyprop))

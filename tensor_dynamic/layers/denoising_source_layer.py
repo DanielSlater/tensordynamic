@@ -1,13 +1,14 @@
 import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.tf_loss_functions import squared_loss
 from tensor_dynamic.weight_functions import noise_weight_extender
 
+
 # CURRENTLY BROKEN
-class DenoisingSourceLayer(Layer):
+class DenoisingSourceLayer(HiddenLayer):
     def __init__(self, input_layer, output_nodes,
                  session=None,
                  bias=None,
@@ -48,16 +49,26 @@ class DenoisingSourceLayer(Layer):
         assert len(self.input_nodes) == 1
         assert len(self.output_nodes) == 1
 
-        self._a1 = self._create_variable('a1', (BaseLayer.INPUT_BOUND_VALUE,), a1 if a1 is not None else tf.zeros(self.input_nodes))
-        self._a2 = self._create_variable('a2', (BaseLayer.INPUT_BOUND_VALUE,), a2 if a2 is not None else tf.ones(self.input_nodes))
-        self._a3 = self._create_variable('a3', (BaseLayer.INPUT_BOUND_VALUE,), a3 if a3 is not None else tf.zeros(self.input_nodes))
-        self._a4 = self._create_variable('a4', (BaseLayer.INPUT_BOUND_VALUE,), a4 if a4 is not None else tf.zeros(self.input_nodes))
-        self._a5 = self._create_variable('a5', (BaseLayer.INPUT_BOUND_VALUE,), a5 if a5 is not None else tf.zeros(self.input_nodes))
-        self._a6 = self._create_variable('a6', (BaseLayer.INPUT_BOUND_VALUE,), a6 if a6 is not None else tf.zeros(self.input_nodes))
-        self._a7 = self._create_variable('a7', (BaseLayer.INPUT_BOUND_VALUE,), a7 if a7 is not None else tf.ones(self.input_nodes))
-        self._a8 = self._create_variable('a8', (BaseLayer.INPUT_BOUND_VALUE,), a8 if a8 is not None else tf.zeros(self.input_nodes))
-        self._a9 = self._create_variable('a9', (BaseLayer.INPUT_BOUND_VALUE,), a9 if a9 is not None else tf.zeros(self.input_nodes))
-        self._a10 = self._create_variable('a10', (BaseLayer.INPUT_BOUND_VALUE,), a10 if a10 is not None else tf.zeros(self.input_nodes))
+        self._a1 = self._create_variable('a1', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a1 if a1 is not None else tf.zeros(self.input_nodes))
+        self._a2 = self._create_variable('a2', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a2 if a2 is not None else tf.ones(self.input_nodes))
+        self._a3 = self._create_variable('a3', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a3 if a3 is not None else tf.zeros(self.input_nodes))
+        self._a4 = self._create_variable('a4', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a4 if a4 is not None else tf.zeros(self.input_nodes))
+        self._a5 = self._create_variable('a5', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a5 if a5 is not None else tf.zeros(self.input_nodes))
+        self._a6 = self._create_variable('a6', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a6 if a6 is not None else tf.zeros(self.input_nodes))
+        self._a7 = self._create_variable('a7', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a7 if a7 is not None else tf.ones(self.input_nodes))
+        self._a8 = self._create_variable('a8', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a8 if a8 is not None else tf.zeros(self.input_nodes))
+        self._a9 = self._create_variable('a9', (BaseLayer.INPUT_BOUND_VALUE,),
+                                         a9 if a9 is not None else tf.zeros(self.input_nodes))
+        self._a10 = self._create_variable('a10', (BaseLayer.INPUT_BOUND_VALUE,),
+                                          a10 if a10 is not None else tf.zeros(self.input_nodes))
 
     def _gaussian_denoise(self, input_corrupted, activation):
         mu = self._a1 * tf.sigmoid(self._a2 * activation + self._a3) + self._a4 * activation + self._a5

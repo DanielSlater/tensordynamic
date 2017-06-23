@@ -1,13 +1,12 @@
 import tensorflow as tf
 from tensor_dynamic.layers.base_layer import BaseLayer
-from tensor_dynamic.layers.layer import Layer
-from tensor_dynamic.lazyprop import lazyprop
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.tf_loss_functions import squared_loss
 from tensor_dynamic.utils import xavier_init
 from tensor_dynamic.weight_functions import noise_weight_extender
 
 
-class BackWeightLayer(Layer):
+class BackWeightLayer(HiddenLayer):
     def __init__(self, input_layer, output_nodes,
                  session=None,
                  bias=None,

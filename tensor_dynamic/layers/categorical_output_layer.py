@@ -13,8 +13,8 @@ class CategoricalOutputLayer(OutputLayer):
                  weights=None,
                  back_bias=None,
                  freeze=False,
-                 weight_extender_func=noise_weight_extender,
-                 noise_std=None,
+                 weight_extender_func=None,
+                 input_noise_std=None,
                  regularizer_weighting=0.01,
                  name='CategoricalOutputLayer'):
         super(CategoricalOutputLayer, self).__init__(input_layer, output_nodes,
@@ -24,7 +24,7 @@ class CategoricalOutputLayer(OutputLayer):
                                                      back_bias=back_bias,
                                                      freeze=freeze,
                                                      weight_extender_func=weight_extender_func,
-                                                     noise_std=noise_std,
+                                                     input_noise_std=input_noise_std,
                                                      regularizer_weighting=regularizer_weighting,
                                                      name=name)
 

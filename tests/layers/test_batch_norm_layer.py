@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
@@ -56,7 +56,7 @@ class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):
         # batch norm layer is resized based only on it's input layer
         input_nodes = 2
         input = InputLayer(input_nodes)
-        layer = Layer(input, 2, self.session)
+        layer = HiddenLayer(input, 2, self.session)
         batchLayer = BatchNormLayer(layer, self.session)
 
         RESIZE_NODES = 3
@@ -96,7 +96,7 @@ class TestBatchNormLayer(BaseLayerWrapper.BaseLayerTestCase):
     def test_predict_vs_train_similar_activation(self):
         data = self.mnist_data
         bn = BatchNormLayer(InputLayer(784), session=self.session)
-        layer = Layer(bn, 5, session=self.session, bactivate=True)
+        layer = HiddenLayer(bn, 5, session=self.session, bactivate=True)
 
         cost = layer.unsupervised_cost_train()
         optimizer = tf.train.AdamOptimizer(0.1).minimize(cost)

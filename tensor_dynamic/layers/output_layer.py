@@ -4,7 +4,7 @@ import math
 import tensorflow as tf
 
 from tensor_dynamic.data.data_set import DataSet
-from tensor_dynamic.layers.layer import Layer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.tf_loss_functions import squared_loss
 from tensor_dynamic.utils import get_tf_optimizer_variables, train_till_convergence
@@ -13,20 +13,18 @@ from tensor_dynamic.weight_functions import noise_weight_extender
 logger = logging.getLogger(__name__)
 
 
-class OutputLayer(Layer):
+class OutputLayer(HiddenLayer):
     def __init__(self, input_layer, output_nodes,
                  session=None,
                  bias=None,
                  weights=None,
                  back_bias=None,
                  freeze=False,
-                 non_liniarity=tf.sigmoid,
+                 non_liniarity=None,
                  bactivate=False,
-                 bactivation_loss_func=squared_loss,
-                 weight_extender_func=noise_weight_extender,
-                 unsupervised_cost=1.,
-                 supervised_cost=1.,
-                 noise_std=None,
+                 bactivation_loss_func=None,
+                 weight_extender_func=None,
+                 input_noise_std=None,
                  regularizer_weighting=0.01,
                  name='OutputLayer'):
         super(OutputLayer, self).__init__(input_layer, output_nodes,
@@ -39,9 +37,7 @@ class OutputLayer(Layer):
                                           non_liniarity=non_liniarity,
                                           weight_extender_func=weight_extender_func,
                                           bactivation_loss_func=bactivation_loss_func,
-                                          unsupervised_cost=unsupervised_cost,
-                                          supervised_cost=supervised_cost,
-                                          noise_std=noise_std,
+                                          input_noise_std=input_noise_std,
                                           name=name)
         self._regularizer_weighting = regularizer_weighting
 
@@ -198,6 +194,14 @@ class OutputLayer(Layer):
 
         return log_prob, accuracy, target_loss
 
+    @property
+    def kwargs(self):
+        kwargs = super(OutputLayer, self).kwargs
+
+        kwargs['regularizer_weighting'] = self._regularizer_weighting
+
+        return kwargs
+
 
 class BinaryOutputLayer(OutputLayer):
     def __init__(self, input_layer,
@@ -206,7 +210,7 @@ class BinaryOutputLayer(OutputLayer):
                  weights=None,
                  back_bias=None,
                  freeze=False,
-                 weight_extender_func=noise_weight_extender,
+                 weight_extender_func=None,
                  noise_std=None,
                  regularizer_weighting=0.01,
                  name='BinaryOutputLayer'):
