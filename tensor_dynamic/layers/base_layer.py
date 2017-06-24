@@ -126,7 +126,8 @@ class BaseLayer(object):
         # apply noise to input if this is set
         if self._input_noise_std is not None:
             return self._layer_activation(self.input_layer.activation_train +
-                                          tf.random_normal(tf.shape(self.input_layer.activation_train), stddev=self._input_noise_std),
+                                          tf.random_normal(tf.shape(self.input_layer.activation_train),
+                                                           stddev=self._input_noise_std),
                                           True)
         return self._layer_activation(self.input_layer.activation_train, True)
 
@@ -772,12 +773,9 @@ class BaseLayer(object):
             logger.info("From start_size %s Bigger failed, trying smaller", start_size)
             self.set_network_state(best_state)
 
-            # try smaller
-            two_smaller = self._get_new_node_count(self.SHRINK_MULTIPLYER,
-                                                   from_size=self._get_new_node_count(self.SHRINK_MULTIPLYER))
             new_score = self._layer_resize_converge(data_set_train, data_set_validation,
                                                     model_evaluation_function,
-                                                    two_smaller,
+                                                    self._get_new_node_count(self.SHRINK_MULTIPLYER),
                                                     tuning_learning_rate)
 
             while new_score > best_score:
@@ -786,7 +784,7 @@ class BaseLayer(object):
                 best_state = self.get_network_state()
                 new_score = self._layer_resize_converge(data_set_train, data_set_validation,
                                                         model_evaluation_function,
-                                                        self.SHRINK_MULTIPLYER,
+                                                        self._get_new_node_count(self.SHRINK_MULTIPLYER),
                                                         tuning_learning_rate)
 
         # return to the best size we found
@@ -873,14 +871,14 @@ class BaseLayer(object):
         for layer, layer_state in zip(self.all_connected_layers, state):
             layer._set_layer_state(layer_state)
 
-        # def save_network(self):
-        #     obj = {}
-        #     layer = self.last_layer
-        #
-        # def _save_layer(self):
-        #     obj = {'__class__': self.__class__.__name__}
-        #
-        #
-        # @staticmethod
-        # def load_network(session):
-        #     pass
+            # def save_network(self):
+            #     obj = {}
+            #     layer = self.last_layer
+            #
+            # def _save_layer(self):
+            #     obj = {'__class__': self.__class__.__name__}
+            #
+            #
+            # @staticmethod
+            # def load_network(session):
+            #     pass
