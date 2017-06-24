@@ -17,6 +17,8 @@ class HiddenLayer(BaseLayer):
                  freeze=False,
                  non_liniarity=None,
                  weight_extender_func=None,
+                 weight_initializer_func=None,
+                 bias_initializer_func=None,
                  input_noise_std=None,
                  bactivation_loss_func=None,
                  name='Layer'):
@@ -24,6 +26,8 @@ class HiddenLayer(BaseLayer):
                                           output_nodes,
                                           session=session,
                                           weight_extender_func=weight_extender_func,
+                                          weight_initializer_func=weight_initializer_func,
+                                          bias_initializer_func=bias_initializer_func,
                                           input_noise_std=input_noise_std,
                                           freeze=freeze,
                                           name=name)
@@ -34,18 +38,16 @@ class HiddenLayer(BaseLayer):
 
         self._weights = self._create_variable("weights",
                                               (BaseLayer.INPUT_BOUND_VALUE, BaseLayer.OUTPUT_BOUND_VALUE),
-                                              weights if weights is not None else xavier_init(self._input_nodes,
-                                                                                              self._output_nodes))
+                                              weights)
 
         self._bias = self._create_variable("bias",
                                            (BaseLayer.OUTPUT_BOUND_VALUE,),
-                                           bias if bias is not None else tf.zeros(self._output_nodes))
+                                           bias)
 
         if self.bactivate:
             self._back_bias = self._create_variable("back_bias",
                                                     (BaseLayer.INPUT_BOUND_VALUE,),
-                                                    back_bias if back_bias is not None else tf.zeros(
-                                                        self._input_nodes))
+                                                    back_bias)
         else:
             self._back_bias = None
 

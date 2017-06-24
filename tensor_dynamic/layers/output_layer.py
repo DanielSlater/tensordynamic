@@ -176,12 +176,11 @@ class OutputLayer(HiddenLayer):
 
         return error
 
-    def evaluation_stats(self, inputs, targets):
+    def evaluation_stats(self, dataset):
         """Returns stats related to run
 
         Args:
-            inputs (np.array):
-            targets (np.array):
+            dataset (DataSet):
 
         Returns:
             (float, float, float): log_probability of the targets given the data, accuracy, target_loss
@@ -189,8 +188,8 @@ class OutputLayer(HiddenLayer):
         log_prob, accuracy, target_loss = self.session.run([self.log_probability_of_targets_op,
                                                             self.accuracy_op,
                                                             self.target_loss_op_train],
-                                                           feed_dict={self.input_placeholder: inputs,
-                                                                      self._target_placeholder: targets})
+                                                           feed_dict={self.input_placeholder: dataset.features,
+                                                                      self._target_placeholder: dataset.labels})
 
         return log_prob, accuracy, target_loss
 

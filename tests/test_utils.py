@@ -94,7 +94,7 @@ class TestUtils(BaseTfTestCase):
         var = tf.Variable(initial_value=zeros)
         self.session.run(tf.initialize_variables([var]))
 
-        tf_resize(self.session, var, new_dims=(4,))
+        tf_resize(self.session, var, new_dimensions=(4,))
 
         self.assertEqual(self.session.run(var).shape, (4,))
 
@@ -103,11 +103,11 @@ class TestUtils(BaseTfTestCase):
         var = tf.Variable(initial_value=zeros)
         self.session.run(tf.initialize_variables([var]))
 
-        tf_resize(self.session, var, new_dims=(4,))
+        tf_resize(self.session, var, new_dimensions=(4,))
 
         tf.train.GradientDescentOptimizer(0.1).minimize(var)
 
-        tf_resize(self.session, var, new_dims=(2,))
+        tf_resize(self.session, var, new_dimensions=(2,))
 
         self.assertEqual(self.session.run(var).shape, (2,))
 
@@ -119,7 +119,7 @@ class TestUtils(BaseTfTestCase):
         var = tf.Variable(initial_value=zeros)
         self.session.run(tf.initialize_variables([var]))
 
-        tf_resize(self.session, var, new_dims=(6,))
+        tf_resize(self.session, var, new_dimensions=(6,))
 
         self.assertEqual(self.session.run(var).shape, (6,))
 
@@ -135,7 +135,7 @@ class TestUtils(BaseTfTestCase):
 
         self.session.run(train_1)
 
-        tf_resize(self.session, var, new_dims=(6,))
+        tf_resize(self.session, var, new_dimensions=(6,))
 
         optimizer_2 = tf.train.RMSPropOptimizer(0.01)
         train_2 = optimizer_2.minimize(loss)

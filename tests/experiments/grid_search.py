@@ -33,11 +33,9 @@ def do_grid_search(data_set_collection, model_functions, file_name, learning_rat
                                              learning_rate=learning_rate, continue_epochs=continue_epochs,
                                              optimizer=extra_parameters['optimizer'])
 
-                train_log_prob, train_error, train_acc = model.evaluation_stats(data_set_collection.train.features,
-                                                                                data_set_collection.train.labels)
+                train_log_prob, train_error, train_acc = model.evaluation_stats(data_set_collection.train)
 
-                test_log_prob, test_error, test_acc = model.evaluation_stats(data_set_collection.test.features,
-                                                                             data_set_collection.test.labels)
+                test_log_prob, test_error, test_acc = model.evaluation_stats(data_set_collection.test)
 
                 result_file.write("%s,%s,%s,%s,%s,%s,%s,%s\n" % (train_log_prob, train_error, train_acc,
                                                                  test_log_prob, test_error, test_acc,
@@ -54,39 +52,49 @@ def write_parameters_file(data_set_collection, file_name, **kwargs):
             param_file.write("%s=%s\n" % (key, value))
 
 
-def flat_model_functions(data_set_collection, regularizer, activation_func, use_noisy_input_layer):
+def flat_model_functions(data_set_collection, regularizer, activation_func, input_layer_noise_std, input_noise_std):
     def get_model(session, parameters):
-        return create_flat_network(data_set_collection, parameters, session, regularizer_coeff=regularizer, activation_func=activation_func,
-                                   use_noisy_input_layer=use_noisy_input_layer)
+        return create_flat_network(data_set_collection, parameters, session, regularizer_coeff=regularizer,
+                                   activation_func=activation_func,
+                                   input_layer_noise_std=input_layer_noise_std,
+                                   input_noise_std=input_noise_std)
 
     # 1 layer
-    for layer_1 in [100, 200, 300, 500, 1000]:
+    for layer_1 in [300, 500, 1000]:
         yield functools.partial(get_model, parameters=(layer_1,))
 
-        for layer_2 in [100, 200, 300, 500]:
+        for layer_2 in [300, 500, 1000]:
             if layer_2 <= layer_1:
                 yield functools.partial(get_model, parameters=(layer_1, layer_2))
 
-                for layer_3 in [100, 200, 300, 500]:
+                for layer_3 in [300, 500]:
 
                     if layer_3 <= layer_2:
                         yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3))
 
+                        for layer_4 in [500]:
+
+                            if layer_4 <= layer_4:
+                                yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3, layer_4))
+
 
 if __name__ == '__main__':
-    regularizer = 0.0001
+    regularizer = 0.0
 
     data_set_collection = get_cifar_100_data_set_collection()
-    use_noisy_input_layer = False
+    input_layer_noise_std = 1.0
+    input_noise_std = 1.0
     do_grid_search(data_set_collection,
                    functools.partial(flat_model_functions,
                                      regularizer=regularizer,
                                      activation_func=tf.nn.relu,
-                                     use_noisy_input_layer=use_noisy_input_layer),
-                   'cifar-100_lower_reg.csv',
+                                     input_layer_noise_std=input_layer_noise_std,
+                                     input_noise_std=input_noise_std),
+                   'cifar-100_noise-all-layer.csv',
                    regularizer=regularizer,
                    learning_rate=0.0001,
-                   use_noisy_input_layer=use_noisy_input_layer,
+                   input_layer_noise_std=input_layer_noise_std,
+                   input_noise_std=input_noise_std,
                    activation_func=tf.nn.relu,
                    network='flat',
                    optimizer=tf.train.AdamOptimizer)

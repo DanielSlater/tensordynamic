@@ -22,7 +22,8 @@ class EDataType(Enum):
 
 def create_flat_network(data_set_collection, hidden_layers, session, regularizer_coeff=0.001,
                         activation_func=tf.nn.relu,
-                        use_noisy_input_layer=False):
+                        input_layer_noise_std=None,
+                        input_noise_std=None):
     """Create a network of connected flat layers with sigmoid activation func
 
     Args:
@@ -33,8 +34,8 @@ def create_flat_network(data_set_collection, hidden_layers, session, regularizer
     Returns:
         OutputLayer
     """
-    if use_noisy_input_layer:
-        last_layer = NoisyInputLayer(data_set_collection.features_shape, session)
+    if input_layer_noise_std:
+        last_layer = NoisyInputLayer(data_set_collection.features_shape, session, noise_std=input_layer_noise_std)
     else:
         last_layer = InputLayer(data_set_collection.features_shape)
 
@@ -42,7 +43,8 @@ def create_flat_network(data_set_collection, hidden_layers, session, regularizer
         last_layer = FlattenLayer(last_layer, session)
 
     for hidden_nodes in hidden_layers:
-        last_layer = HiddenLayer(last_layer, hidden_nodes, session, non_liniarity=activation_func)
+        last_layer = HiddenLayer(last_layer, hidden_nodes, session, non_liniarity=activation_func,
+                                 input_noise_std=input_noise_std)
 
     output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
                                     regularizer_weighting=regularizer_coeff)
@@ -54,7 +56,7 @@ class BayesianResizingNet(object):
     SHRINK_MULTIPLYER = 1. / GROWTH_MULTIPLYER
     MINIMUM_GROW_AMOUNT = 3
 
-    def __init__(self, output_layer, model_selection_data_type = EDataType.TEST):
+    def __init__(self, output_layer, model_selection_data_type=EDataType.TEST):
         if not isinstance(output_layer, OutputLayer):
             raise TypeError("resizable_net must implement AbstractResizableNet")
         self._output_layer = output_layer
@@ -86,7 +88,8 @@ class BayesianResizingNet(object):
 
         while True:
             resized, new_best_score = current_resize_target.find_best_size(data_set_collection.train,
-                                                                           self.get_evaluation_data_set(data_set_collection),
+                                                                           self.get_evaluation_data_set(
+                                                                               data_set_collection),
                                                                            self.model_weight_score,
                                                                            best_score=best_score,
                                                                            initial_learning_rate=initial_learning_rate,
@@ -127,9 +130,10 @@ class BayesianResizingNet(object):
         evaluation_features = evaluation_data_set.features
         evaluation_labels = evaluation_data_set.labels
 
-        log_liklihood = log_probability_of_targets_given_weights_multimodal(lambda x: layer.last_layer.activate_predict(x),
-                                                                            evaluation_features,
-                                                                            evaluation_labels)
+        log_liklihood = log_probability_of_targets_given_weights_multimodal(
+            lambda x: layer.last_layer.activate_predict(x),
+            evaluation_features,
+            evaluation_labels)
         model_parameters = layer.get_parameters_all_layers()
         return bayesian_model_selection(log_liklihood, model_parameters)
 

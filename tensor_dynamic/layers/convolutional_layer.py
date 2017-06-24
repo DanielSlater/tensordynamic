@@ -18,6 +18,8 @@ class ConvolutionalLayer(BaseLayer):
                  weights=None,
                  bias=None,
                  weight_extender_func=None,
+                 weight_initializer_func=None,
+                 bias_initializer_func=None,
                  name='ConvolutionalLayer',
                  freeze=False,
                  input_noise_std=None,
@@ -34,6 +36,8 @@ class ConvolutionalLayer(BaseLayer):
                                                  output_nodes,
                                                  session=session,
                                                  weight_extender_func=weight_extender_func,
+                                                 weight_initializer_func=weight_initializer_func,
+                                                 bias_initializer_func=bias_initializer_func,
                                                  freeze=freeze,
                                                  input_noise_std=input_noise_std,
                                                  name=name)
@@ -41,12 +45,10 @@ class ConvolutionalLayer(BaseLayer):
         self._weights = self._create_variable("weights",
                                               (convolution_dimensions[0], convolution_dimensions[1],
                                                BaseLayer.INPUT_DIM_3_BOUND_VALUE, BaseLayer.OUTPUT_DIM_3_BOUND_VALUE),
-                                              weights if weights is not None else tf.random_normal(
-                                                  [convolution_dimensions[0], convolution_dimensions[1],
-                                                   self.input_layer.output_nodes[2], convolution_dimensions[2]]))
+                                              weights)
         self._bias = self._create_variable("bias",
                                            (BaseLayer.OUTPUT_DIM_3_BOUND_VALUE,),
-                                           bias if bias is not None else tf.zeros((convolution_dimensions[2],)))
+                                           bias)
         self._stride = stride
         self._padding = padding
         self._non_liniarity = non_liniarity

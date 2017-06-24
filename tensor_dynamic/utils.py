@@ -3,6 +3,7 @@ import logging
 import itertools
 import numpy as np
 import tensorflow as tf
+from collections import Iterable
 from tensorflow.python.framework.tensor_shape import TensorShape
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,9 @@ def xavier_init(fan_in, fan_out, constant=1.0):
     Returns:
         tensorflow.Tensor: A tensor of the specified shape filled with random uniform values.
     """
-    if isinstance(fan_in, tuple):
+    if isinstance(fan_in, Iterable):
         fan_in = get_product_of_iterable(fan_in)
-    if isinstance(fan_out, tuple):
+    if isinstance(fan_out, Iterable):
         fan_out = get_product_of_iterable(fan_out)
 
     low = -constant * np.sqrt(6.0 / (fan_in + fan_out))
@@ -32,36 +33,53 @@ def xavier_init(fan_in, fan_out, constant=1.0):
                              dtype="float")
 
 
-def get_product_of_iterable(fan_in):
-    """Product of the items in the input e.g. [1,2,3] => 6
+def weight_init(shape, constant=1.0):
+    fan_in = get_product_of_iterable(shape[:-1])
+    fan_out = get_product_of_iterable(shape[-1:])
+
+    low = -constant * np.sqrt(1.0 / (fan_in + fan_out))
+    high = constant * np.sqrt(1.0 / (fan_in + fan_out))
+    return tf.random_uniform((fan_in, fan_out),
+                             minval=low, maxval=high,
+                             dtype="float")
+
+
+def bias_init(shape, constant=0.01):
+    if isinstance(shape, int):
+        shape = (shape,)
+    return tf.constant(constant, shape=shape)
+
+
+def get_product_of_iterable(iterable):
+    """Product of the items in the input e.g. [1,2,3,4] => 24
 
     Args:
-        fan_in (iterable of ints):
+        iterable (iterable of ints):
 
     Returns:
         int
     """
     product = 1
-    for x in fan_in:
+    for x in iterable:
         product *= x
     return product
 
 
-def tf_resize(session, tensor, new_dims=None, new_values=None):
+def tf_resize(session, tensor, new_dimensions=None, new_values=None):
     """Resize a tensor or variable
 
     Args:
         session (tensorflow.Session): The session within which this variable resides
         tensor (tensorflow.Tensor or tensorflow.Variable): The variable or tensor we wish to resize
-        new_dims ([int]): The dimensions we want the tensor transformed to. If None will be set to the dims of the new_values array
+        new_dimensions ([int]): The dimensions we want the tensor transformed to. If None will be set to the dims of the new_values array
         new_values (numpy.array): If passed then these values are given to the resized tensor
     """
-    if new_values is not None and new_dims is not None:
-        if tuple(new_dims) != new_values.shape:
-            raise ValueError("new_dims and new_values must have same shape")
+    if new_values is not None and new_dimensions is not None:
+        if tuple(new_dimensions) != new_values.shape:
+            raise ValueError("new_dimsensions and new_values, if set, must have the same shape")
 
-    if new_dims is None and new_values is not None:
-        new_dims = new_values.shape
+    if new_dimensions is None and new_values is not None:
+        new_dimensions = new_values.shape
 
     if new_values is not None:
         if hasattr(new_values, '__call__'):
@@ -71,20 +89,20 @@ def tf_resize(session, tensor, new_dims=None, new_values=None):
         session.run(assign)
     elif isinstance(tensor, tf.Variable):
         current_vals = session.run(tensor)
-        new_values = np.resize(current_vals, new_dims)
+        new_values = np.resize(current_vals, new_dimensions)
         assign = tf.assign(tensor, new_values, validate_shape=False)
         session.run(assign)
 
-    if tuple(tensor.get_shape().as_list()) != new_dims:
-        new_shape = TensorShape(new_dims)
+    if tuple(tensor.get_shape().as_list()) != new_dimensions:
+        new_shape = TensorShape(new_dimensions)
         if hasattr(tensor, '_variable'):
-            for i in range(len(new_dims)):
-                tensor._variable._shape._dims[i]._value = new_dims[i]
-                tensor._snapshot._shape._dims[i]._value = new_dims[i]
-                tensor._initial_value._shape._dims[i]._value = new_dims[i]
+            for i in range(len(new_dimensions)):
+                tensor._variable._shape._dims[i]._value = new_dimensions[i]
+                tensor._snapshot._shape._dims[i]._value = new_dimensions[i]
+                tensor._initial_value._shape._dims[i]._value = new_dimensions[i]
         elif hasattr(tensor, '_shape'):
-            for i in range(len(new_dims)):
-                tensor._shape._dims[i]._value = new_dims[i]
+            for i in range(len(new_dimensions)):
+                tensor._shape._dims[i]._value = new_dimensions[i]
         else:
             raise NotImplementedError('unrecognized type %s' % type(tensor))
 

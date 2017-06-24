@@ -53,5 +53,15 @@ with tf.Session() as session:
                                   continue_epochs=5)
 
 
+    train_log_prob, train_error, train_acc = output.evaluation_stats(data_set_collection.train)
+
+    test_log_prob, test_error, test_acc = output.evaluation_stats(data_set_collection.test)
+
+    print("%s,%s,%s,%s,%s,%s,%s,%s\n" % (train_log_prob, train_error, train_acc,
+                                                     test_log_prob, test_error, test_acc,
+                                                     str(output.get_resizable_dimension_size_all_layers())
+                                                     .replace(',', '-'),
+                                                     output.get_parameters_all_layers()))
+
     # (7508.6528, 0.97310001)
     # INFO:tensor_dynamic.layers.output_layer:iterations = 23 error = 7508.65

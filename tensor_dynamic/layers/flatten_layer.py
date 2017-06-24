@@ -22,6 +22,7 @@ class FlattenLayer(BaseLayer):
                                            name=name)
 
     def _layer_activation(self, input_activation, is_train):
+        # TODO can this be done using tf.shape? like input noise?
         return tf.reshape(input_activation, [-1, self.output_nodes[0]])
 
     def resize(self, new_output_nodes=None,

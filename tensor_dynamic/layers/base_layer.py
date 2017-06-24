@@ -10,7 +10,7 @@ import sys
 import tensorflow as tf
 
 from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop, clear_lazyprop_on_lazyprop_cleared
-from tensor_dynamic.utils import tf_resize
+from tensor_dynamic.utils import tf_resize, bias_init, weight_init
 from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
 logger = logging.getLogger(__name__)
@@ -35,12 +35,16 @@ class BaseLayer(object):
                  output_nodes,
                  session=None,
                  weight_extender_func=None,
+                 weight_initializer_func=None,
+                 bias_initializer_func=None,
                  input_noise_std=None,
                  name=None,
                  freeze=False):
         """Base class from which all layers will inherit. This is an abstract class
 
         Args:
+            weight_initializer_func ((int)->weights): function that creates initial values for weights for this layer
+            bias_initializer_func (int->weights): function that creates initial values for weights for this layer
             input_noise_std (float): If not None gaussian noise with mean 0 and this std is applied to the input of this
                 layer
             input_layer (tensor_dynamic.base_layer.BaseLayer): This layer will work on the activation of the input_layer
@@ -68,6 +72,13 @@ class BaseLayer(object):
         self._weight_extender_func = self._get_property_or_default(weight_extender_func, '_weight_extender_func',
                                                                    noise_weight_extender)
 
+        self._weight_initializer_func = self._get_property_or_default(weight_initializer_func,
+                                                                      '_weight_initializer_func',
+                                                                      weight_init)
+        self._bias_initializer_func = self._get_property_or_default(bias_initializer_func,
+                                                                    '_bias_initializer_func',
+                                                                    bias_init)
+
         self._freeze = freeze
         self._bound_variables = []
         input_layer._attach_next_layer(self)
@@ -76,7 +87,7 @@ class BaseLayer(object):
         if init_value is not None:
             return init_value
         if self.input_layer is not None:
-            if hasattr(self.input_layer, property_name):
+            if hasattr(self.input_layer, property_name) and getattr(self.input_layer, property_name) is not None:
                 return getattr(self.input_layer, property_name)
             else:
                 earlier_in_stream_result = self.input_layer._get_property_or_default(init_value, property_name,
@@ -518,6 +529,11 @@ class BaseLayer(object):
         with self.name_scope():
             if isinstance(default_val, np.ndarray):
                 default_val = self._weight_extender_func(default_val, int_dims)
+            elif default_val is None:
+                if len(int_dims) == 1:
+                    default_val = self._bias_initializer_func(int_dims[0])
+                else:
+                    default_val = self._weight_initializer_func(int_dims)
 
             var = tf.Variable(default_val, trainable=(not self._freeze) and is_trainable, name=name)
 
@@ -813,6 +829,31 @@ class BaseLayer(object):
             to_prune.add(min_node)
 
         return to_prune
+
+    def get_layer_state(self):
+        """Returns an object that can be used to set this layer to it's current state and size
+
+        Returns:
+            object
+        """
+        return self.__class__, self.get_resizable_dimension_size(), self._bound_variables_as_kwargs()
+
+    def set_layer_state(self, state):
+        """Set this to the state passed, may cause resizing
+
+        Args:
+            state ((type, int, dict)): Object create by self.get_layer_state
+        """
+        class_type, size, bound_variables = state
+        assert class_type == type(self)
+
+        if self.get_resizable_dimension_size() != size:
+            self.resize(size)
+
+        for name, variable in bound_variables.iteritems():
+            assert hasattr(self, '_' + name), 'expected to have property with name %s' % ('_' + name,)
+
+            self.session.run(tf.assign(getattr(self, '_' + name), variable))
 
         # def save_network(self):
         #     obj = {}
