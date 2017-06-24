@@ -1,5 +1,6 @@
 import logging
 import math
+import random
 
 import tensorflow as tf
 
@@ -141,18 +142,22 @@ class OutputLayer(HiddenLayer):
 
         def train():
             iterations[0] += 1
-            error = 0.
+            train_error = 0.
+            test_error = None
 
             for features, labels in data_set_train.one_iteration_in_batches(mini_batch_size):
                 _, batch_error = self._session.run([train_op, self.loss_op_train],
                                                    feed_dict={self.input_placeholder: features,
                                                               self.target_placeholder: labels})
 
-                error += batch_error
+                if on_mini_batch_complete_func is not None:
+                    on_mini_batch_complete_func(self, iterations[0], batch_error)
+
+                train_error += batch_error
 
             if data_set_validation is not None and data_set_validation is not data_set_train:
                 # we may have to break this into equal parts
-                error, acc = 0., 0.
+                test_error, acc = 0., 0.
                 parts = 0
                 for features, labels in data_set_validation.one_iteration_in_batches(validation_part_size):
                     parts += 1
@@ -160,15 +165,16 @@ class OutputLayer(HiddenLayer):
                                                                feed_dict={
                                                                    self.input_placeholder: features,
                                                                    self.target_placeholder: labels})
-                    error += batch_error
+                    test_error += batch_error
                     acc += batch_acc
 
-                print(error, acc / parts)
+                test_error /= parts
+                print(test_error, acc / parts)
 
             if on_iteration_complete_func is not None:
-                on_iteration_complete_func(self, iterations[0])
+                on_iteration_complete_func(self, iterations[0], train_error=train_error, test_error=test_error)
 
-            return error
+            return test_error or train_error
 
         error = train_till_convergence(train, log=False, continue_epochs=continue_epochs)
 
@@ -200,6 +206,58 @@ class OutputLayer(HiddenLayer):
         kwargs['regularizer_weighting'] = self._regularizer_weighting
 
         return kwargs
+
+    def learn_structure_random(self, data_set_train, data_set_validate, start_learn_rate=0.01, continue_learn_rate=0.0001):
+        rejected_changes = 0
+        self.train_till_convergence(data_set_train, data_set_validate, learning_rate=start_learn_rate)
+        number_of_convergences = 1
+
+        best_log_prob, accuracy, target_loss = self.evaluation_stats(data_set_validate)
+        print(best_log_prob, accuracy, target_loss)
+
+        best_param = self.get_parameters_all_layers()
+        best_model_weight = best_log_prob - math.log(self.get_parameters_all_layers())
+
+        # make random change
+        while rejected_changes <= 4:
+            layer_to_resize = random.choice(list(self.get_all_resizable_layers()))
+            network_start_state = self.get_network_state()
+            node_change = random.choice([self.GROWTH_MULTIPLYER, self.SHRINK_MULTIPLYER])
+            start_size = layer_to_resize.get_resizable_dimension_size()
+            new_node_count = layer_to_resize._get_new_node_count(node_change)
+            layer_to_resize.resize(new_node_count)
+            try:
+                self.train_till_convergence(data_set_train, data_set_validate, learning_rate=continue_learn_rate)
+            except Exception as ex:
+                print (ex)
+            number_of_convergences += 1
+
+            # did it work?
+            new_log_prob, _, _ = self.evaluation_stats(data_set_validate)
+
+            new_model_weight = new_log_prob - math.log(self.get_parameters_all_layers())
+            if new_model_weight <= best_model_weight:
+                rejected_changes += 1
+                print("REJECTED change of layer %s" % (layer_to_resize.layer_number,))
+                print("from size:%s log_prob:%s param:%s score:%s" % (start_size, best_log_prob, best_param,
+                                                                      best_model_weight))
+                print("To size:%s log_prob:%s param:%s score:%s score change" % (new_node_count,
+                                                                                 new_log_prob,
+                                                                                 self.get_parameters_all_layers(),
+                                                                                 new_model_weight))
+                self.set_network_state(network_start_state)
+            else:
+                rejected_changes = 0
+                print("ACCEPTED change of layer %s" % (layer_to_resize.layer_number,))
+                print("from size:%s log_prob:%s param:%s score:%s" % (start_size, best_log_prob, best_param,
+                                                                      best_model_weight))
+                print("To size:%s log_prob:%s param:%s score:%s score change" % (new_node_count,
+                                                                                 new_log_prob,
+                                                                                 self.get_parameters_all_layers(),
+                                                                                 new_model_weight))
+                best_param = self.get_parameters_all_layers()
+                best_model_weight = new_model_weight
+                best_log_prob = new_log_prob
 
 
 class BinaryOutputLayer(OutputLayer):

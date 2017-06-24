@@ -1,12 +1,14 @@
 import numpy as np
 import tensorflow as tf
+from math import log
 
+from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
-class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
+class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
     def _create_layer_for_test(self):
         return HiddenLayer(self._input_layer, self.OUTPUT_NODES, session=self.session)
 
@@ -46,8 +48,8 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
         input_p = tf.placeholder("float", (None, 4))
         layer = HiddenLayer(InputLayer(input_p), output_nodes, session=self.session,
                             weights=np.array([[10., 10.],
-                                        [10., 10.],
-                                        [10., 10.]], dtype=np.float32))
+                                              [10., 10.],
+                                              [10., 10.]], dtype=np.float32))
 
         self.assertEqual(layer._weights.get_shape().as_list(), [4, 2])
 
@@ -79,7 +81,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
                             bias=np.zeros(input_size, dtype=np.float32),
                             session=self.session,
                             non_liniarity=tf.identity,
-                            noise_std=noise_std)
+                            input_noise_std=noise_std)
 
         result_noisy = self.session.run(layer.activation_train,
                                         feed_dict={
@@ -105,7 +107,7 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
                             session=self.session,
                             bactivate=True,
                             non_liniarity=tf.identity,
-                            noise_std=noise_std)
+                            input_noise_std=noise_std)
 
         result_noisy = self.session.run(layer.bactivation_train,
                                         feed_dict={
@@ -131,10 +133,14 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def reconstruction_loss_for(self, output_nodes):
         data = self.mnist_data
-        bw_layer1 = HiddenLayer(InputLayer(784), output_nodes, session=self.session, noise_std=1.0, bactivate=True)
+        input_layer = InputLayer(784)
+        bw_layer1 = HiddenLayer(input_layer, output_nodes, session=self.session, input_noise_std=1.0, bactivate=True)
 
-        cost = bw_layer1.unsupervised_cost_train()
-        optimizer = tf.train.AdamOptimizer(0.1).minimize(cost)
+        cost_train = tf.reduce_mean(
+            tf.reduce_sum(tf.square(bw_layer1.bactivation_train - input_layer.activation_train), 1))
+        cost_predict = tf.reduce_mean(
+            tf.reduce_sum(tf.square(bw_layer1.bactivation_predict - input_layer.activation_predict), 1))
+        optimizer = tf.train.AdamOptimizer(0.01).minimize(cost_train)
 
         self.session.run(tf.initialize_all_variables())
 
@@ -144,17 +150,20 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
             train_x, train_y = data.train.next_batch(100)
             self.session.run(optimizer, feed_dict={bw_layer1.input_placeholder: train_x})
 
-        result = self.session.run(bw_layer1.unsupervised_cost_predict(),
+        result = self.session.run(cost_predict,
                                   feed_dict={bw_layer1.input_placeholder: data.test.features})
         print("denoising with %s hidden layer had cost %s" % (output_nodes, result))
         return result
 
     def test_reconstruction_of_single_input(self):
         input_layer = InputLayer(1)
-        layer = HiddenLayer(input_layer, 1, bactivate=True, session=self.session, noise_std=0.3)
+        layer = HiddenLayer(input_layer, 1, bactivate=True, session=self.session, input_noise_std=0.3)
 
-        cost = layer.unsupervised_cost_train()
-        optimizer = tf.train.AdamOptimizer(0.1).minimize(cost)
+        cost_train = tf.reduce_mean(
+            tf.reduce_sum(tf.square(layer.bactivation_train - input_layer.activation_train), 1))
+        cost_predict = tf.reduce_mean(
+            tf.reduce_sum(tf.square(layer.bactivation_predict - input_layer.activation_predict), 1))
+        optimizer = tf.train.AdamOptimizer(0.1).minimize(cost_train)
 
         self.session.run(tf.initialize_all_variables())
 
@@ -163,28 +172,56 @@ class TestLayer(BaseLayerWrapper.BaseLayerTestCase):
         for x in range(100):
             self.session.run([optimizer], feed_dict={input_layer.input_placeholder: data})
 
-        result = self.session.run([cost], feed_dict={input_layer.input_placeholder: data})
+        result = self.session.run([cost_predict], feed_dict={input_layer.input_placeholder: data})
         print result
 
     def test_noise_reconstruction(self):
         INPUT_DIM = 10
         HIDDEN_NODES = 1
-        bw_layer1 = HiddenLayer(InputLayer(INPUT_DIM), HIDDEN_NODES, session=self.session, noise_std=1.0, bactivate=True)
+        input_layer = InputLayer(INPUT_DIM)
+        bw_layer1 = HiddenLayer(input_layer, HIDDEN_NODES, session=self.session, input_noise_std=1.0,
+                                bactivate=True)
 
         # single cluster reconstruct
         data = []
         for i in range(10):
-            data.append([i*.1]*INPUT_DIM)
+            data.append([i * .1] * INPUT_DIM)
 
-        cost = bw_layer1.unsupervised_cost_train()
-        optimizer = tf.train.AdamOptimizer(0.1).minimize(cost)
+        cost_train = tf.reduce_mean(
+            tf.reduce_sum(tf.square(bw_layer1.bactivation_train - input_layer.activation_train), 1))
+        cost_predict = tf.reduce_mean(
+            tf.reduce_sum(tf.square(bw_layer1.bactivation_predict - input_layer.activation_predict), 1))
+        optimizer = tf.train.AdamOptimizer(0.01).minimize(cost_train)
 
         self.session.run(tf.initialize_all_variables())
 
         for j in range(200):
             self.session.run(optimizer, feed_dict={bw_layer1.input_placeholder: data})
 
-        result = self.session.run(bw_layer1.unsupervised_cost_predict(),
+        result = self.session.run(cost_predict,
                                   feed_dict={bw_layer1.input_placeholder: data})
 
         print("denoising with %s hidden layer had cost %s" % (HIDDEN_NODES, result))
+
+    def test_find_best_layer_size(self):
+        data = self.mnist_data
+        input_layer = InputLayer(data.features_shape)
+        layer = HiddenLayer(input_layer, 10, session=self.session, input_noise_std=1.0, bactivate=False)
+        output = CategoricalOutputLayer(layer, data.labels_shape)
+
+        layer.find_best_size(data.train, data.test,
+                             lambda m, d: output.evaluation_stats(d)[0] - log(output.get_parameters_all_layers()),
+                             initial_learning_rate=0.1, tuning_learning_rate=0.01)
+
+        assert layer.get_resizable_dimension_size() > 10
+
+    # TODO: Move to categorical output layer
+    def test_learn_struture(self):
+        data = self.mnist_data
+        input_layer = InputLayer(data.features_shape)
+        layer = HiddenLayer(input_layer, 10, session=self.session, input_noise_std=1.0, bactivate=False)
+        output = CategoricalOutputLayer(layer, data.labels_shape)
+
+        output.learn_structure_random(data.train, data.test)
+
+        assert layer.get_resizable_dimension_size() > 10

@@ -105,7 +105,7 @@ class HiddenLayer(BaseLayer):
     def _get_node_importance(self):
         importance = self._session.run(self.activation_predict,
                                        feed_dict={self.input_placeholder:
-                                                      np.ones(shape=(1,) + self.input_layer.output_nodes,
+                                                      np.ones(shape=(1,) + self.first_layer.output_nodes,
                                                               dtype=np.float32)})[0]
         return importance
 

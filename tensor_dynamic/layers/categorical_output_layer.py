@@ -56,7 +56,7 @@ class CategoricalOutputLayer(OutputLayer):
         return self._target_loss_op(self._pre_softmax_activation_predict)
 
     def _target_loss_op(self, input_tensor):
-        return tf.reduce_sum( # TODO: Change to mean?
+        return tf.reduce_mean( # TODO: Change to mean?
             tf.nn.softmax_cross_entropy_with_logits(logits=input_tensor, labels=self._target_placeholder),
         )
 

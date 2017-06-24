@@ -74,6 +74,12 @@ class InputLayer(BaseLayer):
     def get_parameters(self):
         return 0
 
+    @property
+    def kwargs(self):
+        kwargs = {
+            'name': self._name}
+        return kwargs
+
 
 class NoisyInputLayer(InputLayer):
     def __init__(self, input_nodes, session, noise_std=1.0, name='NoisyInput'):
@@ -92,6 +98,14 @@ class NoisyInputLayer(InputLayer):
 
     def clone(self, session):
         return self.__class__(self.output_nodes, session, noise_std=self._noise_std, name=self._name)
+
+    @property
+    def kwargs(self):
+        kwargs = {
+            'name': self._name,
+            'noise_std': self._noise_std
+        }
+        return kwargs
 
 
 class SemiSupervisedInputLayer(InputLayer):

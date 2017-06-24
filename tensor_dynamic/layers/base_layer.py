@@ -688,6 +688,9 @@ class BaseLayer(object):
         return tuple(layer.get_resizable_dimension_size() for layer in self.get_all_resizable_layers())
 
     def _get_new_node_count(self, size_multiplier, from_size=None):
+        if not self.has_resizable_dimension():
+            raise Exception("Can not resize this dimension")
+
         from_size = from_size or self.get_resizable_dimension_size()
 
         new_size = int(from_size * size_multiplier)
@@ -745,7 +748,8 @@ class BaseLayer(object):
             best_score = model_evaluation_function(self, data_set_validation)
 
         start_size = self.get_resizable_dimension_size_all_layers()
-        best_layer_size = self.get_resizable_dimension_size()
+        best_state = self.get_network_state()
+
         resized = False
 
         # try bigger
@@ -758,13 +762,16 @@ class BaseLayer(object):
         while new_score > best_score:
             resized = True
             best_score = new_score
-            best_layer_size = self.get_resizable_dimension_size()
+            best_state = self.get_network_state()
+
             new_score = self._layer_resize_converge(data_set_train, data_set_validation,
                                                     model_evaluation_function,
                                                     self._get_new_node_count(self.GROWTH_MULTIPLYER),
                                                     tuning_learning_rate)
         if not resized:
             logger.info("From start_size %s Bigger failed, trying smaller", start_size)
+            self.set_network_state(best_state)
+
             # try smaller
             two_smaller = self._get_new_node_count(self.SHRINK_MULTIPLYER,
                                                    from_size=self._get_new_node_count(self.SHRINK_MULTIPLYER))
@@ -776,19 +783,16 @@ class BaseLayer(object):
             while new_score > best_score:
                 resized = True
                 best_score = new_score
-                best_layer_size = self.get_resizable_dimension_size()
+                best_state = self.get_network_state()
                 new_score = self._layer_resize_converge(data_set_train, data_set_validation,
                                                         model_evaluation_function,
                                                         self.SHRINK_MULTIPLYER,
                                                         tuning_learning_rate)
 
-        logger.info("From start_size %s Found best was %s", start_size, best_layer_size)
-
         # return to the best size we found
-        self.resize(best_layer_size)
+        self.set_network_state(best_state)
 
-        self.last_layer.train_till_convergence(data_set_train, data_set_validation,
-                                               learning_rate=tuning_learning_rate)
+        logger.info("From start_size %s Found best was %s", start_size, self.get_resizable_dimension_size())
 
         return resized, best_score
 
@@ -830,30 +834,44 @@ class BaseLayer(object):
 
         return to_prune
 
-    def get_layer_state(self):
+    def _get_layer_state(self):
         """Returns an object that can be used to set this layer to it's current state and size
 
         Returns:
             object
         """
-        return self.__class__, self.get_resizable_dimension_size(), self._bound_variables_as_kwargs()
+        return self.__class__, self.get_resizable_dimension_size(), self.kwargs
 
-    def set_layer_state(self, state):
+    def _set_layer_state(self, state):
         """Set this to the state passed, may cause resizing
 
         Args:
             state ((type, int, dict)): Object create by self.get_layer_state
         """
-        class_type, size, bound_variables = state
+        class_type, size, kwargs = state
         assert class_type == type(self)
+
+        if not hasattr(self, '_bound_variables'):
+            return
 
         if self.get_resizable_dimension_size() != size:
             self.resize(size)
 
-        for name, variable in bound_variables.iteritems():
-            assert hasattr(self, '_' + name), 'expected to have property with name %s' % ('_' + name,)
+        for name, variable in kwargs.iteritems():
+            if name in self._bound_variables:
+                assert hasattr(self, '_' + name), 'expected to have property with name %s' % ('_' + name,)
 
-            self.session.run(tf.assign(getattr(self, '_' + name), variable))
+                self.session.run(tf.assign(getattr(self, '_' + name), variable))
+
+    def get_network_state(self):
+        return [layer._get_layer_state() for layer in self.all_connected_layers]
+
+    def set_network_state(self, state):
+        if len(state) != len(list(self.all_connected_layers)):
+            raise NotImplementedError("We don't support setting state on network with layer changes yet...")
+
+        for layer, layer_state in zip(self.all_connected_layers, state):
+            layer._set_layer_state(layer_state)
 
         # def save_network(self):
         #     obj = {}

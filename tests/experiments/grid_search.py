@@ -58,24 +58,24 @@ def flat_model_functions(data_set_collection, regularizer, activation_func, inpu
                                    activation_func=activation_func,
                                    input_layer_noise_std=input_layer_noise_std,
                                    input_noise_std=input_noise_std)
-
+    yield functools.partial(get_model, parameters=(1000, 1000, 1000, 1000, 1000,))
     # 1 layer
-    for layer_1 in [300, 500, 1000]:
-        yield functools.partial(get_model, parameters=(layer_1,))
-
-        for layer_2 in [300, 500, 1000]:
-            if layer_2 <= layer_1:
-                yield functools.partial(get_model, parameters=(layer_1, layer_2))
-
-                for layer_3 in [300, 500]:
-
-                    if layer_3 <= layer_2:
-                        yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3))
-
-                        for layer_4 in [500]:
-
-                            if layer_4 <= layer_4:
-                                yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3, layer_4))
+    # for layer_1 in [300, 500, 1000]:
+    #     yield functools.partial(get_model, parameters=(layer_1,))
+    #
+    #     for layer_2 in [300, 500, 1000]:
+    #         if layer_2 <= layer_1:
+    #             yield functools.partial(get_model, parameters=(layer_1, layer_2))
+    #
+    #             for layer_3 in [300, 500]:
+    #
+    #                 if layer_3 <= layer_2:
+    #                     yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3))
+    #
+    #                     for layer_4 in [500]:
+    #
+    #                         if layer_4 <= layer_4:
+    #                             yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3, layer_4))
 
 
 if __name__ == '__main__':
@@ -90,9 +90,9 @@ if __name__ == '__main__':
                                      activation_func=tf.nn.relu,
                                      input_layer_noise_std=input_layer_noise_std,
                                      input_noise_std=input_noise_std),
-                   'cifar-100_noise-all-layer.csv',
+                   'cifar-100_noise-all-layer-another.csv',
                    regularizer=regularizer,
-                   learning_rate=0.0001,
+                   learning_rate=0.00001,
                    input_layer_noise_std=input_layer_noise_std,
                    input_noise_std=input_noise_std,
                    activation_func=tf.nn.relu,
