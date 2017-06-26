@@ -5,7 +5,7 @@ from tensor_dynamic.lazyprop import lazyprop
 
 
 class InputLayer(BaseLayer):
-    def __init__(self, input_nodes, name='Input'):
+    def __init__(self, input_nodes, layer_noise_std=None, drop_out_prob=None, name='Input'):
         """Input layer to a neural network
 
         Args:
@@ -28,6 +28,8 @@ class InputLayer(BaseLayer):
         self._placeholder = input_nodes
         self._next_layer = None
         self._input_layer = None
+        self._input_noise_std = layer_noise_std
+        self._drop_out_prob = drop_out_prob
 
     @property
     def activation(self):
@@ -35,7 +37,14 @@ class InputLayer(BaseLayer):
 
     @property
     def activation_train(self):
-        return self._placeholder
+        tensor = self._placeholder
+        if self._drop_out_prob:
+            tensor = tf.nn.dropout(tensor, self._drop_out_prob)
+
+        if self._input_noise_std is not None:
+            tensor = tensor + tf.random_normal(tf.shape(self.input_layer.activation_train),
+                                               stddev=self._input_noise_std)
+        return tensor
 
     @property
     def activation_predict(self):
@@ -62,7 +71,7 @@ class InputLayer(BaseLayer):
         return True
 
     def clone(self, session=None):
-        return self.__class__(self.output_nodes, name=self._name)
+        return self.__class__(self.output_nodes, **self.kwargs)
 
     @property
     def variables(self):
@@ -77,37 +86,13 @@ class InputLayer(BaseLayer):
     @property
     def kwargs(self):
         kwargs = {
-            'name': self._name}
-        return kwargs
-
-
-class NoisyInputLayer(InputLayer):
-    def __init__(self, input_nodes, session, noise_std=1.0, name='NoisyInput'):
-        super(NoisyInputLayer, self).__init__(input_nodes, name)
-        self._noise_std = noise_std
-        self._session = session
-
-    @lazyprop
-    def activation_train(self):
-        return self.activation + tf.random_normal(tf.shape(self._placeholder),
-                                                  stddev=self._noise_std)
-
-    @property
-    def activation_predict(self):
-        return self.activation
-
-    def clone(self, session):
-        return self.__class__(self.output_nodes, session, noise_std=self._noise_std, name=self._name)
-
-    @property
-    def kwargs(self):
-        kwargs = {
             'name': self._name,
-            'noise_std': self._noise_std
-        }
+            'layer_noise_std': self._input_noise_std,
+            'drop_out_prob': self._drop_out_prob}
         return kwargs
 
 
+# Not currently working...
 class SemiSupervisedInputLayer(InputLayer):
     def __init__(self, input_dim, name='Input'):
         if isinstance(input_dim, tuple):

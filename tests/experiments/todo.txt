@@ -3,3 +3,6 @@ shrink over big net 1 layer - works badly
 growing small net 1 layer - works badly
 On cifar-100 overfitting appears to be a huge issue
 Use difference between test and train results in growth?
+Drop out
+Batch Normalize - I think this could be very important
+Use laplace for objective

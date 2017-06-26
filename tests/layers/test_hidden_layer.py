@@ -5,6 +5,7 @@ from math import log
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
+from tensor_dynamic.node_importance import node_importance_optimal_brain_damage
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
@@ -81,7 +82,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
                             bias=np.zeros(input_size, dtype=np.float32),
                             session=self.session,
                             non_liniarity=tf.identity,
-                            input_noise_std=noise_std)
+                            layer_noise_std=noise_std)
 
         result_noisy = self.session.run(layer.activation_train,
                                         feed_dict={
@@ -107,7 +108,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
                             session=self.session,
                             bactivate=True,
                             non_liniarity=tf.identity,
-                            input_noise_std=noise_std)
+                            layer_noise_std=noise_std)
 
         result_noisy = self.session.run(layer.bactivation_train,
                                         feed_dict={
@@ -134,7 +135,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
     def reconstruction_loss_for(self, output_nodes):
         data = self.mnist_data
         input_layer = InputLayer(784)
-        bw_layer1 = HiddenLayer(input_layer, output_nodes, session=self.session, input_noise_std=1.0, bactivate=True)
+        bw_layer1 = HiddenLayer(input_layer, output_nodes, session=self.session, layer_noise_std=1.0, bactivate=True)
 
         cost_train = tf.reduce_mean(
             tf.reduce_sum(tf.square(bw_layer1.bactivation_train - input_layer.activation_train), 1))
@@ -157,7 +158,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def test_reconstruction_of_single_input(self):
         input_layer = InputLayer(1)
-        layer = HiddenLayer(input_layer, 1, bactivate=True, session=self.session, input_noise_std=0.3)
+        layer = HiddenLayer(input_layer, 1, bactivate=True, session=self.session, layer_noise_std=0.3)
 
         cost_train = tf.reduce_mean(
             tf.reduce_sum(tf.square(layer.bactivation_train - input_layer.activation_train), 1))
@@ -179,7 +180,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         INPUT_DIM = 10
         HIDDEN_NODES = 1
         input_layer = InputLayer(INPUT_DIM)
-        bw_layer1 = HiddenLayer(input_layer, HIDDEN_NODES, session=self.session, input_noise_std=1.0,
+        bw_layer1 = HiddenLayer(input_layer, HIDDEN_NODES, session=self.session, layer_noise_std=1.0,
                                 bactivate=True)
 
         # single cluster reconstruct
@@ -206,7 +207,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
     def test_find_best_layer_size(self):
         data = self.mnist_data
         input_layer = InputLayer(data.features_shape)
-        layer = HiddenLayer(input_layer, 10, session=self.session, input_noise_std=1.0, bactivate=False)
+        layer = HiddenLayer(input_layer, 10, session=self.session, layer_noise_std=1.0, bactivate=False)
         output = CategoricalOutputLayer(layer, data.labels_shape)
 
         layer.find_best_size(data.train, data.test,
@@ -216,12 +217,33 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         assert layer.get_resizable_dimension_size() > 10
 
     # TODO: Move to categorical output layer
-    def test_learn_struture(self):
+    # def test_learn_struture(self):
+    #     data = self.mnist_data
+    #     input_layer = InputLayer(data.features_shape)
+    #     layer = HiddenLayer(input_layer, 10, session=self.session, input_noise_std=1.0, bactivate=False)
+    #     output = CategoricalOutputLayer(layer, data.labels_shape)
+    #
+    #     output.learn_structure_random(data.train, data.test)
+    #
+    #     assert layer.get_resizable_dimension_size() > 10
+
+    def test_remove_unimportant_nodes_does_not_affect_test_error(self):
         data = self.mnist_data
         input_layer = InputLayer(data.features_shape)
-        layer = HiddenLayer(input_layer, 10, session=self.session, input_noise_std=1.0, bactivate=False)
-        output = CategoricalOutputLayer(layer, data.labels_shape)
+        layer = HiddenLayer(input_layer, 500, session=self.session,
+                            node_importance_func=node_importance_optimal_brain_damage)
+        output = CategoricalOutputLayer(layer, data.labels_shape, regularizer_weighting=0.0001)
 
-        output.learn_structure_random(data.train, data.test)
+        output.train_till_convergence(data.train, learning_rate=0.01)
 
-        assert layer.get_resizable_dimension_size() > 10
+        _, _, target_loss_before_resize = output.evaluation_stats(data.test) # Should this be on test or train?
+
+        print(target_loss_before_resize)
+
+        layer.resize(450, data_set=data.test)
+
+        _, _, target_loss_after_resize = output.evaluation_stats(data.test)
+
+        print(target_loss_after_resize)
+
+        self.assertAlmostEqual(target_loss_before_resize, target_loss_after_resize, places=2)

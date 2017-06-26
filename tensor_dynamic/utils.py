@@ -65,10 +65,12 @@ def get_product_of_iterable(iterable):
     return product
 
 
-def tf_resize(session, tensor, new_dimensions=None, new_values=None):
+def tf_resize(session, tensor, new_dimensions=None, new_values=None, assign_op=None):
     """Resize a tensor or variable
 
     Args:
+        assign_op (tensorflow.Operation): Operation for assigning this variable, this is to stop the graph
+            getting overloaded
         session (tensorflow.Session): The session within which this variable resides
         tensor (tensorflow.Tensor or tensorflow.Variable): The variable or tensor we wish to resize
         new_dimensions ([int]): The dimensions we want the tensor transformed to. If None will be set to the dims of the new_values array
@@ -245,6 +247,6 @@ def create_hessian_variable_op(loss_op, tensor):
     """
     # computing derivative twice, first w.r.t v2 and then w.r.t v1
     first_derivative = tf.gradients(loss_op, tensor)[0]
-    second_derivative = tf.gradients(loss_op, first_derivative)[0]
+    second_derivative = tf.gradients(first_derivative, tensor)[0]
 
     return second_derivative

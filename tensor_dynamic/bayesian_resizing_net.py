@@ -6,7 +6,7 @@ import tensorflow as tf
 from enum import Enum
 
 from tensor_dynamic.layers.flatten_layer import FlattenLayer
-from tensor_dynamic.layers.input_layer import InputLayer, NoisyInputLayer
+from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.layers.output_layer import OutputLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
@@ -34,17 +34,14 @@ def create_flat_network(data_set_collection, hidden_layers, session, regularizer
     Returns:
         OutputLayer
     """
-    if input_layer_noise_std:
-        last_layer = NoisyInputLayer(data_set_collection.features_shape, session, noise_std=input_layer_noise_std)
-    else:
-        last_layer = InputLayer(data_set_collection.features_shape)
+    last_layer = InputLayer(data_set_collection.features_shape, layer_noise_std=input_layer_noise_std)
 
     if len(last_layer.output_nodes) > 1:
         last_layer = FlattenLayer(last_layer, session)
 
     for hidden_nodes in hidden_layers:
         last_layer = HiddenLayer(last_layer, hidden_nodes, session, non_liniarity=activation_func,
-                                 input_noise_std=input_noise_std)
+                                 layer_noise_std=input_noise_std)
 
     output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
                                     regularizer_weighting=regularizer_coeff)

@@ -3,8 +3,8 @@ import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
+from tensor_dynamic.node_importance import node_importance_by_square_sum
 from tensor_dynamic.tf_loss_functions import squared_loss
-from tensor_dynamic.utils import xavier_init, create_hessian_variable_op
 
 
 class HiddenLayer(BaseLayer):
@@ -19,8 +19,10 @@ class HiddenLayer(BaseLayer):
                  weight_extender_func=None,
                  weight_initializer_func=None,
                  bias_initializer_func=None,
-                 input_noise_std=None,
+                 layer_noise_std=None,
+                 drop_out_prob=None,
                  bactivation_loss_func=None,
+                 node_importance_func=None,
                  name='Layer'):
         super(HiddenLayer, self).__init__(input_layer,
                                           output_nodes,
@@ -28,13 +30,16 @@ class HiddenLayer(BaseLayer):
                                           weight_extender_func=weight_extender_func,
                                           weight_initializer_func=weight_initializer_func,
                                           bias_initializer_func=bias_initializer_func,
-                                          input_noise_std=input_noise_std,
+                                          layer_noise_std=layer_noise_std,
+                                          drop_out_prob=drop_out_prob,
                                           freeze=freeze,
                                           name=name)
         self._non_liniarity = self._get_property_or_default(non_liniarity, '_non_liniarity', tf.nn.sigmoid)
         self._bactivate = bactivate
         self._bactivation_loss_func = self._get_property_or_default(bactivation_loss_func, '_bactivation_loss_func',
                                                                     squared_loss)
+        self._node_importance_func = self._get_property_or_default(node_importance_func, '_node_importance_func',
+                                                                   node_importance_by_square_sum)
 
         self._weights = self._create_variable("weights",
                                               (BaseLayer.INPUT_BOUND_VALUE, BaseLayer.OUTPUT_BOUND_VALUE),
@@ -102,38 +107,8 @@ class HiddenLayer(BaseLayer):
     def get_resizable_dimension_size(self):
         return self.output_nodes[0]
 
-    def _get_node_importance(self):
-        importance = self._session.run(self.activation_predict,
-                                       feed_dict={self.input_placeholder:
-                                                      np.ones(shape=(1,) + self.first_layer.output_nodes,
-                                                              dtype=np.float32)})[0]
-        return importance
-
-    def _get_node_importance_hessian(self, features, labels):
-        # TODO: Lazy prop these?
-        weights_hessian_op = create_hessian_variable_op(self.last_layer.target_loss_op_train,
-                                                        self._weights)
-
-        bias_hessian_op = create_hessian_variable_op(self.last_layer.target_loss_op_train,
-                                                     self._bias)
-
-        weights_hessian, bias_hessian = self.session.run(
-            [weights_hessian_op, bias_hessian_op],
-            feed_dict={self.input_placeholder: features,
-                       self.target_placeholder: labels}
-        )
-
-        node_importance = []
-
-        for i in range(len(self.output_nodes[-1])):
-            sum = bias_hessian[i]
-            # TODO: Optimal brian damage recommends multiplying this by the value squared...
-            for j in range(len(self.input_nodes[-1])):
-                sum += weights_hessian[j][i]
-
-            node_importance.append(sum)
-
-        return node_importance
+    def _get_node_importance(self, data_set):
+        return self._node_importance_func(self, data_set)
 
 
 if __name__ == '__main__':

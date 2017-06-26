@@ -3,7 +3,6 @@ import numpy as np
 import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
-from tensor_dynamic.weight_functions import noise_weight_extender
 
 
 class ConvolutionalLayer(BaseLayer):
@@ -20,9 +19,11 @@ class ConvolutionalLayer(BaseLayer):
                  weight_extender_func=None,
                  weight_initializer_func=None,
                  bias_initializer_func=None,
+                 node_importance_func=None,
                  name='ConvolutionalLayer',
                  freeze=False,
-                 input_noise_std=None,
+                 layer_noise_std=None,
+                 drop_out_prob=None,
                  non_liniarity=tf.nn.relu):
         assert len(input_layer.output_nodes) == 3, "expected input to have 3 dimensions"
         assert len(convolution_dimensions) == 3, "expected output to have 3 dimensions"
@@ -39,7 +40,8 @@ class ConvolutionalLayer(BaseLayer):
                                                  weight_initializer_func=weight_initializer_func,
                                                  bias_initializer_func=bias_initializer_func,
                                                  freeze=freeze,
-                                                 input_noise_std=input_noise_std,
+                                                 layer_noise_std=layer_noise_std,
+                                                 drop_out_prob=drop_out_prob,
                                                  name=name)
 
         self._weights = self._create_variable("weights",
@@ -49,6 +51,9 @@ class ConvolutionalLayer(BaseLayer):
         self._bias = self._create_variable("bias",
                                            (BaseLayer.OUTPUT_DIM_3_BOUND_VALUE,),
                                            bias)
+        self._node_importance_func = self._get_property_or_default(node_importance_func,
+                                                                   '_node_importance_func',
+                                                                   )
         self._stride = stride
         self._padding = padding
         self._non_liniarity = non_liniarity
@@ -67,7 +72,9 @@ class ConvolutionalLayer(BaseLayer):
                output_nodes_to_prune=None,
                input_nodes_to_prune=None,
                split_output_nodes=None,
-               split_input_nodes=None, split_nodes_noise_std=.1):
+               split_input_nodes=None,
+               data_set=None,
+               split_nodes_noise_std=.1):
         if isinstance(new_output_nodes, int):
             temp = list(self.output_nodes)
             temp[2] = new_output_nodes / self._stride[2]
@@ -77,7 +84,9 @@ class ConvolutionalLayer(BaseLayer):
                                                output_nodes_to_prune=output_nodes_to_prune,
                                                input_nodes_to_prune=input_nodes_to_prune,
                                                split_output_nodes=split_output_nodes,
-                                               split_input_nodes=split_input_nodes)
+                                               split_input_nodes=split_input_nodes,
+                                               split_nodes_noise_std=split_nodes_noise_std,
+                                               data_set=data_set)
 
     def clone(self, session=None):
         """Produce a clone of this layer AND all connected upstream layers

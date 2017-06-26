@@ -46,7 +46,7 @@ class TestNet(BaseTfTestCase):
     def test_layers_with_noise(self):
         input_layer = InputLayer(784)
         bn1 = BatchNormLayer(input_layer, self.session)
-        net1 = HiddenLayer(bn1, 70, bactivate=True, input_noise_std=1.)
+        net1 = HiddenLayer(bn1, 70, bactivate=True, layer_noise_std=1.)
         output_net = HiddenLayer(net1, 10, bactivate=False, non_liniarity=tf.identity)
 
         print(self.session.run(output_net.activation_train, feed_dict={

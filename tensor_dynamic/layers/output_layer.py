@@ -7,11 +7,26 @@ import tensorflow as tf
 from tensor_dynamic.data.data_set import DataSet
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.lazyprop import lazyprop
-from tensor_dynamic.tf_loss_functions import squared_loss
 from tensor_dynamic.utils import get_tf_optimizer_variables, train_till_convergence
-from tensor_dynamic.weight_functions import noise_weight_extender
 
 logger = logging.getLogger(__name__)
+
+
+def bayesian_model_comparison_evaluation(model, data_set):
+    """Use bayesian model comparison to evaluate a trained model
+
+    Args:
+        model (OutputLayer): Trained model to evaluate
+        data_set (DataSet): data set this model was trained on, tends to be test set, but can be train if set up so
+
+    Returns:
+        float : log_probability_og_model_generating_data - log(number_of_parameters)
+    """
+    log_prob, _, _ = model.last_layer.evaluation_stats(data_set)
+    param = model.get_parameters_all_layers()
+    score = log_prob - math.log(param)
+    print (model.get_resizable_dimension_size(), score, log_prob, param)
+    return score
 
 
 class OutputLayer(HiddenLayer):
@@ -25,7 +40,7 @@ class OutputLayer(HiddenLayer):
                  bactivate=False,
                  bactivation_loss_func=None,
                  weight_extender_func=None,
-                 input_noise_std=None,
+                 layer_noise_std=None,
                  regularizer_weighting=0.01,
                  name='OutputLayer'):
         super(OutputLayer, self).__init__(input_layer, output_nodes,
@@ -38,7 +53,7 @@ class OutputLayer(HiddenLayer):
                                           non_liniarity=non_liniarity,
                                           weight_extender_func=weight_extender_func,
                                           bactivation_loss_func=bactivation_loss_func,
-                                          input_noise_std=input_noise_std,
+                                          layer_noise_std=layer_noise_std,
                                           name=name)
         self._regularizer_weighting = regularizer_weighting
 
@@ -207,22 +222,50 @@ class OutputLayer(HiddenLayer):
 
         return kwargs
 
-    def learn_structure_random(self, data_set_train, data_set_validate, start_learn_rate=0.01, continue_learn_rate=0.0001):
+    def learn_structure_layer_by_layer(self, data_set_train, data_set_validate, start_learn_rate=0.01,
+                                       continue_learn_rate=0.0001, evaluation_method=bayesian_model_comparison_evaluation):
+        self.train_till_convergence(data_set_train, data_set_validate, learning_rate=start_learn_rate)
+        new_model_weight = evaluation_method(self, data_set_validate)
+        layers = list(self.get_all_resizable_layers())
+
+        index = 0
+        attempts_with_out_resize = 0
+
+        while attempts_with_out_resize < len(layers):
+            resized, _ = layers[index].find_best_size(data_set_train, data_set_validate,
+                                                      model_evaluation_function=evaluation_method,
+                                                      best_score=new_model_weight,
+                                                      tuning_learning_rate=continue_learn_rate)
+            if resized:
+                attempts_with_out_resize = 0
+            else:
+                attempts_with_out_resize += 1
+            index += 1
+            if index == len(layers):
+                index = 0
+
+    def learn_structure_random(self, data_set_train, data_set_validate, start_learn_rate=0.01,
+                               continue_learn_rate=0.0001,
+                               evaluation_method=bayesian_model_comparison_evaluation):
         rejected_changes = 0
         self.train_till_convergence(data_set_train, data_set_validate, learning_rate=start_learn_rate)
         number_of_convergences = 1
 
-        best_log_prob, accuracy, target_loss = self.evaluation_stats(data_set_validate)
-        print(best_log_prob, accuracy, target_loss)
-
-        best_param = self.get_parameters_all_layers()
-        best_model_weight = best_log_prob - math.log(self.get_parameters_all_layers())
+        best_model_weight = evaluation_method(self, data_set_validate)
+        last_change_was_success = False
+        layer_to_resize = None
+        node_change = None
 
         # make random change
         while rejected_changes <= 4:
-            layer_to_resize = random.choice(list(self.get_all_resizable_layers()))
             network_start_state = self.get_network_state()
-            node_change = random.choice([self.GROWTH_MULTIPLYER, self.SHRINK_MULTIPLYER])
+
+            if not last_change_was_success:
+                # Only make a new random choice if the last choice was a failure, and if so choose a different layer
+                layer_to_resize = random.choice(
+                    list(x for x in self.get_all_resizable_layers() if x != layer_to_resize))
+                node_change = random.choice([self.GROWTH_MULTIPLYER, self.SHRINK_MULTIPLYER])
+
             start_size = layer_to_resize.get_resizable_dimension_size()
             new_node_count = layer_to_resize._get_new_node_count(node_change)
             layer_to_resize.resize(new_node_count)
@@ -233,31 +276,30 @@ class OutputLayer(HiddenLayer):
             number_of_convergences += 1
 
             # did it work?
-            new_log_prob, _, _ = self.evaluation_stats(data_set_validate)
+            new_model_weight = evaluation_method(self, data_set_validate)
 
-            new_model_weight = new_log_prob - math.log(self.get_parameters_all_layers())
             if new_model_weight <= best_model_weight:
                 rejected_changes += 1
                 print("REJECTED change of layer %s" % (layer_to_resize.layer_number,))
-                print("from size:%s log_prob:%s param:%s score:%s" % (start_size, best_log_prob, best_param,
-                                                                      best_model_weight))
-                print("To size:%s log_prob:%s param:%s score:%s score change" % (new_node_count,
-                                                                                 new_log_prob,
-                                                                                 self.get_parameters_all_layers(),
-                                                                                 new_model_weight))
+                print("from size:%s param:%s score:%s" % (start_size, best_param,
+                                                          best_model_weight))
+                print("To size:%s param:%s score:%s score change" % (new_node_count,
+                                                                     self.get_parameters_all_layers(),
+                                                                     new_model_weight))
                 self.set_network_state(network_start_state)
+                last_change_was_success = False
             else:
                 rejected_changes = 0
                 print("ACCEPTED change of layer %s" % (layer_to_resize.layer_number,))
-                print("from size:%s log_prob:%s param:%s score:%s" % (start_size, best_log_prob, best_param,
-                                                                      best_model_weight))
-                print("To size:%s log_prob:%s param:%s score:%s score change" % (new_node_count,
-                                                                                 new_log_prob,
-                                                                                 self.get_parameters_all_layers(),
-                                                                                 new_model_weight))
+                print("from size:%s param:%s score:%s" % (start_size, best_param,
+                                                          best_model_weight))
+                print("To size:%s param:%s score:%s score change" % (new_node_count,
+                                                                     self.get_parameters_all_layers(),
+                                                                     new_model_weight))
                 best_param = self.get_parameters_all_layers()
                 best_model_weight = new_model_weight
-                best_log_prob = new_log_prob
+
+                last_change_was_success = True
 
 
 class BinaryOutputLayer(OutputLayer):

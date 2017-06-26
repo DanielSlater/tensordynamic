@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensor_dynamic.data.data_set import DataSet
 from tensor_dynamic.layers.output_layer import OutputLayer
 from tensor_dynamic.lazyprop import lazyprop
-from tensor_dynamic.weight_functions import noise_weight_extender
 
 
 class CategoricalOutputLayer(OutputLayer):
@@ -14,7 +13,7 @@ class CategoricalOutputLayer(OutputLayer):
                  back_bias=None,
                  freeze=False,
                  weight_extender_func=None,
-                 input_noise_std=None,
+                 layer_noise_std=None,
                  regularizer_weighting=0.01,
                  name='CategoricalOutputLayer'):
         super(CategoricalOutputLayer, self).__init__(input_layer, output_nodes,
@@ -24,7 +23,7 @@ class CategoricalOutputLayer(OutputLayer):
                                                      back_bias=back_bias,
                                                      freeze=freeze,
                                                      weight_extender_func=weight_extender_func,
-                                                     input_noise_std=input_noise_std,
+                                                     layer_noise_std=layer_noise_std,
                                                      regularizer_weighting=regularizer_weighting,
                                                      name=name)
 

@@ -27,6 +27,7 @@ def do_grid_search(data_set_collection, model_functions, file_name, learning_rat
             'log_prob_train, error_train, accuracy_train, error_test, accuracy_test, log_prob_test, dimensions, parameters\n')
 
         for model_function in model_functions(data_set_collection):
+            tf.reset_default_graph()
             with tf.Session() as session:
                 model = model_function(session)
                 model.train_till_convergence(data_set_collection.train, data_set_collection.test,

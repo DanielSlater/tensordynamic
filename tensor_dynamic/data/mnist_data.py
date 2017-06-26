@@ -75,7 +75,8 @@ def _extract_labels(filename, one_hot=False):
         return labels
 
 
-def get_mnist_data_set_collection(train_dir, number_labeled_examples=None, fake_data=False, one_hot=False,
+def get_mnist_data_set_collection(train_dir=os.path.dirname(__file__) + "/MNIST_data", number_labeled_examples=None,
+                                  fake_data=False, one_hot=True,
                                   validation_size=0, limit_train_size=None,
                                   flatten=True):
     """Load mnist data

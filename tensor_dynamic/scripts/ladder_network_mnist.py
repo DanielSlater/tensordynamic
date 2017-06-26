@@ -5,7 +5,7 @@ Runs a Ladder network implemented via TensorDynamic on the mnist data set
 import tensorflow as tf
 
 import tensor_dynamic.data.mnist_data as mnist
-from tensor_dynamic.layers.input_layer import NoisyInputLayer
+from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.ladder_layer import LadderLayer, LadderGammaLayer
 from tensor_dynamic.layers.ladder_output_layer import LadderOutputLayer
 
@@ -23,7 +23,7 @@ targets = tf.placeholder(tf.float32)
 
 with tf.Session() as s:
     s.as_default()
-    i = NoisyInputLayer(inputs, NOISE_STD, s)
+    i = InputLayer(inputs, layer_noise_std=NOISE_STD)
     l1 = LadderLayer(i, 500, 1000.0, s)
     l2 = LadderGammaLayer(l1, 10, 10.0, s)
     ladder = LadderOutputLayer(l2, 0.1, s)

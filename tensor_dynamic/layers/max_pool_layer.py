@@ -11,7 +11,7 @@ class MaxPoolLayer(BaseLayer):
                  ksize=(2, 2, 1),
                  strides=(2, 2, 1),
                  padding="SAME",
-                 input_noise_std=None,
+                 layer_noise_std=None,
                  session=None,
                  name='MaxPoolLayer'):
         assert len(input_layer.output_nodes) == 3, "expected 3 output dimensions"
@@ -22,7 +22,7 @@ class MaxPoolLayer(BaseLayer):
 
         super(MaxPoolLayer, self).__init__(input_layer,
                                            output_nodes,
-                                           input_noise_std=input_noise_std,
+                                           layer_noise_std=layer_noise_std,
                                            session=session,
                                            name=name)
 

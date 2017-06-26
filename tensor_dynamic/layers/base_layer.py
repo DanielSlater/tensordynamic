@@ -37,7 +37,8 @@ class BaseLayer(object):
                  weight_extender_func=None,
                  weight_initializer_func=None,
                  bias_initializer_func=None,
-                 input_noise_std=None,
+                 layer_noise_std=None,
+                 drop_out_prob=None,
                  name=None,
                  freeze=False):
         """Base class from which all layers will inherit. This is an abstract class
@@ -45,7 +46,7 @@ class BaseLayer(object):
         Args:
             weight_initializer_func ((int)->weights): function that creates initial values for weights for this layer
             bias_initializer_func (int->weights): function that creates initial values for weights for this layer
-            input_noise_std (float): If not None gaussian noise with mean 0 and this std is applied to the input of this
+            layer_noise_std (float): If not None gaussian noise with mean 0 and this std is applied to the input of this
                 layer
             input_layer (tensor_dynamic.base_layer.BaseLayer): This layer will work on the activation of the input_layer
             output_nodes (int | tuple of ints): Number of output nodes for this layer, can be a tuple of multi dimensional output, e.g. convolutional network
@@ -61,7 +62,8 @@ class BaseLayer(object):
         assert isinstance(input_layer, BaseLayer)
 
         self._input_layer = input_layer
-        self._input_noise_std = input_noise_std
+        self._input_noise_std = layer_noise_std
+        self._drop_out_prob = drop_out_prob
         self._name = name
         self._output_nodes = (output_nodes,) if type(output_nodes) == int else output_nodes
         self._input_nodes = self._input_layer._output_nodes
@@ -122,14 +124,16 @@ class BaseLayer(object):
             tensorflow.Tensor
         """
         clear_lazyprop_on_lazyprop_cleared(self, 'activation_train', self.input_layer)
+        input_tensor = self.input_layer.activation_train
 
-        # apply noise to input if this is set
+        if self._drop_out_prob:
+            input_tensor = tf.nn.dropout(input_tensor, self._drop_out_prob)
+
         if self._input_noise_std is not None:
-            return self._layer_activation(self.input_layer.activation_train +
-                                          tf.random_normal(tf.shape(self.input_layer.activation_train),
-                                                           stddev=self._input_noise_std),
-                                          True)
-        return self._layer_activation(self.input_layer.activation_train, True)
+            input_tensor = input_tensor + tf.random_normal(tf.shape(self.input_layer.activation_train),
+                                                           stddev=self._input_noise_std)
+
+        return self._layer_activation(input_tensor, True)
 
     @lazyprop
     def activation_predict(self):
@@ -365,7 +369,8 @@ class BaseLayer(object):
     def kwargs(self):
         kwargs = {
             'weight_extender_func': self._weight_extender_func,
-            'input_noise_std': self._input_noise_std,
+            'layer_noise_std': self._input_noise_std,
+            'drop_out_prob': self._drop_out_prob,
             'freeze': self._freeze,
             'name': self._name}
         kwargs.update(self._bound_variables_as_kwargs())
@@ -412,6 +417,7 @@ class BaseLayer(object):
                input_nodes_to_prune=None,
                split_output_nodes=None,
                split_input_nodes=None,
+               data_set=None,
                split_nodes_noise_std=.1):
         """Resize this layer by changing the number of output nodes. Will also resize any downstream layers
 
@@ -425,40 +431,37 @@ class BaseLayer(object):
             split_input_nodes: ([int]): list of indexes of nodes that where split in the previous layer.
             split_nodes_noise_std (float): standard deviation of noise to add when splitting a node
         """
-        if isinstance(new_output_nodes, int):
-            new_output_nodes = (new_output_nodes,)
-        elif new_output_nodes is not None and not isinstance(new_output_nodes, tuple):
+        if isinstance(new_output_nodes, tuple):
+            new_output_nodes = new_output_nodes[self.get_resizable_dimension()]
+        elif new_output_nodes is not None and not isinstance(new_output_nodes, int):
             raise ValueError("new_output_nodes must be tuple of int %s" % (new_output_nodes,))
 
         # choose nodes to split or prune
-        if new_output_nodes and output_nodes_to_prune is None and split_output_nodes is None:
-            if new_output_nodes < self.get_resizable_dimension_size():
-                output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes[self.get_resizable_dimension()])
-            elif new_output_nodes > self.get_resizable_dimension_size():
-                split_output_nodes = self._choose_nodes_to_split(new_output_nodes[self.get_resizable_dimension()])
-
-        if output_nodes_to_prune:
+        if new_output_nodes is not None:
+            if output_nodes_to_prune is None and split_output_nodes is None:
+                if new_output_nodes < self.get_resizable_dimension_size():
+                    output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes, data_set)
+                elif new_output_nodes > self.get_resizable_dimension_size():
+                    split_output_nodes = self._choose_nodes_to_split(new_output_nodes, data_set)
+        elif self.has_resizable_dimension():
+            new_output_nodes = self.get_resizable_dimension_size()
+            if output_nodes_to_prune:
+                new_output_nodes -= len(output_nodes_to_prune)
             if split_output_nodes:
-                raise NotImplementedError("At the moment must either split or prune")
-            if not (new_output_nodes is None or new_output_nodes != self._output_nodes - len(
-                    output_nodes_to_prune)):  # TODO, needs some work
-                raise Exception("Different number of output nodes set from that left after pruning")
-            else:
-                new_output_nodes = self._output_nodes - len(output_nodes_to_prune)
-        elif split_output_nodes:
-            if not (new_output_nodes is None or new_output_nodes != self._output_nodes + len(
-                    split_output_nodes)):  # TODO, needs some work
-                raise Exception("Different number of output nodes set from that left after splitting")
-            else:
-                new_output_nodes = self._output_nodes + len(split_output_nodes)
-        else:
-            new_output_nodes = new_output_nodes or self._output_nodes
+                new_output_nodes += len(split_output_nodes)
 
         new_input_nodes = self.input_layer.output_nodes
         input_nodes_changed = new_input_nodes != self._input_nodes
-        output_nodes_changed = new_output_nodes != self._output_nodes
 
-        self._output_nodes = new_output_nodes
+        if self.has_resizable_dimension():
+            output_nodes_changed = new_output_nodes != self.get_resizable_dimension_size()
+            temp_output_nodes = list(self._output_nodes)
+            temp_output_nodes[self.get_resizable_dimension()] = new_output_nodes
+
+            self._output_nodes = tuple(temp_output_nodes)
+        else:
+            output_nodes_changed = False
+
         self._input_nodes = new_input_nodes
 
         for bound_variable in self._bound_variables:
@@ -794,43 +797,43 @@ class BaseLayer(object):
 
         return resized, best_score
 
-    def _choose_nodes_to_split(self, desired_size):
+    def _choose_nodes_to_split(self, desired_size, data_set):
         assert isinstance(desired_size, int)
 
         current_size = self.get_resizable_dimension_size()
 
         if desired_size <= current_size:
-            return None
+            raise ValueError("Can't split to get smaller than we are")
 
-        importance = self._get_node_importance()
+        importance = self._get_node_importance(data_set)
 
-        to_split = {}
+        to_split = set()
 
         while desired_size < current_size + len(to_split):
             max_node = np.argmax(importance)
             importance[max_node] = -sys.float_info.max
             to_split.add(max_node)
 
-        return to_split
+        return list(to_split)
 
-    def _choose_nodes_to_prune(self, desired_size):
+    def _choose_nodes_to_prune(self, desired_size, data_set):
         assert isinstance(desired_size, int)
 
         current_size = self.get_resizable_dimension_size()
 
-        if desired_size <= current_size:
-            return None
+        if desired_size >= current_size:
+            raise ValueError("Can't prune to size larger than we are")
 
-        importance = self._get_node_importance()
+        importance = self._get_node_importance(data_set)
 
-        to_prune = {}
+        to_prune = set()
 
         while desired_size < current_size - len(to_prune):
             min_node = np.argmin(importance)
             importance[min_node] = sys.float_info.max
             to_prune.add(min_node)
 
-        return to_prune
+        return list(to_prune)
 
     def _get_layer_state(self):
         """Returns an object that can be used to set this layer to it's current state and size
@@ -856,10 +859,10 @@ class BaseLayer(object):
             self.resize(size)
 
         for name, variable in kwargs.iteritems():
-            if name in self._bound_variables:
+            if name in {x.name for x in self._bound_variables}:
                 assert hasattr(self, '_' + name), 'expected to have property with name %s' % ('_' + name,)
 
-                self.session.run(tf.assign(getattr(self, '_' + name), variable))
+                getattr(self, '_' + name).assign(variable)
 
     def get_network_state(self):
         return [layer._get_layer_state() for layer in self.all_connected_layers]
@@ -870,15 +873,3 @@ class BaseLayer(object):
 
         for layer, layer_state in zip(self.all_connected_layers, state):
             layer._set_layer_state(layer_state)
-
-            # def save_network(self):
-            #     obj = {}
-            #     layer = self.last_layer
-            #
-            # def _save_layer(self):
-            #     obj = {'__class__': self.__class__.__name__}
-            #
-            #
-            # @staticmethod
-            # def load_network(session):
-            #     pass
