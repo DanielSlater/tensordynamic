@@ -1,6 +1,6 @@
 import numpy as np
 
-from tensor_dynamic.utils import create_hessian_variable_op
+from tensor_dynamic.utils import create_hessian_variable_op, get_first_two_derivatives_op
 
 
 def node_importance_by_dummy_activation_from_input_layer(layer, data_set):
@@ -26,6 +26,16 @@ def node_importance_by_real_activation_from_input_layer(layer, data_set):
                                                        data_set.features})
 
         return np.sum(importance, axis=0)
+    else:
+        return node_importance_random(layer, data_set)
+
+
+def node_importance_by_real_activation_from_input_layer_variance(layer, data_set):
+    if data_set is not None:
+        importance = layer._session.run(layer.activation_predict,
+                                        feed_dict={layer.input_placeholder:
+                                                       data_set.features})
+        return np.var(importance, axis=0)
     else:
         return node_importance_random(layer, data_set)
 
@@ -97,4 +107,27 @@ def node_importance_optimal_brain_damage(layer, data_set):
     weights_squared = np.square(weights)
     bias_squared = np.square(bias)
 
-    return np.sum(weights_squared * weights_hessian, axis=0) + bias_squared * bias
+    return np.sum(weights_squared * weights_hessian, axis=0) + bias_squared * bias_hessian
+
+
+def node_importance_full_taylour_series(layer, data_set):
+    if data_set is None:
+        return node_importance_random(layer, data_set)
+
+    weights_jacobean_op, weights_hessian_op = get_first_two_derivatives_op(layer.last_layer.target_loss_op_predict,
+                                                                           layer._weights)
+
+    bias_jacobean_op, bias_hessian_op = get_first_two_derivatives_op(layer.last_layer.target_loss_op_predict,
+                                                                     layer._bias)
+
+    weights, bias, weights_jacobean, bias_jacobean, weights_hessian, bias_hessian = layer.session.run(
+        [layer._weights, layer._bias, weights_jacobean_op, bias_jacobean_op, weights_hessian_op, bias_hessian_op],
+        feed_dict={layer.input_placeholder: data_set.features,
+                   layer.target_placeholder: data_set.labels}
+    )
+
+    weights_squared = np.square(weights)
+    bias_squared = np.square(bias)
+
+    return np.sum(weights_squared * weights_hessian + weights * weights_jacobean,
+                  axis=0) + bias_squared * bias_hessian + bias * bias_jacobean

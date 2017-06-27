@@ -22,6 +22,7 @@ class HiddenLayer(BaseLayer):
                  drop_out_prob=None,
                  bactivation_loss_func=None,
                  node_importance_func=None,
+                 batch_normalize_input=None,
                  name='Layer'):
         super(HiddenLayer, self).__init__(input_layer,
                                           output_nodes,
@@ -31,6 +32,7 @@ class HiddenLayer(BaseLayer):
                                           bias_initializer_func=bias_initializer_func,
                                           layer_noise_std=layer_noise_std,
                                           drop_out_prob=drop_out_prob,
+                                          batch_normalize_input=batch_normalize_input,
                                           freeze=freeze,
                                           name=name)
         self._non_liniarity = self._get_property_or_default(non_liniarity, '_non_liniarity', tf.nn.sigmoid)

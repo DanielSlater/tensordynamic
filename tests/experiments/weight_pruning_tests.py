@@ -8,20 +8,23 @@ from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.hidden_layer import node_importance_by_square_sum, HiddenLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.node_importance import node_importance_by_dummy_activation_from_input_layer, node_importance_random, \
-    node_importance_optimal_brain_damage
+    node_importance_optimal_brain_damage, node_importance_full_taylour_series, \
+    node_importance_by_real_activation_from_input_layer_variance
 from tensor_dynamic.node_importance import node_importance_by_real_activation_from_input_layer
 
 NUM_TRIES = 5
 
 
-def main(file_name_all="pruning_tests_all.csv", file_name_avg="pruning_tests_final.csv"):
+def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_final.csv"):
     data_set_collections = [get_mnist_data_set_collection(one_hot=True), get_cifar_100_data_set_collection()]
     methods = [node_importance_by_dummy_activation_from_input_layer,
                node_importance_by_real_activation_from_input_layer,
                node_importance_by_square_sum,
                #node_importance_by_removal,
                node_importance_random,
-               node_importance_optimal_brain_damage
+               node_importance_optimal_brain_damage,
+               node_importance_full_taylour_series,
+               node_importance_by_real_activation_from_input_layer_variance,
                ]
 
     final_dict = defaultdict(lambda: [])
@@ -38,14 +41,14 @@ def main(file_name_all="pruning_tests_all.csv", file_name_avg="pruning_tests_fin
                     if len(data.features_shape) > 1:
                         input_layer = FlattenLayer(input_layer)
 
-                    layer = HiddenLayer(input_layer, 500, session=session,
+                    layer = HiddenLayer(input_layer, 800, session=session,
                                         node_importance_func=None,
                                         non_liniarity=tf.nn.relu)
                     output = CategoricalOutputLayer(layer, data.labels_shape,
                                                     #regularizer_weighting=0.001)
                                                     )
 
-                    output.train_till_convergence(data.train, learning_rate=0.001)
+                    output.train_till_convergence(data.train, learning_rate=0.0001)
 
                     state = output.get_network_state()
 
@@ -56,7 +59,7 @@ def main(file_name_all="pruning_tests_all.csv", file_name_avg="pruning_tests_fin
                         _, _, target_loss_test_before_resize_test = output.evaluation_stats(data.test)
                         _, _, target_loss_test_before_resize_train = output.evaluation_stats(data.train)
 
-                        layer.resize(450, data_set=data.train)
+                        layer.resize(850, data_set=data.train)
 
                         _, _, target_loss_test_after_resize_test = output.evaluation_stats(data.test)
                         _, _, target_loss_test_after_resize_train = output.evaluation_stats(data.train)
@@ -87,7 +90,7 @@ def main(file_name_all="pruning_tests_all.csv", file_name_avg="pruning_tests_fin
         for name, values in final_dict.iteritems():
             v_len = len(values)
             averages = tuple(sum(x[i] for x in values) / v_len for i in range(len(values[0])))
-            averages = averages + (averages[1]-averages[2],)
+            averages = averages + (averages[1]-averages[3],)
             file_avg.write('%s,%s,%s,%s,%s,%s,%s,%s\n' % ((name,) + averages))
 
 

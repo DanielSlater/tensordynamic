@@ -39,6 +39,7 @@ class BaseLayer(object):
                  bias_initializer_func=None,
                  layer_noise_std=None,
                  drop_out_prob=None,
+                 batch_normalize_input=False,
                  name=None,
                  freeze=False):
         """Base class from which all layers will inherit. This is an abstract class
@@ -64,6 +65,7 @@ class BaseLayer(object):
         self._input_layer = input_layer
         self._layer_noise_std = layer_noise_std
         self._drop_out_prob = drop_out_prob
+        self._batch_normalize_input = batch_normalize_input
         self._name = name
         self._output_nodes = (output_nodes,) if type(output_nodes) == int else output_nodes
         self._input_nodes = self._input_layer._output_nodes
@@ -80,10 +82,19 @@ class BaseLayer(object):
         self._bias_initializer_func = self._get_property_or_default(bias_initializer_func,
                                                                     '_bias_initializer_func',
                                                                     bias_init)
-
         self._freeze = freeze
         self._bound_variables = {}
         input_layer._attach_next_layer(self)
+
+        if self._batch_normalize_input:
+            self._batch_norm_mean, self._batch_norm_var = tf.nn.moments(self._input_layer.activation_train, axes=[0])
+            # self._register_variable("batch_norm_mean", (self.INPUT_BOUND_VALUE,), self._batch_norm_mean, is_constructor_variable=False)
+            # self._register_variable("batch_norm_var", (self.INPUT_BOUND_VALUE,), self._batch_norm_var, is_constructor_variable=False)
+            # TODO add these as constructor vars
+            self._batch_norm_scale = self._create_variable("batch_norm_scale", (self.INPUT_BOUND_VALUE,),
+                                                           tf.ones((self.input_nodes[0],)), is_kwarg=True)
+            self._batch_norm_transform = self._create_variable("batch_norm_transform", (self.INPUT_BOUND_VALUE,),
+                                                               tf.zeros((self.input_nodes[0],)), is_kwarg=True)
 
     def _get_property_or_default(self, init_value, property_name, default_value):
         if init_value is not None:
@@ -126,6 +137,11 @@ class BaseLayer(object):
         clear_lazyprop_on_lazyprop_cleared(self, 'activation_train', self.input_layer)
         input_tensor = self.input_layer.activation_train
 
+        if self._batch_normalize_input:
+            normalized = ((input_tensor - self._batch_norm_mean) / tf.sqrt(self._batch_norm_var + tf.constant(1e-10)))
+            self.normalized = normalized
+            input_tensor = (normalized + self._batch_norm_transform) * self._batch_norm_scale
+
         if self._drop_out_prob:
             input_tensor = tf.nn.dropout(input_tensor, self._drop_out_prob)
 
@@ -144,7 +160,15 @@ class BaseLayer(object):
             tensorflow.Tensor
         """
         clear_lazyprop_on_lazyprop_cleared(self, 'activation_predict', self.input_layer)
-        return self._layer_activation(self.input_layer.activation_predict, False)
+        input_tensor = self.input_layer.activation_predict
+
+        if self._batch_normalize_input:
+            # TODO: Note this is the WRONG way to apply this, will result in bad results for prediction sizes
+            # that do not equal the batch_size...
+            normalized = ((input_tensor - self._batch_norm_mean) / tf.sqrt(self._batch_norm_var + tf.constant(1e-10)))
+            input_tensor = (normalized + self._batch_norm_transform) * self._batch_norm_scale
+
+        return self._layer_activation(input_tensor, False)
 
     @abstractmethod
     def _layer_activation(self, input_tensor, is_train):
@@ -371,6 +395,7 @@ class BaseLayer(object):
             'weight_extender_func': self._weight_extender_func,
             'layer_noise_std': self._layer_noise_std,
             'drop_out_prob': self._drop_out_prob,
+            'batch_normalize_input': self._batch_normalize_input,
             'freeze': self._freeze,
             'name': self._name}
         kwargs.update(self._bound_variables_as_kwargs())
@@ -470,7 +495,7 @@ class BaseLayer(object):
             if input_nodes_changed and self._bound_dimensions_contains_input(bound_variable.dimensions) or \
                             output_nodes_changed and self._bound_dimensions_contains_output(bound_variable.dimensions):
 
-                self.forget_assign_op(name)
+                self._forget_assign_op(name)
 
                 int_dims = self._bound_dimensions_to_ints(bound_variable.dimensions)
 
@@ -488,10 +513,12 @@ class BaseLayer(object):
                         if input_nodes_to_prune:
                             old_values = np.delete(old_values, input_nodes_to_prune, input_bound_axis)
                         else:  # split
-                            old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
-                                                      noise_std=split_nodes_noise_std)
-
-                    new_values = self._weight_extender_func(old_values, int_dims)
+                            old_values = array_extend(old_values, {input_bound_axis: split_input_nodes},
+                                                      halve_extended_vectors=True)
+                    if no_splitting_or_pruning:
+                        new_values = self._weight_extender_func(old_values, int_dims)
+                    else:
+                        new_values = old_values
 
                     tf_resize(self._session, bound_variable.variable, int_dims,
                               new_values, self._get_assign_function(name))
@@ -508,9 +535,10 @@ class BaseLayer(object):
             tf_resize(self._session, self.bactivation_predict, (None,) + self._input_nodes)
 
         if self._next_layer and self._next_layer.resize_needed():
-            self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes)
+            self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes,
+                                    no_splitting_or_pruning=no_splitting_or_pruning)
 
-    def forget_assign_op(self, name):
+    def _forget_assign_op(self, name):
         if name in self._bound_variable_assign_data:
             del self._bound_variable_assign_data[name]
 
@@ -832,7 +860,7 @@ class BaseLayer(object):
 
         to_split = set()
 
-        while desired_size < current_size + len(to_split):
+        while desired_size > current_size + len(to_split):
             max_node = np.argmax(importance)
             importance[max_node] = -sys.float_info.max
             to_split.add(max_node)

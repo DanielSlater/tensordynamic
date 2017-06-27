@@ -28,7 +28,8 @@ class DataSetCollection(object):
 
         if normalize:
             mean_image = np.mean(train.features, axis=0)
-            std = np.std(train.features)
+            std = np.std(train.features, axis=0)
+            std += 1e-10
 
             train._features -= mean_image
             test._features -= mean_image

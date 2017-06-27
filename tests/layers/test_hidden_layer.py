@@ -5,7 +5,8 @@ from math import log
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
-from tensor_dynamic.node_importance import node_importance_optimal_brain_damage, node_importance_by_removal
+from tensor_dynamic.node_importance import node_importance_optimal_brain_damage, node_importance_by_removal, \
+    node_importance_by_real_activation_from_input_layer_variance, node_importance_full_taylour_series
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
@@ -131,28 +132,32 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         self.assertLess(recon_5, recon_2)
         recon_20 = self.reconstruction_loss_for(20)
         self.assertLess(recon_20, recon_5)
+        recon_500 = self.reconstruction_loss_for(500)
+        self.assertLess(recon_500, recon_20)
 
     def reconstruction_loss_for(self, output_nodes):
         data = self.mnist_data
         input_layer = InputLayer(784)
-        bw_layer1 = HiddenLayer(input_layer, output_nodes, session=self.session, layer_noise_std=1.0, bactivate=True)
+        bw_layer1 = HiddenLayer(input_layer, output_nodes, session=self.session,
+                                layer_noise_std=1.0, bactivate=True)
 
         cost_train = tf.reduce_mean(
             tf.reduce_sum(tf.square(bw_layer1.bactivation_train - input_layer.activation_train), 1))
         cost_predict = tf.reduce_mean(
             tf.reduce_sum(tf.square(bw_layer1.bactivation_predict - input_layer.activation_predict), 1))
-        optimizer = tf.train.AdamOptimizer(0.01).minimize(cost_train)
+        optimizer = tf.train.AdamOptimizer(0.0001).minimize(cost_train)
 
         self.session.run(tf.initialize_all_variables())
 
-        end_epoch = data.train.epochs_completed + 3
+        end_epoch = data.train.epochs_completed + 5
 
         while data.train.epochs_completed <= end_epoch:
             train_x, train_y = data.train.next_batch(100)
-            self.session.run(optimizer, feed_dict={bw_layer1.input_placeholder: train_x})
+            _, tr = self.session.run([optimizer, cost_train], feed_dict={bw_layer1.input_placeholder: train_x})
+            # print(tr)
 
         result = self.session.run(cost_predict,
-                                  feed_dict={bw_layer1.input_placeholder: data.test.features})
+                                  feed_dict={bw_layer1.input_placeholder: data.train.features})
         print("denoising with %s hidden layer had cost %s" % (output_nodes, result))
         return result
 
@@ -229,18 +234,21 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def test_remove_unimportant_nodes_does_not_affect_test_error(self):
         data = self.mnist_data
-        input_layer = InputLayer(data.features_shape)
-        layer = HiddenLayer(input_layer, 500, session=self.session,
-                            node_importance_func=node_importance_optimal_brain_damage)
-        output = CategoricalOutputLayer(layer, data.labels_shape)
+        batch_normalize = False
+        input_layer = InputLayer(data.features_shape, drop_out_prob=None)
+        layer = HiddenLayer(input_layer, 800, session=self.session,
+                            batch_normalize_input=batch_normalize,
+                            # D.S TODO TEST
+                            node_importance_func=node_importance_by_real_activation_from_input_layer_variance)
+        output = CategoricalOutputLayer(layer, data.labels_shape, batch_normalize_input=batch_normalize)
 
-        output.train_till_convergence(data.train, data.test, learning_rate=0.01)
+        output.train_till_convergence(data.train, data.test, learning_rate=0.001)
 
         _, _, target_loss_before_resize = output.evaluation_stats(data.test)  # Should this be on test or train?
 
         print(target_loss_before_resize)
 
-        layer.resize(450, data_set=data.test)
+        layer.resize(750, data_set=data.test)
 
         _, _, target_loss_after_resize = output.evaluation_stats(data.test)
 
@@ -258,7 +266,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
                                                                             self.mnist_data.train.features[:1]})
 
         weights_hidden = layer._weights.eval()
-        bias_hidden = layer._weights.eval()
+        bias_hidden = layer._bias.eval()
         weights_output = output._weights.eval()
         bias_output = output._bias.eval()
 
@@ -272,7 +280,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
                                            feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
 
         new_weights_hidden = layer._weights.eval()
-        new_bias_hidden = layer._weights.eval()
+        new_bias_hidden = layer._bias.eval()
         new_weights_output = output._weights.eval()
         new_bias_output = output._bias.eval()
 
@@ -294,3 +302,21 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         layer.weights = new_weights_value
 
         np.testing.assert_almost_equal(new_weights_value, layer.weights)
+
+    def test_growing(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer = HiddenLayer(input_layer, 1, session=self.session,
+                            node_importance_func=node_importance_optimal_brain_damage)
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, regularizer_weighting=0.0001)
+
+        weights_hidden = layer._weights.eval()
+        bias_hidden = layer._bias.eval()
+        weights_output = output._weights.eval()
+
+        layer.resize(2)
+
+        new_weights_hidden = layer._weights.eval()
+        new_bias_hidden = layer._bias.eval()
+        new_weights_output = output._weights.eval()
+
+        np.testing.assert_almost_equal(new_weights_output[0], weights_output[0]/2)

@@ -242,6 +242,23 @@ def create_hessian_op(tensor_op, variables, session):
     return mat
 
 
+def get_first_two_derivatives_op(loss_op, tensor):
+    """Given a loss function get the 2nd derivatives of all variables with respect to the loss function
+
+    Args:
+        loss_op:
+        tensor:
+
+    Returns:
+
+    """
+    # computing derivative twice, first w.r.t v2 and then w.r.t v1
+    first_derivative = tf.gradients(loss_op, tensor)[0]
+    second_derivative = tf.gradients(first_derivative, tensor)[0]
+
+    return first_derivative, second_derivative
+
+
 def create_hessian_variable_op(loss_op, tensor):
     """Given a loss function get the 2nd derivatives of all variables with respect to the loss function
 

@@ -98,8 +98,8 @@ class BatchNormLayer(BaseLayer):
         self._r1 = reshape_to_conv
         self._register_variable("reshape_to_conv", (-1, 1, 1, self.INPUT_BOUND_VALUE), reshape_to_conv, is_constructor_variable=False)
         batch_normalized = tf.nn.batch_norm_with_global_normalization(reshape_to_conv, mean, var,
-                                                                      self._batch_norm_beta,
-                                                                      self._batch_norm_gamma,
+                                                                      self._batch_norm_scale,
+                                                                      self._batch_norm_transform,
                                                                       0.00001,
                                                                       False)
         reshape_from_conv = tf.reshape(batch_normalized, [-1, self.input_nodes], name="reshape_from_conv")

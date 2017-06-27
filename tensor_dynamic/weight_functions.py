@@ -82,7 +82,7 @@ def array_extend(array, vectors_to_extend, noise_std=None, halve_extended_vector
             if noise_std:
                 random_noise = np.random.normal(scale=noise_std, size=add_weights.shape)
                 add_weights += random_noise
-                array[split_args] -= random_noise
+                array[split_args] -= np.squeeze(random_noise, axis=[axis])
 
             array = np.r_[str(axis), array, add_weights]
     return array

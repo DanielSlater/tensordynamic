@@ -41,6 +41,8 @@ class OutputLayer(HiddenLayer):
                  bactivation_loss_func=None,
                  weight_extender_func=None,
                  layer_noise_std=None,
+                 drop_out_prob=None,
+                 batch_normalize_input=None,
                  regularizer_weighting=0.01,
                  name='OutputLayer'):
         super(OutputLayer, self).__init__(input_layer, output_nodes,
@@ -54,6 +56,8 @@ class OutputLayer(HiddenLayer):
                                           weight_extender_func=weight_extender_func,
                                           bactivation_loss_func=bactivation_loss_func,
                                           layer_noise_std=layer_noise_std,
+                                          drop_out_prob=drop_out_prob,
+                                          batch_normalize_input=batch_normalize_input,
                                           name=name)
         self._regularizer_weighting = regularizer_weighting
 
