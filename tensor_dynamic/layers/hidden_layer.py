@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
@@ -55,6 +54,22 @@ class HiddenLayer(BaseLayer):
                                                     back_bias)
         else:
             self._back_bias = None
+
+    @property
+    def weights(self):
+        return self._weights.eval(self.session)
+
+    @weights.setter
+    def weights(self, value):
+        self._get_assign_function('weights')(value)
+
+    @property
+    def bias(self):
+        return self._bias.eval(self.session)
+
+    @weights.setter
+    def bias(self, value):
+        self._get_assign_function('bias')(value)
 
     @property
     def bactivate(self):

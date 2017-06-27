@@ -208,7 +208,7 @@ class OutputLayer(HiddenLayer):
         """
         log_prob, accuracy, target_loss = self.session.run([self.log_probability_of_targets_op,
                                                             self.accuracy_op,
-                                                            self.target_loss_op_train],
+                                                            self.target_loss_op_predict],
                                                            feed_dict={self.input_placeholder: dataset.features,
                                                                       self._target_placeholder: dataset.labels})
 

@@ -5,7 +5,7 @@ from math import log
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
-from tensor_dynamic.node_importance import node_importance_optimal_brain_damage
+from tensor_dynamic.node_importance import node_importance_optimal_brain_damage, node_importance_by_removal
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
@@ -232,11 +232,11 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         input_layer = InputLayer(data.features_shape)
         layer = HiddenLayer(input_layer, 500, session=self.session,
                             node_importance_func=node_importance_optimal_brain_damage)
-        output = CategoricalOutputLayer(layer, data.labels_shape, regularizer_weighting=0.0001)
+        output = CategoricalOutputLayer(layer, data.labels_shape)
 
-        output.train_till_convergence(data.train, learning_rate=0.01)
+        output.train_till_convergence(data.train, data.test, learning_rate=0.01)
 
-        _, _, target_loss_before_resize = output.evaluation_stats(data.test) # Should this be on test or train?
+        _, _, target_loss_before_resize = output.evaluation_stats(data.test)  # Should this be on test or train?
 
         print(target_loss_before_resize)
 
@@ -246,4 +246,51 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         print(target_loss_after_resize)
 
-        self.assertAlmostEqual(target_loss_before_resize, target_loss_after_resize, places=2)
+        self.assertAlmostEqual(target_loss_before_resize, target_loss_after_resize, delta=0.05)
+
+    def test_get_and_set_state(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer = HiddenLayer(input_layer, 50, session=self.session,
+                            node_importance_func=node_importance_optimal_brain_damage)
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, regularizer_weighting=0.0001)
+
+        acitvation = self.session.run(output.activation_predict, feed_dict={output.input_placeholder:
+                                                                            self.mnist_data.train.features[:1]})
+
+        weights_hidden = layer._weights.eval()
+        bias_hidden = layer._weights.eval()
+        weights_output = output._weights.eval()
+        bias_output = output._bias.eval()
+
+        state = layer.get_network_state()
+
+        layer.resize(10)
+
+        layer.set_network_state(state)
+
+        restored_acitvation = self.session.run(output.activation_predict,
+                                           feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
+
+        new_weights_hidden = layer._weights.eval()
+        new_bias_hidden = layer._weights.eval()
+        new_weights_output = output._weights.eval()
+        new_bias_output = output._bias.eval()
+
+        np.testing.assert_almost_equal(new_weights_hidden, weights_hidden)
+        np.testing.assert_almost_equal(new_bias_hidden, bias_hidden)
+        np.testing.assert_almost_equal(new_weights_output, weights_output)
+        np.testing.assert_almost_equal(new_bias_output, bias_output)
+        np.testing.assert_almost_equal(restored_acitvation, acitvation)
+
+    def test_weights_getter_and_setter(self):
+        weights_value = np.random.normal(size=(self.mnist_data.features_shape[0], 1))
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer = HiddenLayer(input_layer, 1, session=self.session, weights=weights_value)
+
+        np.testing.assert_almost_equal(weights_value, layer.weights)
+
+        new_weights_value = np.random.normal(size=(self.mnist_data.features_shape[0], 1))
+
+        layer.weights = new_weights_value
+
+        np.testing.assert_almost_equal(new_weights_value, layer.weights)

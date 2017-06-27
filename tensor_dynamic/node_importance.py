@@ -61,8 +61,8 @@ def node_importance_by_removal(layer, data_set):
 
         new_weights = np.copy(weights)
         new_weights[None, i] = 0.
-        layer._weights.assign(new_weights)
-        layer._bias.assign(new_bias)
+        layer.weights = new_weights
+        layer.bias = new_bias
 
         # layer._session.run([tf.assign(layer._weights, new_weights), tf.assign(layer._bias, new_bias)])
         error_without_node = layer.session.run(layer.last_layer.target_loss_op_predict,

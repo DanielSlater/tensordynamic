@@ -60,9 +60,9 @@ class BaseLayer(object):
 
         assert isinstance(output_nodes, (int, tuple))
         assert isinstance(input_layer, BaseLayer)
-
+        self._bound_variable_assign_data = {}
         self._input_layer = input_layer
-        self._input_noise_std = layer_noise_std
+        self._layer_noise_std = layer_noise_std
         self._drop_out_prob = drop_out_prob
         self._name = name
         self._output_nodes = (output_nodes,) if type(output_nodes) == int else output_nodes
@@ -82,7 +82,7 @@ class BaseLayer(object):
                                                                     bias_init)
 
         self._freeze = freeze
-        self._bound_variables = []
+        self._bound_variables = {}
         input_layer._attach_next_layer(self)
 
     def _get_property_or_default(self, init_value, property_name, default_value):
@@ -129,9 +129,9 @@ class BaseLayer(object):
         if self._drop_out_prob:
             input_tensor = tf.nn.dropout(input_tensor, self._drop_out_prob)
 
-        if self._input_noise_std is not None:
+        if self._layer_noise_std is not None:
             input_tensor = input_tensor + tf.random_normal(tf.shape(self.input_layer.activation_train),
-                                                           stddev=self._input_noise_std)
+                                                           stddev=self._layer_noise_std)
 
         return self._layer_activation(input_tensor, True)
 
@@ -369,7 +369,7 @@ class BaseLayer(object):
     def kwargs(self):
         kwargs = {
             'weight_extender_func': self._weight_extender_func,
-            'layer_noise_std': self._input_noise_std,
+            'layer_noise_std': self._layer_noise_std,
             'drop_out_prob': self._drop_out_prob,
             'freeze': self._freeze,
             'name': self._name}
@@ -378,9 +378,9 @@ class BaseLayer(object):
 
     def _bound_variables_as_kwargs(self):
         kwarg_dict = {}
-        for bound_variable in self._bound_variables:
+        for name, bound_variable in self._bound_variables.iteritems():
             if bound_variable.is_kwarg:
-                kwarg_dict[bound_variable.name] = self.session.run(bound_variable.variable)
+                kwarg_dict[name] = self.session.run(bound_variable.variable)
 
         return kwarg_dict
 
@@ -418,6 +418,7 @@ class BaseLayer(object):
                split_output_nodes=None,
                split_input_nodes=None,
                data_set=None,
+               no_splitting_or_pruning=False,
                split_nodes_noise_std=.1):
         """Resize this layer by changing the number of output nodes. Will also resize any downstream layers
 
@@ -436,19 +437,20 @@ class BaseLayer(object):
         elif new_output_nodes is not None and not isinstance(new_output_nodes, int):
             raise ValueError("new_output_nodes must be tuple of int %s" % (new_output_nodes,))
 
-        # choose nodes to split or prune
-        if new_output_nodes is not None:
-            if output_nodes_to_prune is None and split_output_nodes is None:
-                if new_output_nodes < self.get_resizable_dimension_size():
-                    output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes, data_set)
-                elif new_output_nodes > self.get_resizable_dimension_size():
-                    split_output_nodes = self._choose_nodes_to_split(new_output_nodes, data_set)
-        elif self.has_resizable_dimension():
-            new_output_nodes = self.get_resizable_dimension_size()
-            if output_nodes_to_prune:
-                new_output_nodes -= len(output_nodes_to_prune)
-            if split_output_nodes:
-                new_output_nodes += len(split_output_nodes)
+        if no_splitting_or_pruning == False:
+            # choose nodes to split or prune
+            if new_output_nodes is not None:
+                if output_nodes_to_prune is None and split_output_nodes is None:
+                    if new_output_nodes < self.get_resizable_dimension_size():
+                        output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes, data_set)
+                    elif new_output_nodes > self.get_resizable_dimension_size():
+                        split_output_nodes = self._choose_nodes_to_split(new_output_nodes, data_set)
+            elif self.has_resizable_dimension():
+                new_output_nodes = self.get_resizable_dimension_size()
+                if output_nodes_to_prune:
+                    new_output_nodes -= len(output_nodes_to_prune)
+                if split_output_nodes:
+                    new_output_nodes += len(split_output_nodes)
 
         new_input_nodes = self.input_layer.output_nodes
         input_nodes_changed = new_input_nodes != self._input_nodes
@@ -464,9 +466,12 @@ class BaseLayer(object):
 
         self._input_nodes = new_input_nodes
 
-        for bound_variable in self._bound_variables:
+        for name, bound_variable in self._bound_variables.iteritems():
             if input_nodes_changed and self._bound_dimensions_contains_input(bound_variable.dimensions) or \
                             output_nodes_changed and self._bound_dimensions_contains_output(bound_variable.dimensions):
+
+                self.forget_assign_op(name)
+
                 int_dims = self._bound_dimensions_to_ints(bound_variable.dimensions)
 
                 if isinstance(bound_variable.variable, tf.Variable):
@@ -489,10 +494,10 @@ class BaseLayer(object):
                     new_values = self._weight_extender_func(old_values, int_dims)
 
                     tf_resize(self._session, bound_variable.variable, int_dims,
-                              new_values)
+                              new_values, self._get_assign_function(name))
                 else:
                     # this is a tensor, not a variable so has no weights
-                    tf_resize(self._session, bound_variable.variable, int_dims)
+                    tf_resize(self._session, bound_variable.variable, int_dims, self._get_assign_function(name))
 
         if output_nodes_changed:
             tf_resize(self._session, self.activation_train, (None,) + self._output_nodes)
@@ -504,6 +509,10 @@ class BaseLayer(object):
 
         if self._next_layer and self._next_layer.resize_needed():
             self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes)
+
+    def forget_assign_op(self, name):
+        if name in self._bound_variable_assign_data:
+            del self._bound_variable_assign_data[name]
 
     def _bound_dimensions_to_ints(self, bound_dims):
         int_dims = ()
@@ -542,7 +551,7 @@ class BaseLayer(object):
             var = tf.Variable(default_val, trainable=(not self._freeze) and is_trainable, name=name)
 
             self._session.run(tf.initialize_variables([var]))
-            self._bound_variables.append(self._BoundVariable(name, bound_dimensions, var, is_kwarg))
+            self._bound_variables[name] = self._BoundVariable(name, bound_dimensions, var, is_kwarg)
             return var
 
     def _register_variable(self, name, bound_dimensions, variable, is_constructor_variable=True):
@@ -556,13 +565,27 @@ class BaseLayer(object):
         """
         int_dims = self._bound_dimensions_to_ints(bound_dimensions)
         assert tuple(variable.get_shape().as_list()) == tuple(int_dims)
-        self._bound_variables.append(self._BoundVariable(name, bound_dimensions, variable, is_constructor_variable))
+        self._bound_variables[name] = self._BoundVariable(name, bound_dimensions, variable, is_constructor_variable)
 
     def _bound_dimensions_contains_input(self, bound_dimensions):
         return any(x for x in bound_dimensions if x == self.INPUT_BOUND_VALUE or x == self.INPUT_DIM_3_BOUND_VALUE)
 
     def _bound_dimensions_contains_output(self, bound_dimensions):
         return any(x for x in bound_dimensions if x == self.OUTPUT_BOUND_VALUE or x == self.OUTPUT_DIM_3_BOUND_VALUE)
+
+    def _get_assign_function(self, name):
+        bound_variable = self._bound_variables[name]
+
+        if name not in self._bound_variable_assign_data:
+            with self.name_scope():
+                placeholder = tf.placeholder(bound_variable.variable.dtype.base_dtype,
+                                             shape=self._bound_dimensions_to_ints(bound_variable.dimensions))
+                assign_op = tf.assign(bound_variable.variable, placeholder, validate_shape=False)
+                self._bound_variable_assign_data[name] = (assign_op, placeholder)
+
+        assign_op, placeholder = self._bound_variable_assign_data[name]
+
+        return lambda value: self.session.run(assign_op, feed_dict={placeholder: value})
 
     def detach_output(self):
         """Detaches the connect between this layer and the next layer
@@ -612,7 +635,7 @@ class BaseLayer(object):
         Returns:
             Iterable of tf.Variable:
         """
-        for bound_variable in self._bound_variables:
+        for bound_variable in self._bound_variables.values():
             yield bound_variable.variable
 
     @property
@@ -647,7 +670,7 @@ class BaseLayer(object):
         """
         total = 0
 
-        for bound_variable in self._bound_variables:
+        for bound_variable in self._bound_variables.values():
             total += int(functools.reduce(operator.mul, bound_variable.variable.get_shape()))
 
         return total
@@ -856,13 +879,20 @@ class BaseLayer(object):
             return
 
         if self.get_resizable_dimension_size() != size:
-            self.resize(size)
+            self.resize(size, no_splitting_or_pruning=True)
 
-        for name, variable in kwargs.iteritems():
-            if name in {x.name for x in self._bound_variables}:
-                assert hasattr(self, '_' + name), 'expected to have property with name %s' % ('_' + name,)
+        for name, value in kwargs.iteritems():
+            assert hasattr(self, '_' + name), 'expected to have property with name %s' % ('_' + name,)
 
-                getattr(self, '_' + name).assign(variable)
+            attribute = getattr(self, '_' + name)
+
+            if isinstance(attribute, tf.Variable):
+                self._get_assign_function(name)(value)
+            elif type(attribute) == type(value) or isinstance(attribute, type(value)) or isinstance(value, type(attribute)):
+                setattr(self, '_' + name, value)
+            else:
+                raise Exception("Mismatch variable type for %s, existing type was %s new type was %s" %
+                                (name, type(attribute), type(value)))
 
     def get_network_state(self):
         return [layer._get_layer_state() for layer in self.all_connected_layers]

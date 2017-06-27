@@ -5,11 +5,11 @@ from tensor_dynamic.data.cifar_data import get_cifar_100_data_set_collection
 from tensor_dynamic.data.mnist_data import get_mnist_data_set_collection
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 from tensor_dynamic.layers.flatten_layer import FlattenLayer
-from tensor_dynamic.layers.hidden_layer import node_importance_by_dummy_activation_from_input_layer, \
-    node_importance_by_removal, node_importance_optimal_brain_damage, HiddenLayer, node_importance_random
-from tensor_dynamic.layers.hidden_layer import node_importance_by_real_activation_from_input_layer
-from tensor_dynamic.layers.hidden_layer import node_importance_by_square_sum
+from tensor_dynamic.layers.hidden_layer import node_importance_by_square_sum, HiddenLayer
 from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.node_importance import node_importance_by_dummy_activation_from_input_layer, node_importance_random, \
+    node_importance_optimal_brain_damage
+from tensor_dynamic.node_importance import node_importance_by_real_activation_from_input_layer
 
 NUM_TRIES = 5
 
@@ -33,7 +33,7 @@ def main(file_name_all="pruning_tests_all.csv", file_name_avg="pruning_tests_fin
             for _ in range(NUM_TRIES):
                 tf.reset_default_graph()
                 with tf.Session() as session:
-                    input_layer = InputLayer(data.features_shape)
+                    input_layer = InputLayer(data.features_shape, drop_out_prob=0.5)
 
                     if len(data.features_shape) > 1:
                         input_layer = FlattenLayer(input_layer)
@@ -42,14 +42,14 @@ def main(file_name_all="pruning_tests_all.csv", file_name_avg="pruning_tests_fin
                                         node_importance_func=None,
                                         non_liniarity=tf.nn.relu)
                     output = CategoricalOutputLayer(layer, data.labels_shape,
-                                                    regularizer_weighting=0.001)
+                                                    #regularizer_weighting=0.001)
+                                                    )
 
                     output.train_till_convergence(data.train, learning_rate=0.001)
 
                     state = output.get_network_state()
 
                     for method in methods:
-                        layer._node_importance_func = node_importance_random
                         output.set_network_state(state)
                         layer._node_importance_func = method
 

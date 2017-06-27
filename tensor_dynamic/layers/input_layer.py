@@ -28,7 +28,7 @@ class InputLayer(BaseLayer):
         self._placeholder = input_nodes
         self._next_layer = None
         self._input_layer = None
-        self._input_noise_std = layer_noise_std
+        self._layer_noise_std = layer_noise_std
         self._drop_out_prob = drop_out_prob
 
     @property
@@ -41,9 +41,9 @@ class InputLayer(BaseLayer):
         if self._drop_out_prob:
             tensor = tf.nn.dropout(tensor, self._drop_out_prob)
 
-        if self._input_noise_std is not None:
-            tensor = tensor + tf.random_normal(tf.shape(self.input_layer.activation_train),
-                                               stddev=self._input_noise_std)
+        if self._layer_noise_std is not None:
+            tensor = tensor + tf.random_normal(tf.shape(tensor),
+                                               stddev=self._layer_noise_std)
         return tensor
 
     @property
@@ -87,7 +87,7 @@ class InputLayer(BaseLayer):
     def kwargs(self):
         kwargs = {
             'name': self._name,
-            'layer_noise_std': self._input_noise_std,
+            'layer_noise_std': self._layer_noise_std,
             'drop_out_prob': self._drop_out_prob}
         return kwargs
 

@@ -13,3 +13,6 @@ Set default weight extension to be net 2 wider net (don't use noise weight exten
 Test adding depth
 Support convolutions
 Test ImageNet
+
+Bugs:
+Successive assign ops cause out of memeory...

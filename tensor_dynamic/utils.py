@@ -30,7 +30,7 @@ def xavier_init(fan_in, fan_out, constant=1.0):
     high = constant * np.sqrt(6.0 / (fan_in + fan_out))
     return tf.random_uniform((fan_in, fan_out),
                              minval=low, maxval=high,
-                             dtype="float")
+                             dtype=tf.float32)
 
 
 def weight_init(shape, constant=1.0):
@@ -41,13 +41,13 @@ def weight_init(shape, constant=1.0):
     high = constant * np.sqrt(1.0 / (fan_in + fan_out))
     return tf.random_uniform((fan_in, fan_out),
                              minval=low, maxval=high,
-                             dtype="float")
+                             dtype=tf.float32)
 
 
 def bias_init(shape, constant=0.01):
     if isinstance(shape, int):
         shape = (shape,)
-    return tf.constant(constant, shape=shape)
+    return tf.constant(constant, shape=shape, dtype=tf.float32)
 
 
 def get_product_of_iterable(iterable):
@@ -65,11 +65,11 @@ def get_product_of_iterable(iterable):
     return product
 
 
-def tf_resize(session, tensor, new_dimensions=None, new_values=None, assign_op=None):
+def tf_resize(session, tensor, new_dimensions=None, new_values=None, assign_function=None):
     """Resize a tensor or variable
 
     Args:
-        assign_op (tensorflow.Operation): Operation for assigning this variable, this is to stop the graph
+        assign_function (tensorflow.Operation): Operation for assigning this variable, this is to stop the graph
             getting overloaded
         session (tensorflow.Session): The session within which this variable resides
         tensor (tensorflow.Tensor or tensorflow.Variable): The variable or tensor we wish to resize
@@ -87,13 +87,20 @@ def tf_resize(session, tensor, new_dimensions=None, new_values=None, assign_op=N
         if hasattr(new_values, '__call__'):
             new_values = new_values()
 
-        assign = tf.assign(tensor, new_values, validate_shape=False)
-        session.run(assign)
+        if assign_function is None:
+            assign = tf.assign(tensor, new_values, validate_shape=False)
+            session.run(assign)
+        else:
+            assign_function(new_values)
     elif isinstance(tensor, tf.Variable):
         current_vals = session.run(tensor)
         new_values = np.resize(current_vals, new_dimensions)
-        assign = tf.assign(tensor, new_values, validate_shape=False)
-        session.run(assign)
+
+        if assign_function is None:
+            assign = tf.assign(tensor, new_values, validate_shape=False)
+            session.run(assign)
+        else:
+            assign_function(new_values)
 
     if tuple(tensor.get_shape().as_list()) != new_dimensions:
         new_shape = TensorShape(new_dimensions)
