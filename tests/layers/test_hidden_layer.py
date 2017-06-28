@@ -263,7 +263,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, regularizer_weighting=0.0001)
 
         acitvation = self.session.run(output.activation_predict, feed_dict={output.input_placeholder:
-                                                                            self.mnist_data.train.features[:1]})
+                                                                                self.mnist_data.train.features[:1]})
 
         weights_hidden = layer._weights.eval()
         bias_hidden = layer._bias.eval()
@@ -277,7 +277,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         layer.set_network_state(state)
 
         restored_acitvation = self.session.run(output.activation_predict,
-                                           feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
+                                               feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
 
         new_weights_hidden = layer._weights.eval()
         new_bias_hidden = layer._bias.eval()
@@ -319,4 +319,47 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         new_bias_hidden = layer._bias.eval()
         new_weights_output = output._weights.eval()
 
-        np.testing.assert_almost_equal(new_weights_output[0], weights_output[0]/2)
+        np.testing.assert_almost_equal(new_weights_output[0], weights_output[0] / 2)
+
+    def test_remove_layer_from_network(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer = HiddenLayer(input_layer, 10, session=self.session,
+                            node_importance_func=node_importance_optimal_brain_damage)
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, regularizer_weighting=0.0001)
+
+        activation = self.session.run(output.activation_predict,
+                                      feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
+
+        layer.remove_layer_from_network()
+
+        activation = self.session.run(output.activation_predict,
+                                      feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
+
+        self.assertEqual(output.layer_number, 1)
+        self.assertEqual(output.input_nodes, (784,))
+
+    def test_use_state_to_remove_layer(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer = HiddenLayer(input_layer, 10, session=self.session,
+                            node_importance_func=node_importance_optimal_brain_damage)
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, regularizer_weighting=0.0001)
+
+        initial_activation = self.session.run(output.activation_predict,
+                                              feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
+
+        state = output.get_network_state()
+
+        layer.add_intermediate_cloned_layer()
+
+        with_extra_layer_activation = self.session.run(output.activation_predict,
+                                                       feed_dict={
+                                                           output.input_placeholder: self.mnist_data.train.features[
+                                                                                     :1]})
+
+        self.assertNotEqual(tuple(with_extra_layer_activation[0]), tuple(initial_activation[0]))
+
+        output.set_network_state(state)
+        restored_activation = self.session.run(output.activation_predict,
+                                               feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
+
+        np.testing.assert_almost_equal(restored_activation, initial_activation)

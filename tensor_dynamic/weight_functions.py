@@ -24,7 +24,6 @@ def noise_weight_extender(array, new_dimensions, mean=0.0, var=None):
 
     for index in range(len(new_dimensions)):
         if new_dimensions[index] > array.shape[index]:
-            # TODO: split the largest nodes
             append_size = tuple(
                 new_dimensions[index] - new_values.shape[index] if index == i else new_values.shape[i] for i in
                 range(len(new_dimensions)))
@@ -35,11 +34,8 @@ def noise_weight_extender(array, new_dimensions, mean=0.0, var=None):
                                    .astype(array.dtype),
                                    axis=index)
         elif new_dimensions[index] < new_values.shape[index]:
-            # TODO: smarter downsizing
-            temp_size = tuple(
-                new_dimensions[index] if index == i else new_values.shape[i] for i in
-                range(len(new_dimensions)))
-            new_values = np.resize(new_values, temp_size)
+            trim_amount = new_dimensions[index] - new_values.shape[index]
+            new_values = np.delete(new_values, np.s_[trim_amount:], index)
 
     assert new_values.shape == new_dimensions
     return new_values
@@ -103,11 +99,11 @@ def net_2_deeper_net(bias, noise_std=0.1):
         The first item is the weights for the new layer
         Second item is the bias for the new layer
     """
-    new_weights = np.matrix(np.eye(bias.shape[0], dtype=bias.dtype))
-    new_bias = np.zeros(bias.shape, dtype=bias.dtype)
+    new_weights = np.matrix(np.eye(bias.shape[0]))
+    new_bias = np.zeros(bias.shape)
 
     if noise_std:
         new_weights = new_weights + np.random.normal(scale=noise_std, size=new_weights.shape)
         new_bias = new_bias + np.random.normal(scale=noise_std, size=new_bias.shape)
 
-    return new_weights, new_bias
+    return new_weights.astype(bias.dtype), new_bias.astype(bias.dtype)

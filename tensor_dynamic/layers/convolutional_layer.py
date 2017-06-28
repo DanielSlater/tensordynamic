@@ -24,6 +24,7 @@ class ConvolutionalLayer(BaseLayer):
                  freeze=False,
                  layer_noise_std=None,
                  drop_out_prob=None,
+                 batch_normalize_input=False,
                  non_liniarity=tf.nn.relu):
         assert len(input_layer.output_nodes) == 3, "expected input to have 3 dimensions"
         assert len(convolution_dimensions) == 3, "expected output to have 3 dimensions"
@@ -42,6 +43,7 @@ class ConvolutionalLayer(BaseLayer):
                                                  freeze=freeze,
                                                  layer_noise_std=layer_noise_std,
                                                  drop_out_prob=drop_out_prob,
+                                                 batch_normalize_input=batch_normalize_input,
                                                  name=name)
 
         self._weights = self._create_variable("weights",

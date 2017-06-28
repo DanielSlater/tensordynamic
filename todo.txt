@@ -8,11 +8,9 @@ IRBM?
 OptimalBrainDamage
 LimitNeurons with gradiant descent like that paper...
 
-More importantly
-Set default weight extension to be net 2 wider net (don't use noise weight extender)
+More importantly-----
 Test adding depth
-Support convolutions
 Test ImageNet
-
-Bugs:
-Successive assign ops cause out of memeory...
+Use laplace for objective function
+FlattenLayer automatically on input
+Set state for network on different depth

@@ -4,6 +4,7 @@ from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.node_importance import node_importance_by_square_sum
 from tensor_dynamic.tf_loss_functions import squared_loss
+from tensor_dynamic.weight_functions import net_2_deeper_net
 
 
 class HiddenLayer(BaseLayer):
@@ -126,6 +127,13 @@ class HiddenLayer(BaseLayer):
 
     def _get_node_importance(self, data_set):
         return self._node_importance_func(self, data_set)
+
+    def _get_deeper_net_kwargs(self):
+        kwargs = self.kwargs
+        weights, bias = net_2_deeper_net(kwargs['bias'])
+        kwargs['bias'] = bias
+        kwargs['weights'] = weights
+        return kwargs
 
 
 if __name__ == '__main__':

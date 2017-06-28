@@ -1,3 +1,4 @@
+import copy
 import functools
 import logging
 from abc import ABCMeta, abstractmethod
@@ -87,7 +88,13 @@ class BaseLayer(object):
         input_layer._attach_next_layer(self)
 
         if self._batch_normalize_input:
-            self._batch_norm_mean, self._batch_norm_var = tf.nn.moments(self._input_layer.activation_train, axes=[0])
+            if len(self.input_layer.output_nodes) == 1:
+                self._batch_norm_mean, self._batch_norm_var = tf.nn.moments(self._input_layer.activation_train,
+                                                                            axes=[0])
+            elif len(self.input_layer.output_nodes) == 3:
+                # use global normalization for
+                self._batch_norm_mean, self._batch_norm_var = tf.nn.moments(self._input_layer.activation_train,
+                                                                            axes=[0, 1, 2])
             # self._register_variable("batch_norm_mean", (self.INPUT_BOUND_VALUE,), self._batch_norm_mean, is_constructor_variable=False)
             # self._register_variable("batch_norm_var", (self.INPUT_BOUND_VALUE,), self._batch_norm_var, is_constructor_variable=False)
             # TODO add these as constructor vars
@@ -615,6 +622,23 @@ class BaseLayer(object):
 
         return lambda value: self.session.run(assign_op, feed_dict={placeholder: value})
 
+    def remove_layer_from_network(self):
+        """Attempt to remove this layer from the network, may resize the input layer of the next, when
+        removing
+        """
+        input_layer = self.input_layer
+        next_layer = self.next_layer
+        if next_layer.input_nodes != input_layer.output_nodes:
+            # need to resize layer so there is a match when we cut
+            self.resize(input_layer.output_nodes,
+                        no_splitting_or_pruning=True)
+
+        self.detach_output()
+        input_layer.detach_output()
+
+        input_layer._next_layer = next_layer
+        next_layer._input_layer = input_layer
+
     def detach_output(self):
         """Detaches the connect between this layer and the next layer
 
@@ -632,6 +656,21 @@ class BaseLayer(object):
         clear_all_lazyprops(self)
 
         return next_layer
+
+    def _get_deeper_net_kwargs(self):
+        raise NotImplemented()
+
+    def add_intermediate_cloned_layer(self):
+        """Add a layer after the current one, that is an exact clone of this layer, but with net 2 deeper net weight
+        initlialization"""
+        kwargs = self._get_deeper_net_kwargs()
+        if self._batch_normalize_input:
+            kwargs['batch_norm_transform'] = np.zeros(shape=kwargs['batch_norm_transform'].shape,
+                                                      dtype=kwargs['batch_norm_transform'].dtype)
+            kwargs['batch_norm_scale'] = np.ones(shape=kwargs['batch_norm_scale'].shape,
+                                                 dtype=kwargs['batch_norm_scale'].dtype)
+
+        self.add_intermediate_layer(lambda x: self.__class__(self, self.output_nodes, session=self.session, **kwargs))
 
     def add_intermediate_layer(self, layer_creation_func, *args, **kwargs):
         """Adds a layer to the network between this layer and the next one.
@@ -916,7 +955,8 @@ class BaseLayer(object):
 
             if isinstance(attribute, tf.Variable):
                 self._get_assign_function(name)(value)
-            elif type(attribute) == type(value) or isinstance(attribute, type(value)) or isinstance(value, type(attribute)):
+            elif type(attribute) == type(value) or isinstance(attribute, type(value)) or isinstance(value,
+                                                                                                    type(attribute)):
                 setattr(self, '_' + name, value)
             else:
                 raise Exception("Mismatch variable type for %s, existing type was %s new type was %s" %
@@ -926,8 +966,25 @@ class BaseLayer(object):
         return [layer._get_layer_state() for layer in self.all_connected_layers]
 
     def set_network_state(self, state):
-        if len(state) != len(list(self.all_connected_layers)):
-            raise NotImplementedError("We don't support setting state on network with layer changes yet...")
+        all_current_layers = list(self.all_connected_layers)
 
-        for layer, layer_state in zip(self.all_connected_layers, state):
-            layer._set_layer_state(layer_state)
+        current_layers_iter = iter(all_current_layers)
+        state_iter = iter(state)
+
+        while True:
+            try:
+                next_state = state_iter.next()
+            except StopIteration:
+                return
+
+            next_current_layer = current_layers_iter.next()
+            class_type, size, kwargs = next_state
+
+            if class_type == type(next_current_layer):
+                next_current_layer._set_layer_state(next_state)
+            else:  # next layer needs to be removed
+                layer_after = current_layers_iter.next()
+                assert class_type == type(layer_after)
+
+                next_current_layer.remove_layer_from_network()
+                layer_after._set_layer_state(next_state)

@@ -15,8 +15,13 @@ from tensor_dynamic.node_importance import node_importance_by_real_activation_fr
 NUM_TRIES = 5
 
 
-def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_final.csv"):
-    data_set_collections = [get_mnist_data_set_collection(one_hot=True), get_cifar_100_data_set_collection()]
+def dummy_random_weights():
+    raise Exception()
+
+
+def main(file_name_all="pruning_tests_all.csv", file_name_avg="pruning_tests_final.csv"):
+    data_set_collections = [#get_mnist_data_set_collection(one_hot=True),
+                            get_cifar_100_data_set_collection()]
     methods = [node_importance_by_dummy_activation_from_input_layer,
                node_importance_by_real_activation_from_input_layer,
                node_importance_by_square_sum,
@@ -25,6 +30,7 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
                node_importance_optimal_brain_damage,
                node_importance_full_taylour_series,
                node_importance_by_real_activation_from_input_layer_variance,
+               dummy_random_weights
                ]
 
     final_dict = defaultdict(lambda: [])
@@ -36,16 +42,18 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
             for _ in range(NUM_TRIES):
                 tf.reset_default_graph()
                 with tf.Session() as session:
-                    input_layer = InputLayer(data.features_shape, drop_out_prob=0.5)
+                    input_layer = InputLayer(data.features_shape)
 
                     if len(data.features_shape) > 1:
                         input_layer = FlattenLayer(input_layer)
 
                     layer = HiddenLayer(input_layer, 800, session=session,
                                         node_importance_func=None,
-                                        non_liniarity=tf.nn.relu)
+                                        non_liniarity=tf.nn.relu,
+                                        batch_normalize_input=True)
                     output = CategoricalOutputLayer(layer, data.labels_shape,
-                                                    #regularizer_weighting=0.001)
+                                                    batch_normalize_input=True,
+                                                    regularizer_weighting=0.001
                                                     )
 
                     output.train_till_convergence(data.train, learning_rate=0.0001)
@@ -59,7 +67,9 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
                         _, _, target_loss_test_before_resize_test = output.evaluation_stats(data.test)
                         _, _, target_loss_test_before_resize_train = output.evaluation_stats(data.train)
 
-                        layer.resize(850, data_set=data.train)
+                        no_splitting_or_pruning = method == dummy_random_weights
+
+                        layer.resize(750, data_set=data.train, no_splitting_or_pruning=no_splitting_or_pruning)
 
                         _, _, target_loss_test_after_resize_test = output.evaluation_stats(data.test)
                         _, _, target_loss_test_after_resize_train = output.evaluation_stats(data.train)
