@@ -129,5 +129,5 @@ def node_importance_full_taylour_series(layer, data_set):
     weights_squared = np.square(weights)
     bias_squared = np.square(bias)
 
-    return np.sum(weights_squared * weights_hessian + weights * weights_jacobean,
-                  axis=0) + bias_squared * bias_hessian + bias * bias_jacobean
+    return np.sum((weights_squared * weights_hessian) * .5 + weights * weights_jacobean,
+                  axis=0) + (bias_squared * bias_hessian) * .5 + bias * bias_jacobean

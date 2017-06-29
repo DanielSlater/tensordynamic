@@ -83,7 +83,7 @@ class OutputLayer(HiddenLayer):
     def loss_op_train(self):
         if self._regularizer_weighting > 0.:
             return self.target_loss_op_train * (1. - self._regularizer_weighting) + \
-                   self.regularizer_2_loss_op * self._regularizer_weighting
+                   self.regularizer_l2_loss_op * self._regularizer_weighting
         else:
             return self.target_loss_op_train
 
@@ -91,12 +91,12 @@ class OutputLayer(HiddenLayer):
     def loss_op_predict(self):
         if self._regularizer_weighting > 0.:
             return self.target_loss_op_train * (1. - self._regularizer_weighting) + \
-                   self.regularizer_2_loss_op * self._regularizer_weighting
+                   self.regularizer_l2_loss_op * self._regularizer_weighting
         else:
             return self.target_loss_op_train
 
     @lazyprop
-    def regularizer_2_loss_op(self):
+    def regularizer_l2_loss_op(self):
         weights_squared = [tf.reduce_sum(tf.square(variable)) for variable in self.variables_all_layers]
         # TODO improve
         chain_weights_squared = weights_squared[0]

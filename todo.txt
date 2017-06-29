@@ -13,4 +13,4 @@ Test adding depth
 Test ImageNet
 Use laplace for objective function
 FlattenLayer automatically on input
-Set state for network on different depth
+--Set state for network on different depth

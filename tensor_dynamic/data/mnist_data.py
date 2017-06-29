@@ -75,9 +75,12 @@ def _extract_labels(filename, one_hot=False):
         return labels
 
 
-def get_mnist_data_set_collection(train_dir=os.path.dirname(__file__) + "/MNIST_data", number_labeled_examples=None,
-                                  fake_data=False, one_hot=True,
-                                  validation_size=0, limit_train_size=None,
+def get_mnist_data_set_collection(train_dir=os.path.dirname(__file__) + "/MNIST_data",
+                                  number_labeled_examples=None,
+                                  one_hot=True,
+                                  validation_size=0,
+                                  validation_ratio=None,
+                                  limit_train_size=None,
                                   flatten=True):
     """Load mnist data
 
@@ -85,7 +88,6 @@ def get_mnist_data_set_collection(train_dir=os.path.dirname(__file__) + "/MNIST_
         train_dir (str): directory to store the downloaded data, or to where it has previously been downloaded
         number_labeled_examples (int): For semi supervised learning, how many labels to use, if None we use supervised
             learning
-        fake_data (bool): If True a fake dataset of all 1. is used
         one_hot (bool): If True labels will be one hot vectors, not ints
         validation_size (int): Number of items to move to validation set
         limit_train_size (int): If set limit number of training items to this
@@ -95,12 +97,6 @@ def get_mnist_data_set_collection(train_dir=os.path.dirname(__file__) + "/MNIST_
     Returns:
         DataSetCollection
     """
-    if fake_data:
-        train = DataSet([], [], fake_data=True)
-        validation = DataSet([], [], fake_data=True)
-        test = DataSet([], [], fake_data=True)
-        return DataSetCollection('FAKE', train, test, validation)
-
     TRAIN_IMAGES = 'train-images-idx3-ubyte.gz'
     TRAIN_LABELS = 'train-labels-idx1-ubyte.gz'
     TEST_IMAGES = 't10k-images-idx3-ubyte.gz'
@@ -118,30 +114,34 @@ def get_mnist_data_set_collection(train_dir=os.path.dirname(__file__) + "/MNIST_
     local_file = _maybe_download(TEST_LABELS, train_dir)
     test_labels = _extract_labels(local_file, one_hot=one_hot)
 
+    if not validation_size and validation_ratio:
+        validation_size = (len(train_labels) + len(test_labels)) * validation_ratio
+
     validation_images = train_images[:validation_size]
     validation_labels = train_labels[:validation_size]
+
+    train_images = train_images[validation_size:]
+    train_labels = train_labels[validation_size:]
+
     if limit_train_size:
-        train_images = train_images[-limit_train_size:]
-        train_labels = train_labels[-limit_train_size:]
-    else:
-        train_images = train_images[validation_size:]
-        train_labels = train_labels[validation_size:]
+        train_images = train_images[:limit_train_size]
+        train_labels = train_labels[:limit_train_size]
 
     if number_labeled_examples is None:
         train = DataSet(train_images, train_labels, flatten=flatten, to_binary=True)
     else:
         train = SemiDataSet(train_images, train_labels, number_labeled_examples)
 
-    if validation_size > 0:
+    test = DataSet(test_images, test_labels, flatten=flatten, to_binary=True)
+
+    if validation_size:
         validation = DataSet(validation_images, validation_labels, flatten=flatten, to_binary=True)
     else:
         validation = None
-
-    test = DataSet(test_images, test_labels, flatten=flatten, to_binary=True)
 
     return DataSetCollection('MNIST', train, test, validation)
 
 
 if __name__ == '__main__':
-    mnist = get_mnist_data_set_collection("MNIST_data", one_hot=True)
-    print(len(mnist))
+    mnist = get_mnist_data_set_collection("MNIST_data", one_hot=True, validation_ratio=.2)
+    print(mnist.name)

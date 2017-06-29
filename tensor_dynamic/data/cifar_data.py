@@ -39,7 +39,9 @@ def _load(ROOT):
     return Xtr, Ytr, Xte, Yte
 
 
-def get_cifar_10_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True):
+def get_cifar_10_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True,
+                                     validation_size=0,
+                                     validation_ratio=None):
     """Get the cifar 100 data set requires files to be downloaded and extracted into cifar-10-batches-py
     directory within root path
 
@@ -58,16 +60,31 @@ def get_cifar_10_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True):
         labels_train = dense_to_one_hot(labels_train)
         labels_test = dense_to_one_hot(labels_test)
 
+    if not validation_size and validation_ratio:
+        validation_size = (len(labels_train) + len(labels_test)) * validation_ratio
+
+    if validation_size:
+        features_validation = features_train[validation_size:]
+        labels_validation = labels_train[validation_size:]
+
+        features_train = features_train[validation_size:]
+        labels_train = labels_train[validation_size:]
+        validation = DataSet(features_validation, labels_validation, to_binary=True)
+    else:
+        validation = None
+
     train = DataSet(features_train, labels_train, to_binary=True)
 
     test = DataSet(features_test, labels_test, to_binary=True)
 
-    collection = DataSetCollection('CIFAR-10', train, test, normalize=True)
+    collection = DataSetCollection('CIFAR-10', train, test, validation=validation, normalize=True)
 
     return collection
 
 
-def get_cifar_100_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True, use_fine_labels=True):
+def get_cifar_100_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True, use_fine_labels=True,
+                                      validation_size=0,
+                                      validation_ratio=None):
     """Get the cifar 100 data set requires files to be downloaded and extracted into cifar-100-python
     directory within root path
 
@@ -89,12 +106,25 @@ def get_cifar_100_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True, us
         labels_train = dense_to_one_hot(labels_train, num_classes)
         labels_test = dense_to_one_hot(labels_test, num_classes)
 
+    if not validation_size and validation_ratio:
+        validation_size = (len(labels_train) + len(labels_test)) * validation_ratio
+
+    if validation_size:
+        features_validation = features_train[validation_size:]
+        labels_validation = labels_train[validation_size:]
+
+        features_train = features_train[validation_size:]
+        labels_train = labels_train[validation_size:]
+        validation = DataSet(features_validation, labels_validation, to_binary=True)
+    else:
+        validation = None
+
     train = DataSet(features_train, labels_train, to_binary=True)
 
     test = DataSet(features_test, labels_test, to_binary=True)
 
     collection = DataSetCollection('CIFAR-100' + ('-fine' if use_fine_labels else '-coarse'),
-                                   train, test, normalize=True)
+                                   train, test, validation=validation, normalize=True)
 
     return collection
 
@@ -153,7 +183,6 @@ def _maybe_download_and_extract(data_dir):
 
 if __name__ == '__main__':
     # data_set = _get_CIFAR10_data("CIFAR_data/cifar-10-batches-py")
-    data_set = get_cifar_100_data_set_collection(CIFAR_DATA_DIR, one_hot=True)
-    print(len(data_set))
-    data_set = get_cifar_10_data_set_collection(CIFAR_DATA_DIR, one_hot=True)
-    print(len(data_set))
+    data_set = get_cifar_100_data_set_collection(CIFAR_DATA_DIR, one_hot=True, validation_ratio=.2)
+    data_set = get_cifar_10_data_set_collection(CIFAR_DATA_DIR, one_hot=True, validation_ratio=.2)
+    print(data_set.name)
