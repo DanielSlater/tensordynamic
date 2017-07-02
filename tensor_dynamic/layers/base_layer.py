@@ -519,7 +519,7 @@ class BaseLayer(object):
         new_input_nodes = self.input_layer.output_nodes
         input_nodes_changed = new_input_nodes != self._input_nodes
 
-        if self.has_resizable_dimension():
+        if self.has_resizable_dimension() and new_output_nodes is not None:
             output_nodes_changed = new_output_nodes != self.get_resizable_dimension_size()
             temp_output_nodes = list(self._output_nodes)
             temp_output_nodes[self.get_resizable_dimension()] = new_output_nodes

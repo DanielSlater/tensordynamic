@@ -1,0 +1,43 @@
+import tensorflow as tf
+from tensor_dynamic.data.cifar_data import get_cifar_100_data_set_collection
+from tensor_dynamic.data.mnist_data import get_mnist_data_set_collection
+from tensor_dynamic.layers.convolutional_layer import ConvolutionalLayer
+from tensor_dynamic.layers.flatten_layer import FlattenLayer
+from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
+from tensor_dynamic.layers.max_pool_layer import MaxPoolLayer
+from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
+
+data_set_collection = get_mnist_data_set_collection(validation_ratio=.15)
+
+with tf.Session() as session:
+    non_liniarity = tf.nn.relu
+
+    regularizer_coeff = 0.01
+    last_layer = InputLayer(data_set_collection.features_shape,
+                            # drop_out_prob=.5,
+                            layer_noise_std=1.
+                            )
+
+    for _ in range(1):
+        last_layer = HiddenLayer(last_layer, 100, session, non_liniarity=non_liniarity,
+                                 batch_normalize_input=True)
+
+    output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
+                                    batch_normalize_input=True,
+                                    regularizer_weighting=regularizer_coeff)
+
+    output.learn_structure_layer_by_layer(data_set_collection.train, data_set_collection.validation,
+                                          start_learn_rate=0.0001, continue_learn_rate=0.0001,
+                                          add_layers=True)
+
+    train_log_prob, train_acc, train_error = output.evaluation_stats(data_set_collection.train)
+    # (-72731, 0.99628282, 0.013231806)
+
+    val_log_prob, val_acc, val_error = output.evaluation_stats(data_set_collection.validation)
+    # (-15555.689, 0.98495239, 0.050545201)
+
+    test_log_prob, test_acc, test_error = output.evaluation_stats(data_set_collection.test)
+    # (-14809.007, 0.98589998, 0.045446824)
+
+    # final size = 309, 281, 255

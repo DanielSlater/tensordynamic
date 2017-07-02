@@ -492,3 +492,27 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         self.session.run(output.activation_predict,
                          feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
                                     output.target_placeholder: self.mnist_data.train.labels[:3]})
+
+    def test_bug_issue_with_state(self):
+        non_liniarity = tf.nn.relu
+        regularizer_coeff = 0.01
+        layer = InputLayer(self.mnist_data.features_shape, layer_noise_std=1.)
+
+        layer = HiddenLayer(layer, 6, self.session, non_liniarity=non_liniarity,
+                            batch_normalize_input=True)
+
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, self.session,
+                                        batch_normalize_input=True,
+                                        regularizer_weighting=regularizer_coeff)
+
+        state = output.get_network_state()
+
+        layer.resize(10)
+
+        output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
+                                      learning_rate=.1)
+
+        output.set_network_state(state)
+
+        output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
+                                      learning_rate=.1)
