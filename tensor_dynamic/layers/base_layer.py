@@ -566,10 +566,12 @@ class BaseLayer(object):
                     tf_resize(self._session, bound_variable.variable, int_dims)
 
         if input_nodes_changed and self._batch_normalize_input:
-            tf_resize(self._session, self._batch_norm_mean_train, self._input_nodes)
-            tf_resize(self._session, self._batch_norm_var_train, self._input_nodes)
-            tf_resize(self._session, self._batch_norm_mean_predict, self._input_nodes)
-            tf_resize(self._session, self._batch_norm_var_predict, self._input_nodes)
+            if self._batch_norm_mean_train is not None:
+                tf_resize(self._session, self._batch_norm_mean_train, self._input_nodes)
+                tf_resize(self._session, self._batch_norm_var_train, self._input_nodes)
+            if self._batch_norm_mean_predict is not None:
+                tf_resize(self._session, self._batch_norm_mean_predict, self._input_nodes)
+                tf_resize(self._session, self._batch_norm_var_predict, self._input_nodes)
             if self._normalized_train is not None:
                 tf_resize(self._session, self._normalized_train, (None,) + self._input_nodes)
             if self._normalized_predict is not None:

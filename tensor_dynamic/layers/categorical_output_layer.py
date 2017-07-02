@@ -53,7 +53,7 @@ class CategoricalOutputLayer(OutputLayer):
         clear_lazyprop_on_lazyprop_cleared(self, '_pre_softmax_activation_train', self.input_layer,
                                            'activation_train')
         with self.name_scope(is_train=True):
-            input_activation = self._process_input_activation_predict(self.input_layer.activation_train)
+            input_activation = self._process_input_activation_train(self.input_layer.activation_train)
             return self._layer_activation(input_activation, True)
 
     @lazyprop
