@@ -470,3 +470,25 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
                                       learning_rate=.1)
+
+    def test_adding_hidden_layer_with_resize(self):
+        non_liniarity = tf.nn.relu
+        regularizer_coeff = None
+        layer = InputLayer(self.mnist_data.features_shape)
+
+        layer = HiddenLayer(layer, 100, self.session, non_liniarity=non_liniarity,
+                            batch_normalize_input=False)
+
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, self.session,
+                                        batch_normalize_input=True,
+                                        regularizer_weighting=regularizer_coeff)
+
+        output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
+                                      learning_rate=.1)
+
+        layer.add_intermediate_cloned_layer()
+        layer.resize(110)
+
+        self.session.run(output.activation_predict,
+                         feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
+                                    output.target_placeholder: self.mnist_data.train.labels[:3]})

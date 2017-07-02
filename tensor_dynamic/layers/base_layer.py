@@ -89,15 +89,8 @@ class BaseLayer(object):
         input_layer._attach_next_layer(self)
 
         if self._batch_normalize_input:
-            with self.name_scope(is_train=True):
-                self._batch_norm_mean_train, self._batch_norm_var_train = tf.nn.moments(
-                    self._input_layer.activation_train,
-                    axes=range(len(self.input_nodes)))
-
-            with self.name_scope(is_predict=True):
-                self._batch_norm_mean_predict, self._batch_norm_var_predict = tf.nn.moments(
-                    self._input_layer.activation_predict,
-                    axes=range(len(self.input_nodes)))
+            self._batch_norm_mean_train, self._batch_norm_var_train = (None, None)
+            self._batch_norm_mean_predict, self._batch_norm_var_predict = (None, None)
 
             with self.name_scope():
                 self._batch_norm_scale = self._create_variable("batch_norm_scale", (self.INPUT_BOUND_VALUE,),
@@ -134,7 +127,7 @@ class BaseLayer(object):
 
         Args:
             is_train (bool): Set for parts of tensorflow graph just for training
-             is_predict (bool): Set for parts of tensorflow graph just for predicting
+            is_predict (bool): Set for parts of tensorflow graph just for predicting
 
         Returns:
             A context manager that installs `name` as a new name scope in the
@@ -167,6 +160,8 @@ class BaseLayer(object):
 
     def _process_input_activation_train(self, input_tensor):
         if self._batch_normalize_input:
+            self._batch_norm_mean_train, self._batch_norm_mean_train = tf.nn.moments(self._input_layer.activation_train,
+                                                                                     axes=range(len(self.input_nodes)))
             self._normalized_train = (
                 (input_tensor - self._batch_norm_mean_train) / tf.sqrt(self._batch_norm_var_train + tf.constant(1e-10)))
             input_tensor = (self._normalized_train + self._batch_norm_transform) * self._batch_norm_scale
@@ -197,6 +192,10 @@ class BaseLayer(object):
 
     def _process_input_activation_predict(self, input_tensor):
         if self._batch_normalize_input:
+            self._batch_norm_mean_predict, self._batch_norm_var_predict = tf.nn.moments(
+                self._input_layer.activation_predict,
+                axes=range(len(self.input_nodes)))
+
             # TODO: Note this is the WRONG way to apply this, will result in bad results for prediction sizes
             # that do not equal the batch_size...
             self._normalized_predict = (
@@ -581,17 +580,25 @@ class BaseLayer(object):
             from tensorflow.python.framework.tensor_shape import TensorShape
 
             if '_mat_mul_is_train_equal_' + str(True) in self.__dict__:
-                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                #tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(True)], (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0]._shape = TensorShape(
+                    (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0]._shape = TensorShape(
+                    (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0].op.inputs[
+                    0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0].op.inputs[0].op.inputs[
+                    0]._shape = TensorShape((None,) + self._input_nodes)
+                # tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(True)], (None,) + self._input_nodes)
             if '_mat_mul_is_train_equal_' + str(False) in self.__dict__:
-                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
-                #tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(False)], (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0]._shape = TensorShape(
+                    (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0]._shape = TensorShape(
+                    (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0].op.inputs[
+                    0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0].op.inputs[0].op.inputs[
+                    0]._shape = TensorShape((None,) + self._input_nodes)
+                # tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(False)], (None,) + self._input_nodes)
 
         if output_nodes_changed:
             if has_lazyprop(self, 'activation_predict'):
@@ -750,6 +757,7 @@ class BaseLayer(object):
 
         new_next_layer._next_layer = old_next_layer
         old_next_layer._input_layer = new_next_layer
+        print("SFASF")
 
     @property
     def assign_op(self):

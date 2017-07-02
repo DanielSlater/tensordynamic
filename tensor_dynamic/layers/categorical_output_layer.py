@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from tensor_dynamic.data.data_set import DataSet
 from tensor_dynamic.layers.output_layer import OutputLayer
-from tensor_dynamic.lazyprop import lazyprop
+from tensor_dynamic.lazyprop import lazyprop, clear_lazyprop_on_lazyprop_cleared
 
 
 class CategoricalOutputLayer(OutputLayer):
@@ -42,33 +42,41 @@ class CategoricalOutputLayer(OutputLayer):
 
     @lazyprop
     def _pre_softmax_activation_predict(self):
-        with self.name_scope(is_train=True):
+        clear_lazyprop_on_lazyprop_cleared(self, '_pre_softmax_activation_predict', self.input_layer,
+                                           'activation_predict')
+        with self.name_scope(is_predict=True):
             input_activation = self._process_input_activation_predict(self.input_layer.activation_predict)
             return self._layer_activation(input_activation, False)
 
     @lazyprop
     def _pre_softmax_activation_train(self):
-        with self.name_scope(is_predict=True):
+        clear_lazyprop_on_lazyprop_cleared(self, '_pre_softmax_activation_train', self.input_layer,
+                                           'activation_train')
+        with self.name_scope(is_train=True):
             input_activation = self._process_input_activation_predict(self.input_layer.activation_train)
             return self._layer_activation(input_activation, True)
 
     @lazyprop
     def activation_predict(self):
+        clear_lazyprop_on_lazyprop_cleared(self, 'activation_predict', self.input_layer, 'activation_predict')
         with self.name_scope(is_predict=True):
             return tf.nn.softmax(self._pre_softmax_activation_predict)
 
     @lazyprop
     def activation_train(self):
+        clear_lazyprop_on_lazyprop_cleared(self, 'activation_train', self.input_layer, 'activation_train')
         with self.name_scope(is_train=True):
             return tf.nn.softmax(self._pre_softmax_activation_train)
 
     @lazyprop
     def target_loss_op_train(self):
+        clear_lazyprop_on_lazyprop_cleared(self, 'target_loss_op_train', self.input_layer)
         with self.name_scope(is_train=True):
             return self._target_loss_op(self._pre_softmax_activation_train)
 
     @lazyprop
     def target_loss_op_predict(self):
+        clear_lazyprop_on_lazyprop_cleared(self, 'target_loss_op_predict', self.input_layer)
         with self.name_scope(is_predict=True):
             return self._target_loss_op(self._pre_softmax_activation_predict)
 
@@ -79,6 +87,7 @@ class CategoricalOutputLayer(OutputLayer):
 
     @lazyprop
     def accuracy_op(self):
+        clear_lazyprop_on_lazyprop_cleared(self, 'accuracy_op', self.input_layer)
         return tf.reduce_mean(tf.cast(tf.nn.in_top_k(self._pre_softmax_activation_predict, tf.argmax(self.target_placeholder, 1), 1),
                                       tf.float32))
 
@@ -99,6 +108,7 @@ class CategoricalOutputLayer(OutputLayer):
 
     @lazyprop
     def log_probability_of_targets_op(self):
+        clear_lazyprop_on_lazyprop_cleared(self, 'log_probability_of_targets_op', self.input_layer)
         return tf.reduce_sum(tf.log(tf.reduce_sum(tf.nn.softmax(self.activation_predict) * self.target_placeholder, 1)))
 
     @property
