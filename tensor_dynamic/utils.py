@@ -103,36 +103,48 @@ def tf_resize(session, tensor, new_dimensions=None, new_values=None, assign_func
             assign_function(new_values)
 
     if tuple(tensor.get_shape().as_list()) != new_dimensions:
-        new_shape = TensorShape(new_dimensions)
         if hasattr(tensor, '_variable'):
-            for i in range(len(new_dimensions)):
-                tensor._variable._shape._dims[i]._value = new_dimensions[i]
-                tensor._snapshot._shape._dims[i]._value = new_dimensions[i]
-                tensor._initial_value._shape._dims[i]._value = new_dimensions[i]
+            modify_shape(tensor._variable._shape, new_dimensions)
+            modify_shape(tensor._snapshot._shape, new_dimensions)
+            modify_shape(tensor._initial_value._shape, new_dimensions)
 
-            tensor._snapshot._shape = new_shape
-            tensor._variable._shape = new_shape
-            tensor._initial_value._shape = new_shape
+            # new_shape = TensorShape(new_dimensions)
+            #
+            # tensor._snapshot._shape = new_shape
+            # tensor._variable._shape = new_shape
+            # tensor._initial_value._shape = new_shape
         elif hasattr(tensor, '_shape'):
-            for i in range(len(new_dimensions)):
-                tensor._shape._dims[i]._value = new_dimensions[i]
+            modify_shape(tensor._shape, new_dimensions)
         else:
             raise NotImplementedError('unrecognized type %s' % type(tensor))
 
         for output in tensor.op.outputs:
-            output._shape = new_shape
+            modify_shape(output._shape, new_dimensions)
 
         for input in tensor.op.inputs:
-            if len(input._shape) == len(new_shape):
-                input._shape = new_shape
-            elif len(input._shape) == len(new_shape) + 1:
-                input._shape = TensorShape((input._shape[0]._value, ) + new_dimensions)
+            if len(input._shape) == len(new_dimensions):
+                modify_shape(input._shape, new_dimensions)
+            elif len(input._shape) == len(new_dimensions) + 1:
+                modify_shape(input._shape, (input._shape[0]._value, ) + new_dimensions)
             elif len(input._shape) == 0:
                 pass
-            elif len(input._shape) +1 == len(new_shape) and new_shape[0]._value is None:
-                input._shape = TensorShape(new_dimensions[1:])
+            elif len(input._shape) +1 == len(new_dimensions) and new_dimensions[0] is None:
+                (input._shape[0]._value, new_dimensions[1:])
             else:
                 raise Exception("could not deal with this input")
+
+
+def modify_shape(shape, new_dimensions):
+    changed = False
+    assert isinstance(shape, TensorShape)
+    assert len(shape) == len(new_dimensions)
+
+    for i in range(len(new_dimensions)):
+        if shape._dims[i]._value != new_dimensions[i]:
+            changed = True
+            shape._dims[i]._value = new_dimensions[i]
+
+    return changed
 
 
 def tf_resize_cascading(session, variable, new_values):

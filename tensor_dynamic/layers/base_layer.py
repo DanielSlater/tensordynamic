@@ -202,8 +202,7 @@ class BaseLayer(object):
             self._normalized_predict = (
                 (input_tensor - self._batch_norm_mean_predict) / tf.sqrt(
                     self._batch_norm_var_predict + tf.constant(1e-10)))
-            input_tensor = tf.mul(self._normalized_predict + self._batch_norm_transform,
-                                  self._batch_norm_scale)
+            input_tensor = (self._normalized_predict + self._batch_norm_transform) * self._batch_norm_scale
         return input_tensor
 
     @abstractmethod
@@ -579,10 +578,20 @@ class BaseLayer(object):
 
             # This line fixed the issue, this is all very hacky...
             # self._mat_mul.op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+            from tensorflow.python.framework.tensor_shape import TensorShape
+
             if '_mat_mul_is_train_equal_' + str(True) in self.__dict__:
-                tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(True)], (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(True)].op.inputs[0].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                #tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(True)], (None,) + self._input_nodes)
             if '_mat_mul_is_train_equal_' + str(False) in self.__dict__:
-                tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(False)], (None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                self.__dict__['_mat_mul_is_train_equal_' + str(False)].op.inputs[0].op.inputs[0].op.inputs[0].op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+                #tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(False)], (None,) + self._input_nodes)
 
         if output_nodes_changed:
             if has_lazyprop(self, 'activation_predict'):

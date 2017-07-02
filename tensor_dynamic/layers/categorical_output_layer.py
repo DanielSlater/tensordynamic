@@ -37,8 +37,8 @@ class CategoricalOutputLayer(OutputLayer):
                                                      regularizer_op=regularizer_op,
                                                      name=name)
 
-    def _layer_activation(self, input_activation, is_train):
-        return tf.matmul(input_activation, self._weights) + self._bias
+    # def _layer_activation(self, input_activation, is_train):
+    #     return tf.matmul(input_activation, self._weights) + self._bias
 
     @lazyprop
     def _pre_softmax_activation_predict(self):

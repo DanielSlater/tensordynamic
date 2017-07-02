@@ -218,7 +218,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         layer.find_best_size(data.train, data.test,
                              lambda m, d: output.evaluation_stats(d)[0] - log(output.get_parameters_all_layers()),
-                             initial_learning_rate=0.1, tuning_learning_rate=0.01)
+                             initial_learning_rate=0.1, tuning_learning_rate=0.1)
 
         assert layer.get_resizable_dimension_size() > 10
 
@@ -367,20 +367,20 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
     def test_resize_with_batch_norm_and_2_layers_resize_2(self):
         input_layer = InputLayer(self.mnist_data.features_shape)
-        layer1 = HiddenLayer(input_layer, 1, session=self.session, batch_normalize_input=True)
-        layer2 = HiddenLayer(layer1, 1, session=self.session, batch_normalize_input=True)
+        layer1 = HiddenLayer(input_layer, 2, session=self.session, batch_normalize_input=True)
+        layer2 = HiddenLayer(layer1, 2, session=self.session, batch_normalize_input=True)
         output = CategoricalOutputLayer(layer2, self.mnist_data.labels_shape, batch_normalize_input=False)
 
         output.train_till_convergence(self.mnist_data.train, learning_rate=0.1)
 
-        layer2.resize(2)
+        layer2.resize(3)
 
         output.train_till_convergence(self.mnist_data.train, learning_rate=0.1)
 
     def test_resize_with_batch_norm_and_2_layers_resize_1(self):
         input_layer = InputLayer(self.mnist_data.features_shape)
-        layer1 = HiddenLayer(input_layer, 1, session=self.session, batch_normalize_input=True)
-        layer2 = HiddenLayer(layer1, 1, session=self.session, batch_normalize_input=True)
+        layer1 = HiddenLayer(input_layer, 5, session=self.session, batch_normalize_input=True)
+        layer2 = HiddenLayer(layer1, 5, session=self.session, batch_normalize_input=True)
         output = CategoricalOutputLayer(layer2, self.mnist_data.labels_shape, batch_normalize_input=False)
 
         # output.train_till_convergence(self.mnist_data.train, learning_rate=0.1)
@@ -391,7 +391,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
                          feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
                                     output.target_placeholder: self.mnist_data.train.labels[:3]})
 
-        layer1.resize(2)
+        layer1.resize(6)
 
         optimizer2 = tf.train.AdamOptimizer()
         loss2 = optimizer2.minimize(output.target_loss_op_predict)
@@ -442,3 +442,31 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
         self.session.run(loss2,
                          feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
                                     output.target_placeholder: self.mnist_data.train.labels[:3]})
+
+    def test_bug_issue(self):
+        non_liniarity = tf.nn.relu
+        regularizer_coeff = 0.01
+        last_layer = InputLayer(self.mnist_data.features_shape,
+                                # drop_out_prob=.5,
+                                layer_noise_std=1.
+                                )
+
+        last_layer = HiddenLayer(last_layer, 100, self.session, non_liniarity=non_liniarity,
+                                 batch_normalize_input=True)
+
+        output = CategoricalOutputLayer(last_layer, self.mnist_data.labels_shape, self.session,
+                                        batch_normalize_input=True,
+                                        regularizer_weighting=regularizer_coeff)
+
+        output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
+                                      learning_rate=.1)
+
+        last_layer.resize(110)
+
+        output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
+                                      learning_rate=.1)
+
+        last_layer.resize(90)
+
+        output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
+                                      learning_rate=.1)
