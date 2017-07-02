@@ -160,8 +160,8 @@ class BaseLayer(object):
 
     def _process_input_activation_train(self, input_tensor):
         if self._batch_normalize_input:
-            self._batch_norm_mean_train, self._batch_norm_mean_train = tf.nn.moments(self._input_layer.activation_train,
-                                                                                     axes=range(len(self.input_nodes)))
+            self._batch_norm_mean_train, self._batch_norm_var_train = tf.nn.moments(self._input_layer.activation_train,
+                                                                                    axes=range(len(self.input_nodes)))
             self._normalized_train = (
                 (input_tensor - self._batch_norm_mean_train) / tf.sqrt(self._batch_norm_var_train + tf.constant(1e-10)))
             input_tensor = (self._normalized_train + self._batch_norm_transform) * self._batch_norm_scale
