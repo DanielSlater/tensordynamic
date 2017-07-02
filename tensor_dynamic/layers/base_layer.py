@@ -1,4 +1,3 @@
-import copy
 import functools
 import logging
 from abc import ABCMeta, abstractmethod
@@ -10,7 +9,7 @@ import operator
 import sys
 import tensorflow as tf
 
-from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop, clear_lazyprop_on_lazyprop_cleared
+from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop, clear_lazyprop_on_lazyprop_cleared, has_lazyprop
 from tensor_dynamic.utils import tf_resize, bias_init, weight_init
 from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
@@ -41,6 +40,8 @@ class BaseLayer(object):
                  layer_noise_std=None,
                  drop_out_prob=None,
                  batch_normalize_input=False,
+                 batch_norm_transform=None,
+                 batch_norm_scale=None,
                  name=None,
                  freeze=False):
         """Base class from which all layers will inherit. This is an abstract class
@@ -88,20 +89,25 @@ class BaseLayer(object):
         input_layer._attach_next_layer(self)
 
         if self._batch_normalize_input:
-            if len(self.input_layer.output_nodes) == 1:
-                self._batch_norm_mean, self._batch_norm_var = tf.nn.moments(self._input_layer.activation_train,
-                                                                            axes=[0])
-            elif len(self.input_layer.output_nodes) == 3:
-                # use global normalization for
-                self._batch_norm_mean, self._batch_norm_var = tf.nn.moments(self._input_layer.activation_train,
-                                                                            axes=[0, 1, 2])
-            # self._register_variable("batch_norm_mean", (self.INPUT_BOUND_VALUE,), self._batch_norm_mean, is_constructor_variable=False)
-            # self._register_variable("batch_norm_var", (self.INPUT_BOUND_VALUE,), self._batch_norm_var, is_constructor_variable=False)
-            # TODO add these as constructor vars
-            self._batch_norm_scale = self._create_variable("batch_norm_scale", (self.INPUT_BOUND_VALUE,),
-                                                           tf.ones((self.input_nodes[0],)), is_kwarg=True)
-            self._batch_norm_transform = self._create_variable("batch_norm_transform", (self.INPUT_BOUND_VALUE,),
-                                                               tf.zeros((self.input_nodes[0],)), is_kwarg=True)
+            with self.name_scope(is_train=True):
+                self._batch_norm_mean_train, self._batch_norm_var_train = tf.nn.moments(
+                    self._input_layer.activation_train,
+                    axes=range(len(self.input_nodes)))
+
+            with self.name_scope(is_predict=True):
+                self._batch_norm_mean_predict, self._batch_norm_var_predict = tf.nn.moments(
+                    self._input_layer.activation_predict,
+                    axes=range(len(self.input_nodes)))
+
+            with self.name_scope():
+                self._batch_norm_scale = self._create_variable("batch_norm_scale", (self.INPUT_BOUND_VALUE,),
+                                                               batch_norm_scale if batch_norm_scale is not None else tf.ones(
+                                                                   self.input_nodes), is_kwarg=True)
+                self._batch_norm_transform = self._create_variable("batch_norm_transform", (self.INPUT_BOUND_VALUE,),
+                                                                   batch_norm_transform if batch_norm_transform is not None else tf.zeros(
+                                                                       self.input_nodes), is_kwarg=True)
+                self._normalized_train = None
+                self._normalized_predict = None
 
     def _get_property_or_default(self, init_value, property_name, default_value):
         if init_value is not None:
@@ -117,7 +123,7 @@ class BaseLayer(object):
 
         return default_value
 
-    def name_scope(self):
+    def name_scope(self, is_train=False, is_predict=False):
         """Used for naming variables associated with this layer in TensorFlow in a consistent way
 
         Format = "{layer_number}_{layer_name}"
@@ -126,11 +132,21 @@ class BaseLayer(object):
             with self.name_scope():
                 my_new_variable = tf.Variable(default_val, name="name")
 
+        Args:
+            is_train (bool): Set for parts of tensorflow graph just for training
+             is_predict (bool): Set for parts of tensorflow graph just for predicting
+
         Returns:
             A context manager that installs `name` as a new name scope in the
             default graph.
         """
         name = str(self.layer_number) + "_" + self._name
+
+        if is_train and not is_predict:
+            name += "_train"
+        elif is_predict:
+            name += "_predict"
+
         return tf.name_scope(name)
 
     @lazyprop
@@ -144,10 +160,16 @@ class BaseLayer(object):
         clear_lazyprop_on_lazyprop_cleared(self, 'activation_train', self.input_layer)
         input_tensor = self.input_layer.activation_train
 
+        with self.name_scope(is_train=True):
+            input_tensor = self._process_input_activation_train(input_tensor)
+
+            return self._layer_activation(input_tensor, True)
+
+    def _process_input_activation_train(self, input_tensor):
         if self._batch_normalize_input:
-            normalized = ((input_tensor - self._batch_norm_mean) / tf.sqrt(self._batch_norm_var + tf.constant(1e-10)))
-            self.normalized = normalized
-            input_tensor = (normalized + self._batch_norm_transform) * self._batch_norm_scale
+            self._normalized_train = (
+                (input_tensor - self._batch_norm_mean_train) / tf.sqrt(self._batch_norm_var_train + tf.constant(1e-10)))
+            input_tensor = (self._normalized_train + self._batch_norm_transform) * self._batch_norm_scale
 
         if self._drop_out_prob:
             input_tensor = tf.nn.dropout(input_tensor, self._drop_out_prob)
@@ -156,7 +178,7 @@ class BaseLayer(object):
             input_tensor = input_tensor + tf.random_normal(tf.shape(self.input_layer.activation_train),
                                                            stddev=self._layer_noise_std)
 
-        return self._layer_activation(input_tensor, True)
+        return input_tensor
 
     @lazyprop
     def activation_predict(self):
@@ -169,13 +191,20 @@ class BaseLayer(object):
         clear_lazyprop_on_lazyprop_cleared(self, 'activation_predict', self.input_layer)
         input_tensor = self.input_layer.activation_predict
 
+        with self.name_scope(is_predict=True):
+            input_tensor = self._process_input_activation_predict(input_tensor)
+            return self._layer_activation(input_tensor, False)
+
+    def _process_input_activation_predict(self, input_tensor):
         if self._batch_normalize_input:
             # TODO: Note this is the WRONG way to apply this, will result in bad results for prediction sizes
             # that do not equal the batch_size...
-            normalized = ((input_tensor - self._batch_norm_mean) / tf.sqrt(self._batch_norm_var + tf.constant(1e-10)))
-            input_tensor = (normalized + self._batch_norm_transform) * self._batch_norm_scale
-
-        return self._layer_activation(input_tensor, False)
+            self._normalized_predict = (
+                (input_tensor - self._batch_norm_mean_predict) / tf.sqrt(
+                    self._batch_norm_var_predict + tf.constant(1e-10)))
+            input_tensor = tf.mul(self._normalized_predict + self._batch_norm_transform,
+                                  self._batch_norm_scale)
+        return input_tensor
 
     @abstractmethod
     def _layer_activation(self, input_tensor, is_train):
@@ -268,7 +297,6 @@ class BaseLayer(object):
         clear_lazyprop_on_lazyprop_cleared(self, 'bactivation_predict', self, 'activation_predict')
         return self._layer_bactivation(self.activation_predict, False)
 
-    # @abstractmethod
     def _layer_bactivation(self, input_tensor, is_train):
         """The bactivation for this layer
 
@@ -449,12 +477,16 @@ class BaseLayer(object):
                input_nodes_to_prune=None,
                split_output_nodes=None,
                split_input_nodes=None,
-               data_set=None,
+               data_set_train=None,
+               data_set_validation=None,
                no_splitting_or_pruning=False,
                split_nodes_noise_std=.1):
         """Resize this layer by changing the number of output nodes. Will also resize any downstream layers
 
         Args:
+            data_set_validation (DataSet):Data set used for validating this network
+            data_set_train (DataSet): Data set used for training this network
+            no_splitting_or_pruning (bool): If set to true then noise is just added randomly rather than splitting nodes
             new_output_nodes (int | tuple of ints): If passed we change the number of output nodes of this layer to be new_output_nodes
             output_nodes_to_prune ([int]): list of indexes of the output nodes we want pruned e.g. [1, 3] would remove
                 the 1st and 3rd output node from this layer
@@ -469,14 +501,16 @@ class BaseLayer(object):
         elif new_output_nodes is not None and not isinstance(new_output_nodes, int):
             raise ValueError("new_output_nodes must be tuple of int %s" % (new_output_nodes,))
 
-        if no_splitting_or_pruning == False:
+        if not no_splitting_or_pruning:
             # choose nodes to split or prune
             if new_output_nodes is not None:
                 if output_nodes_to_prune is None and split_output_nodes is None:
                     if new_output_nodes < self.get_resizable_dimension_size():
-                        output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes, data_set)
+                        output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes, data_set_train,
+                                                                            data_set_validation)
                     elif new_output_nodes > self.get_resizable_dimension_size():
-                        split_output_nodes = self._choose_nodes_to_split(new_output_nodes, data_set)
+                        split_output_nodes = self._choose_nodes_to_split(new_output_nodes, data_set_train,
+                                                                         data_set_validation)
             elif self.has_resizable_dimension():
                 new_output_nodes = self.get_resizable_dimension_size()
                 if output_nodes_to_prune:
@@ -531,15 +565,36 @@ class BaseLayer(object):
                               new_values, self._get_assign_function(name))
                 else:
                     # this is a tensor, not a variable so has no weights
-                    tf_resize(self._session, bound_variable.variable, int_dims, self._get_assign_function(name))
+                    tf_resize(self._session, bound_variable.variable, int_dims)
+
+        if input_nodes_changed and self._batch_normalize_input:
+            tf_resize(self._session, self._batch_norm_mean_train, self._input_nodes)
+            tf_resize(self._session, self._batch_norm_var_train, self._input_nodes)
+            tf_resize(self._session, self._batch_norm_mean_predict, self._input_nodes)
+            tf_resize(self._session, self._batch_norm_var_predict, self._input_nodes)
+            if self._normalized_train is not None:
+                tf_resize(self._session, self._normalized_train, (None,) + self._input_nodes)
+            if self._normalized_predict is not None:
+                tf_resize(self._session, self._normalized_predict, (None,) + self._input_nodes)
+
+            # This line fixed the issue, this is all very hacky...
+            # self._mat_mul.op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)
+            if '_mat_mul_is_train_equal_' + str(True) in self.__dict__:
+                tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(True)], (None,) + self._input_nodes)
+            if '_mat_mul_is_train_equal_' + str(False) in self.__dict__:
+                tf_resize(self._session, self.__dict__['_mat_mul_is_train_equal_' + str(False)], (None,) + self._input_nodes)
 
         if output_nodes_changed:
-            tf_resize(self._session, self.activation_train, (None,) + self._output_nodes)
-            tf_resize(self._session, self.activation_predict, (None,) + self._output_nodes)
+            if has_lazyprop(self, 'activation_predict'):
+                tf_resize(self._session, self.activation_predict, (None,) + self._output_nodes)
+            if has_lazyprop(self, 'activation_train'):
+                tf_resize(self._session, self.activation_train, (None,) + self._output_nodes)
 
         if input_nodes_changed and self.bactivate:
-            tf_resize(self._session, self.bactivation_train, (None,) + self._input_nodes)
-            tf_resize(self._session, self.bactivation_predict, (None,) + self._input_nodes)
+            if has_lazyprop(self, 'bactivation_train'):
+                tf_resize(self._session, self.bactivation_train, (None,) + self._input_nodes)
+            if has_lazyprop(self, 'bactivation_predict'):
+                tf_resize(self._session, self.bactivation_predict, (None,) + self._input_nodes)
 
         if self._next_layer and self._next_layer.resize_needed():
             self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes,
@@ -567,8 +622,10 @@ class BaseLayer(object):
             elif x == self.OUTPUT_DIM_3_BOUND_VALUE:
                 assert len(self._input_nodes) == 3, "must have 3 output dimensions"
                 int_dims += (self._output_nodes[2],)
+            elif x is None:
+                int_dims += (None,)
             else:
-                raise Exception("bound dimension must be either int or 'input' or 'output' found %s" % (x,))
+                raise Exception("bound dimension must be either int or 'input' or 'output' or None found %s" % (x,))
         return int_dims
 
     def _create_variable(self, name, bound_dimensions, default_val, is_kwarg=True, is_trainable=True):
@@ -589,7 +646,7 @@ class BaseLayer(object):
             self._bound_variables[name] = self._BoundVariable(name, bound_dimensions, var, is_kwarg)
             return var
 
-    def _register_variable(self, name, bound_dimensions, variable, is_constructor_variable=True):
+    def _register_tensor(self, name, bound_dimensions, variable, is_constructor_variable=True):
         """Register a variable that will need to be resized with this layer
 
         Args:
@@ -706,6 +763,11 @@ class BaseLayer(object):
             yield bound_variable.variable
 
     @property
+    def regularizable_variables(self):
+        """variables that can be regularized on this layer"""
+        raise NotImplementedError()
+
+    @property
     def variables_all_layers(self):
         """Get all the tensorflow variables used in all connected layers, useful for weight regularization
 
@@ -714,6 +776,13 @@ class BaseLayer(object):
         """
         for layer in self.all_layers:
             for variable in layer.variables:
+                yield variable
+
+    @property
+    def regularizable_variables_all_layers(self):
+        """variables that can be regularized on all connected layers"""
+        for layer in self.all_layers:
+            for variable in layer.regularizable_variables:
                 yield variable
 
     def get_parameters_all_layers(self):
@@ -805,7 +874,9 @@ class BaseLayer(object):
             logger.info("layer too small stopping downsize")
             return -sys.float_info.max
 
-        self.resize(new_output_nodes=new_size)  # TODO: resize based on data_set analysis
+        self.resize(new_output_nodes=new_size,
+                    data_set_train=data_set_train,
+                    data_set_validation=data_set_validation)
 
         self.last_layer.train_till_convergence(data_set_train, data_set_validation,
                                                learning_rate=learning_rate)
@@ -887,7 +958,7 @@ class BaseLayer(object):
 
         return resized, best_score
 
-    def _choose_nodes_to_split(self, desired_size, data_set):
+    def _choose_nodes_to_split(self, desired_size, data_set_train, data_set_validation):
         assert isinstance(desired_size, int)
 
         current_size = self.get_resizable_dimension_size()
@@ -895,7 +966,7 @@ class BaseLayer(object):
         if desired_size <= current_size:
             raise ValueError("Can't split to get smaller than we are")
 
-        importance = self._get_node_importance(data_set)
+        importance = self._get_node_importance(data_set_train, data_set_validation)
 
         to_split = set()
 
@@ -906,7 +977,7 @@ class BaseLayer(object):
 
         return list(to_split)
 
-    def _choose_nodes_to_prune(self, desired_size, data_set):
+    def _choose_nodes_to_prune(self, desired_size, data_set_train, data_set_validation):
         assert isinstance(desired_size, int)
 
         current_size = self.get_resizable_dimension_size()
@@ -914,7 +985,7 @@ class BaseLayer(object):
         if desired_size >= current_size:
             raise ValueError("Can't prune to size larger than we are")
 
-        importance = self._get_node_importance(data_set)
+        importance = self._get_node_importance(data_set_train, data_set_validation)
 
         to_prune = set()
 

@@ -91,6 +91,11 @@ class InputLayer(BaseLayer):
             'drop_out_prob': self._drop_out_prob}
         return kwargs
 
+    @property
+    def regularizable_variables(self):
+        return
+        yield
+
 
 # Not currently working...
 class SemiSupervisedInputLayer(InputLayer):

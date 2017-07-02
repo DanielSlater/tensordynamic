@@ -109,6 +109,10 @@ def tf_resize(session, tensor, new_dimensions=None, new_values=None, assign_func
                 tensor._variable._shape._dims[i]._value = new_dimensions[i]
                 tensor._snapshot._shape._dims[i]._value = new_dimensions[i]
                 tensor._initial_value._shape._dims[i]._value = new_dimensions[i]
+
+            tensor._snapshot._shape = new_shape
+            tensor._variable._shape = new_shape
+            tensor._initial_value._shape = new_shape
         elif hasattr(tensor, '_shape'):
             for i in range(len(new_dimensions)):
                 tensor._shape._dims[i]._value = new_dimensions[i]
@@ -117,6 +121,18 @@ def tf_resize(session, tensor, new_dimensions=None, new_values=None, assign_func
 
         for output in tensor.op.outputs:
             output._shape = new_shape
+
+        for input in tensor.op.inputs:
+            if len(input._shape) == len(new_shape):
+                input._shape = new_shape
+            elif len(input._shape) == len(new_shape) + 1:
+                input._shape = TensorShape((input._shape[0]._value, ) + new_dimensions)
+            elif len(input._shape) == 0:
+                pass
+            elif len(input._shape) +1 == len(new_shape) and new_shape[0]._value is None:
+                input._shape = TensorShape(new_dimensions[1:])
+            else:
+                raise Exception("could not deal with this input")
 
 
 def tf_resize_cascading(session, variable, new_values):

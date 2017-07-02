@@ -46,19 +46,12 @@ class DataSet(object):
     def epochs_completed(self):
         return self._epochs_completed
 
-    def next_batch(self, batch_size, fake_data=False):
+    def next_batch(self, batch_size):
         """Return the next `batch_size` examples from this data set.
 
         Args:
-            fake_data (bool): If True create dummy data of 1. for everything
             batch_size (int):
         """
-        if fake_data:
-            fake_image = [1.0 for _ in xrange(self._features.shape[1])]
-            fake_label = 0
-            return [fake_image for _ in xrange(batch_size)], [
-                fake_label for _ in xrange(batch_size)]
-
         assert batch_size <= self._num_examples
 
         if self._index_in_epoch == 0 and self._epochs_completed > 0:
@@ -70,8 +63,8 @@ class DataSet(object):
 
         start = self._index_in_epoch
         self._index_in_epoch += batch_size
-        if self._index_in_epoch > self._num_examples:
-            end = -0
+        if self._index_in_epoch >= self._num_examples:
+            end = None
 
             # Finished epoch
             self._epochs_completed += 1
@@ -80,7 +73,7 @@ class DataSet(object):
             end = self._index_in_epoch
 
             # we will overrun next run
-            if start + batch_size == self._num_examples:
+            if end + batch_size > self._num_examples:
                 self._epochs_completed += 1
                 self._index_in_epoch = 0
 

@@ -43,8 +43,8 @@ class BatchNormLayer(BaseLayer):
         self._gamma = gamma
 
         self._mean, self._var = tf.nn.moments(self._input_layer.activation_train, axes=[0])
-        self._register_variable("mean", (self.INPUT_BOUND_VALUE,), self._mean)
-        self._register_variable("var", (self.INPUT_BOUND_VALUE,), self._var)
+        self._register_tensor("mean", (self.INPUT_BOUND_VALUE,), self._mean)
+        self._register_tensor("var", (self.INPUT_BOUND_VALUE,), self._var)
 
         #self._register_variable()
 
@@ -74,13 +74,13 @@ class BatchNormLayer(BaseLayer):
         if ewma_running_mean is not None:
             self.session.run(tf.assign(ewma_running_mean_variable, ewma_running_mean))
 
-        self._register_variable('ewma_running_mean', (self.OUTPUT_BOUND_VALUE,), ewma_running_mean_variable)
+        self._register_tensor('ewma_running_mean', (self.OUTPUT_BOUND_VALUE,), ewma_running_mean_variable)
 
         ewma_running_var_variable = self._ewma.average(self._running_var)
         if ewma_running_var is not None:
             self.session.run(tf.assign(ewma_running_var_variable, ewma_running_var))
 
-        self._register_variable('ewma_running_var', (self.OUTPUT_BOUND_VALUE,), ewma_running_var_variable)
+        self._register_tensor('ewma_running_var', (self.OUTPUT_BOUND_VALUE,), ewma_running_var_variable)
 
         with tf.control_dependencies([assign_mean, assign_var]):
             return self._batch_normalize_no_resize(self._input_layer.activation_train, mean, var)
@@ -96,7 +96,7 @@ class BatchNormLayer(BaseLayer):
 
         reshape_to_conv = tf.reshape(batch, [-1, 1, 1, self.input_nodes], name="reshape_to_conv")
         self._r1 = reshape_to_conv
-        self._register_variable("reshape_to_conv", (-1, 1, 1, self.INPUT_BOUND_VALUE), reshape_to_conv, is_constructor_variable=False)
+        self._register_tensor("reshape_to_conv", (-1, 1, 1, self.INPUT_BOUND_VALUE), reshape_to_conv, is_constructor_variable=False)
         batch_normalized = tf.nn.batch_norm_with_global_normalization(reshape_to_conv, mean, var,
                                                                       self._batch_norm_scale,
                                                                       self._batch_norm_transform,
@@ -104,7 +104,7 @@ class BatchNormLayer(BaseLayer):
                                                                       False)
         reshape_from_conv = tf.reshape(batch_normalized, [-1, self.input_nodes], name="reshape_from_conv")
         self._r2 = reshape_from_conv
-        self._register_variable("reshape_from_conv", (-1, self.INPUT_BOUND_VALUE), reshape_from_conv, is_constructor_variable=False)
+        self._register_tensor("reshape_from_conv", (-1, self.INPUT_BOUND_VALUE), reshape_from_conv, is_constructor_variable=False)
 
         return reshape_from_conv
 

@@ -43,7 +43,10 @@ class OutputLayer(HiddenLayer):
                  layer_noise_std=None,
                  drop_out_prob=None,
                  batch_normalize_input=None,
+                 batch_norm_transform=None,
+                 batch_norm_scale=None,
                  regularizer_weighting=0.01,
+                 regularizer_op=tf.nn.l2_loss,
                  name='OutputLayer'):
         super(OutputLayer, self).__init__(input_layer, output_nodes,
                                           session=session,
@@ -58,8 +61,11 @@ class OutputLayer(HiddenLayer):
                                           layer_noise_std=layer_noise_std,
                                           drop_out_prob=drop_out_prob,
                                           batch_normalize_input=batch_normalize_input,
+                                          batch_norm_transform=batch_norm_transform,
+                                          batch_norm_scale=batch_norm_scale,
                                           name=name)
         self._regularizer_weighting = regularizer_weighting
+        self._regularizer_op = regularizer_op
 
         with self.name_scope():
             self._target_placeholder = tf.placeholder('float', shape=(None,) + self.output_nodes, name='target')
@@ -73,17 +79,19 @@ class OutputLayer(HiddenLayer):
 
     @lazyprop
     def target_loss_op_train(self):
-        return self._target_loss_op(self.activation_train)
+        with self.name_scope(is_train=True):
+            return self._target_loss_op(self.activation_train)
 
     @lazyprop
     def target_loss_op_predict(self):
-        return self._target_loss_op(self.activation_predict)
+        with self.name_scope(is_predict=True):
+            return self._target_loss_op(self.activation_predict)
 
     @lazyprop
     def loss_op_train(self):
         if self._regularizer_weighting > 0.:
             return self.target_loss_op_train * (1. - self._regularizer_weighting) + \
-                   self.regularizer_l2_loss_op * self._regularizer_weighting
+                   self.regularizer_loss_op * self._regularizer_weighting
         else:
             return self.target_loss_op_train
 
@@ -91,19 +99,21 @@ class OutputLayer(HiddenLayer):
     def loss_op_predict(self):
         if self._regularizer_weighting > 0.:
             return self.target_loss_op_train * (1. - self._regularizer_weighting) + \
-                   self.regularizer_l2_loss_op * self._regularizer_weighting
+                   self.regularizer_loss_op * self._regularizer_weighting
         else:
             return self.target_loss_op_train
 
     @lazyprop
-    def regularizer_l2_loss_op(self):
-        weights_squared = [tf.reduce_sum(tf.square(variable)) for variable in self.variables_all_layers]
-        # TODO improve
-        chain_weights_squared = weights_squared[0]
-        for x in weights_squared[1:]:
-            chain_weights_squared = chain_weights_squared + x
+    def regularizer_loss_op(self):
+        with self.name_scope():
+            weights_squared = [self._regularizer_op(variable) for variable in self.regularizable_variables_all_layers]
 
-        return chain_weights_squared
+            # TODO improve
+            chain_weights_squared = weights_squared[0]
+            for x in weights_squared[1:]:
+                chain_weights_squared = chain_weights_squared + x
+
+            return tf.reduce_mean(chain_weights_squared)
 
     @lazyprop
     def accuracy_op(self):
@@ -188,7 +198,7 @@ class OutputLayer(HiddenLayer):
                     acc += batch_acc
 
                 test_error /= parts
-                print(test_error, acc / parts)
+                print(train_error, test_error, acc / parts)
 
             if on_iteration_complete_func is not None:
                 on_iteration_complete_func(self, iterations[0], train_error=train_error, test_error=test_error)
@@ -199,7 +209,7 @@ class OutputLayer(HiddenLayer):
 
         logger.info("iterations = %s error = %s", iterations[0], error)
 
-        return error
+        return error, iterations[0]
 
     def evaluation_stats(self, dataset):
         """Returns stats related to run
@@ -223,30 +233,54 @@ class OutputLayer(HiddenLayer):
         kwargs = super(OutputLayer, self).kwargs
 
         kwargs['regularizer_weighting'] = self._regularizer_weighting
+        kwargs['regularizer_op'] = self._regularizer_op
 
         return kwargs
 
-    def learn_structure_layer_by_layer(self, data_set_train, data_set_validate, start_learn_rate=0.01,
-                                       continue_learn_rate=0.0001, evaluation_method=bayesian_model_comparison_evaluation):
-        self.train_till_convergence(data_set_train, data_set_validate, learning_rate=start_learn_rate)
-        new_model_weight = evaluation_method(self, data_set_validate)
-        layers = list(self.get_all_resizable_layers())
+    def learn_structure_layer_by_layer(self, data_set_train, data_set_validation, start_learn_rate=0.001,
+                                       continue_learn_rate=0.0001,
+                                       model_evaluation_function=bayesian_model_comparison_evaluation,
+                                       add_layers=False):
+        self.train_till_convergence(data_set_train, data_set_validation, learning_rate=start_learn_rate)
+        best_score = model_evaluation_function(self, data_set_validation)
 
+        while True:
+            best_score = self._best_sizes_for_current_layer_number(best_score, continue_learn_rate, data_set_train,
+                                                                   data_set_validation, model_evaluation_function)
+
+            if add_layers:
+                state = self.get_network_state()
+                self.input_layer.add_intermediate_cloned_layer()
+                self.last_layer.train_till_convergence(data_set_train, data_set_validation,
+                                                       learning_rate=continue_learn_rate)
+                result = model_evaluation_function(self, data_set_validation)
+                if result > best_score:
+                    best_score = result
+                else:
+                    # adding a layer didn't help, so reset
+                    self.set_network_state(state)
+                    return
+            else:
+                return
+
+    def _best_sizes_for_current_layer_number(self, best_score, continue_learn_rate, data_set_train, data_set_validation,
+                                             model_evaluation_function):
+        layers = list(self.get_all_resizable_layers())
         index = 0
         attempts_with_out_resize = 0
-
         while attempts_with_out_resize < len(layers):
-            resized, _ = layers[index].find_best_size(data_set_train, data_set_validate,
-                                                      model_evaluation_function=evaluation_method,
-                                                      best_score=new_model_weight,
-                                                      tuning_learning_rate=continue_learn_rate)
+            resized, best_score = layers[index].find_best_size(data_set_train, data_set_validation,
+                                                               model_evaluation_function=model_evaluation_function,
+                                                               best_score=best_score,
+                                                               tuning_learning_rate=continue_learn_rate)
             if resized:
-                attempts_with_out_resize = 0
+                attempts_with_out_resize = 1
             else:
                 attempts_with_out_resize += 1
             index += 1
             if index == len(layers):
                 index = 0
+        return best_score
 
     def learn_structure_random(self, data_set_train, data_set_validate, start_learn_rate=0.01,
                                continue_learn_rate=0.0001,
@@ -273,10 +307,9 @@ class OutputLayer(HiddenLayer):
             start_size = layer_to_resize.get_resizable_dimension_size()
             new_node_count = layer_to_resize._get_new_node_count(node_change)
             layer_to_resize.resize(new_node_count)
-            try:
-                self.train_till_convergence(data_set_train, data_set_validate, learning_rate=continue_learn_rate)
-            except Exception as ex:
-                print (ex)
+
+            self.train_till_convergence(data_set_train, data_set_validate, learning_rate=continue_learn_rate)
+
             number_of_convergences += 1
 
             # did it work?
@@ -314,7 +347,7 @@ class BinaryOutputLayer(OutputLayer):
                  back_bias=None,
                  freeze=False,
                  weight_extender_func=None,
-                 noise_std=None,
+                 layer_noise_std=None,
                  regularizer_weighting=0.01,
                  name='BinaryOutputLayer'):
         super(BinaryOutputLayer, self).__init__(input_layer, (1,),
@@ -324,7 +357,7 @@ class BinaryOutputLayer(OutputLayer):
                                                 back_bias=back_bias,
                                                 freeze=freeze,
                                                 weight_extender_func=weight_extender_func,
-                                                noise_std=noise_std,
+                                                layer_noise_std=layer_noise_std,
                                                 regularizer_weighting=regularizer_weighting,
                                                 name=name)
 

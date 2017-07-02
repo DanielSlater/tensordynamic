@@ -24,6 +24,8 @@ class HiddenLayer(BaseLayer):
                  bactivation_loss_func=None,
                  node_importance_func=None,
                  batch_normalize_input=None,
+                 batch_norm_transform=None,
+                 batch_norm_scale=None,
                  name='Layer'):
         super(HiddenLayer, self).__init__(input_layer,
                                           output_nodes,
@@ -34,6 +36,8 @@ class HiddenLayer(BaseLayer):
                                           layer_noise_std=layer_noise_std,
                                           drop_out_prob=drop_out_prob,
                                           batch_normalize_input=batch_normalize_input,
+                                          batch_norm_transform=batch_norm_transform,
+                                          batch_norm_scale=batch_norm_scale,
                                           freeze=freeze,
                                           name=name)
         self._non_liniarity = self._get_property_or_default(non_liniarity, '_non_liniarity', tf.nn.sigmoid)
@@ -93,7 +97,13 @@ class HiddenLayer(BaseLayer):
         return self.bactivate
 
     def _layer_activation(self, input_activation, is_train):
-        return self._non_liniarity(tf.matmul(input_activation, self._weights) + self._bias)
+        name = '_mat_mul_is_train_equal_' + str(is_train)
+        mat_mul = tf.matmul(input_activation, self._weights)
+
+        # self._register_tensor(name, (None, BaseLayer.INPUT_BOUND_VALUE), mat_mul)
+        # this is a bit hacky... but the above commented out line is not working...
+        self.__dict__[name] = mat_mul
+        return self._non_liniarity(mat_mul + self._bias)
 
     def _layer_bactivation(self, activation, is_train):
         if self.bactivate:
@@ -125,8 +135,8 @@ class HiddenLayer(BaseLayer):
     def get_resizable_dimension_size(self):
         return self.output_nodes[0]
 
-    def _get_node_importance(self, data_set):
-        return self._node_importance_func(self, data_set)
+    def _get_node_importance(self, data_set_train, data_set_validation):
+        return self._node_importance_func(self, data_set_train, data_set_validation)
 
     def _get_deeper_net_kwargs(self):
         kwargs = self.kwargs
@@ -134,6 +144,10 @@ class HiddenLayer(BaseLayer):
         kwargs['bias'] = bias
         kwargs['weights'] = weights
         return kwargs
+
+    @property
+    def regularizable_variables(self):
+        yield self._weights
 
 
 if __name__ == '__main__':

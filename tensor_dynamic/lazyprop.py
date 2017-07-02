@@ -36,7 +36,30 @@ def lazyprop(fn):
     return _lazyprop
 
 
+def has_lazyprop(object, property_name):
+    """Returns True if this lazyprop has been instanstiated
+
+    Args:
+        object (object):
+        property_name (str):
+
+    Returns:
+        bool
+    """
+    if hasattr(object, _LAZY_PROP_VALUES):
+        return property_name in object.__dict__[_LAZY_PROP_VALUES]
+    return False
+
+
 def subscribe_to_lazy_prop(object, property_name, on_change_func):
+    """If the passed in lazyprop is ever cleared the function passed in is called
+
+    Args:
+        object (object):
+        property_name (str):
+        on_change_func (object -> None): function to be called when the lazy prop is cleared, the object is passed in
+            as the first arg
+    """
     assert isinstance(property_name, str)
 
     if not hasattr(object, _LAZY_PROP_SUBSCRIBERS):
@@ -46,6 +69,14 @@ def subscribe_to_lazy_prop(object, property_name, on_change_func):
 
 
 def unsubscribe_from_lazy_prop(object, property_name, on_change_func):
+    """Stop the function from being called if the lazyprop is cleared
+
+    Args:
+        object (object):
+        property_name (str):
+        on_change_func (object -> None): function to cancel when the lazy prop is cleared, the object is passed in
+            as the first arg
+    """
     assert isinstance(property_name, str)
 
     if hasattr(object, _LAZY_PROP_SUBSCRIBERS):
@@ -53,6 +84,12 @@ def unsubscribe_from_lazy_prop(object, property_name, on_change_func):
 
 
 def clear_lazyprop(object, property_name):
+    """Clear the named lazyprop from this object
+
+    Args:
+        object (object):
+        property_name (str):
+    """
     assert isinstance(property_name, str)
 
     if _LAZY_PROP_VALUES in object.__dict__:

@@ -115,7 +115,7 @@ def get_mnist_data_set_collection(train_dir=os.path.dirname(__file__) + "/MNIST_
     test_labels = _extract_labels(local_file, one_hot=one_hot)
 
     if not validation_size and validation_ratio:
-        validation_size = (len(train_labels) + len(test_labels)) * validation_ratio
+        validation_size = int((len(train_labels) + len(test_labels)) * validation_ratio)
 
     validation_images = train_images[:validation_size]
     validation_labels = train_labels[:validation_size]

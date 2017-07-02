@@ -6,7 +6,8 @@ from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLaye
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.node_importance import node_importance_optimal_brain_damage, node_importance_by_removal, \
-    node_importance_by_real_activation_from_input_layer_variance, node_importance_full_taylour_series
+    node_importance_by_real_activation_from_input_layer_variance, node_importance_full_taylor_series
+from tensor_dynamic.utils import get_tf_optimizer_variables
 from tests.layers.base_layer_testcase import BaseLayerWrapper
 
 
@@ -248,7 +249,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         print(target_loss_before_resize)
 
-        layer.resize(750, data_set=data.test)
+        layer.resize(750, data_set_validation=data.test)
 
         _, _, target_loss_after_resize = output.evaluation_stats(data.test)
 
@@ -363,3 +364,81 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
                                                feed_dict={output.input_placeholder: self.mnist_data.train.features[:1]})
 
         np.testing.assert_almost_equal(restored_activation, initial_activation)
+
+    def test_resize_with_batch_norm_and_2_layers_resize_2(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer1 = HiddenLayer(input_layer, 1, session=self.session, batch_normalize_input=True)
+        layer2 = HiddenLayer(layer1, 1, session=self.session, batch_normalize_input=True)
+        output = CategoricalOutputLayer(layer2, self.mnist_data.labels_shape, batch_normalize_input=False)
+
+        output.train_till_convergence(self.mnist_data.train, learning_rate=0.1)
+
+        layer2.resize(2)
+
+        output.train_till_convergence(self.mnist_data.train, learning_rate=0.1)
+
+    def test_resize_with_batch_norm_and_2_layers_resize_1(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer1 = HiddenLayer(input_layer, 1, session=self.session, batch_normalize_input=True)
+        layer2 = HiddenLayer(layer1, 1, session=self.session, batch_normalize_input=True)
+        output = CategoricalOutputLayer(layer2, self.mnist_data.labels_shape, batch_normalize_input=False)
+
+        # output.train_till_convergence(self.mnist_data.train, learning_rate=0.1)
+        optimizer = tf.train.AdamOptimizer()
+        loss = optimizer.minimize(output.target_loss_op_predict)
+        self.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer))))
+        self.session.run(loss,
+                         feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
+                                    output.target_placeholder: self.mnist_data.train.labels[:3]})
+
+        layer1.resize(2)
+
+        optimizer2 = tf.train.AdamOptimizer()
+        loss2 = optimizer2.minimize(output.target_loss_op_predict)
+        self.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer2))))
+        self.session.run(loss2,
+                         feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
+                                    output.target_placeholder: self.mnist_data.train.labels[:3]})
+
+    def test_resize_with_batch_norm_and_2_layers_resize_3(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer1 = HiddenLayer(input_layer, 2, session=self.session, batch_normalize_input=True)
+        layer2 = HiddenLayer(layer1, 3, session=self.session, batch_normalize_input=True)
+
+        optimizer = tf.train.AdamOptimizer()
+        loss = optimizer.minimize(layer2.activation_predict)
+        self.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer))))
+        self.session.run(loss,
+                         feed_dict={input_layer.input_placeholder: self.mnist_data.train.features[:3],
+                                    })
+
+        layer1.resize(4)
+
+        optimizer2 = tf.train.AdamOptimizer()
+        loss2 = optimizer2.minimize(layer2.activation_predict)
+        self.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer2))))
+        self.session.run(loss2,
+                         feed_dict={input_layer.input_placeholder: self.mnist_data.train.features[:3],
+                                    })
+
+    def test_resize_with_batch_norm_resize(self):
+        input_layer = InputLayer(self.mnist_data.features_shape)
+        layer = HiddenLayer(input_layer, 2, session=self.session, batch_normalize_input=True)
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, batch_normalize_input=False)
+
+        # output.train_till_convergence(self.mnist_data.train, learning_rate=0.1)
+        optimizer = tf.train.AdamOptimizer()
+        loss = optimizer.minimize(output.activation_predict)
+        self.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer))))
+        self.session.run(loss,
+                         feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
+                                    output.target_placeholder: self.mnist_data.train.labels[:3]})
+
+        layer.resize(3)
+
+        optimizer2 = tf.train.AdamOptimizer()
+        loss2 = optimizer2.minimize(output.activation_predict)
+        self.session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer2))))
+        self.session.run(loss2,
+                         feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
+                                    output.target_placeholder: self.mnist_data.train.labels[:3]})

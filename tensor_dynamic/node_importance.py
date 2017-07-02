@@ -3,7 +3,7 @@ import numpy as np
 from tensor_dynamic.utils import create_hessian_variable_op, get_first_two_derivatives_op
 
 
-def node_importance_by_dummy_activation_from_input_layer(layer, data_set):
+def node_importance_by_dummy_activation_from_input_layer(layer, data_set_train, data_set_validation):
     shape = (1,) + tuple(int(x) for x in layer.input_placeholder.get_shape()[1:])
     all_pos_1 = np.ones(shape=shape, dtype=np.float32)
 
@@ -19,7 +19,8 @@ def node_importance_by_dummy_activation_from_input_layer(layer, data_set):
     return np.sum(importance, axis=0)
 
 
-def node_importance_by_real_activation_from_input_layer(layer, data_set):
+def node_importance_by_real_activation_from_input_layer(layer, data_set_train, data_set_validation):
+    data_set = data_set_train or data_set_validation
     if data_set is not None:
         importance = layer._session.run(layer.activation_predict,
                                         feed_dict={layer.input_placeholder:
@@ -27,34 +28,39 @@ def node_importance_by_real_activation_from_input_layer(layer, data_set):
 
         return np.sum(importance, axis=0)
     else:
-        return node_importance_random(layer, data_set)
+        return node_importance_random(layer, data_set, data_set_validation)
 
 
-def node_importance_by_real_activation_from_input_layer_variance(layer, data_set):
+def node_importance_by_real_activation_from_input_layer_variance(layer, data_set_train, data_set_validation):
+    data_set = data_set_train or data_set_validation
     if data_set is not None:
         importance = layer._session.run(layer.activation_predict,
                                         feed_dict={layer.input_placeholder:
                                                        data_set.features})
         return np.var(importance, axis=0)
     else:
-        return node_importance_random(layer, data_set)
+        return node_importance_random(layer, data_set, data_set_validation)
 
 
-def node_importance_by_square_sum(layer, data_set):
+def node_importance_by_square_sum(layer, data_set_train, data_set_validation):
+    data_set = data_set_train or data_set_validation
     # TODO by bound variable
     weights, bias = layer._session.run([layer._weights, layer._bias])
 
     return np.sum(np.square(weights), axis=0) + np.square(bias)
 
 
-def node_importance_random(layer, data_set):
+def node_importance_random(layer, data_set_train, data_set_validation):
     return np.random.normal(size=(layer.get_resizable_dimension_size()))
 
 
-def node_importance_by_removal(layer, data_set):
+def node_importance_by_removal(layer, data_set_train, data_set_validation):
+    data_set = data_set_train or data_set_validation
+
     # TODO by bound variable
     if data_set is None:
         return node_importance_random(layer, data_set)
+
     base_error = layer._session.run(layer.last_layer.target_loss_op_predict,
                                     feed_dict={layer.input_placeholder:
                                                    data_set.features,
@@ -88,9 +94,11 @@ def node_importance_by_removal(layer, data_set):
     return errors
 
 
-def node_importance_optimal_brain_damage(layer, data_set):
+def node_importance_optimal_brain_damage(layer, data_set_train, data_set_validation):
+    data_set = data_set_train or data_set_validation
+
     if data_set is None:
-        return node_importance_random(layer, data_set)
+        return node_importance_random(layer, data_set, data_set_validation)
 
     weights_hessian_op = create_hessian_variable_op(layer.last_layer.target_loss_op_predict,
                                                     layer._weights)
@@ -110,9 +118,11 @@ def node_importance_optimal_brain_damage(layer, data_set):
     return np.sum(weights_squared * weights_hessian, axis=0) + bias_squared * bias_hessian
 
 
-def node_importance_full_taylour_series(layer, data_set):
+def node_importance_full_taylor_series(layer, data_set_train, data_set_validation):
+    data_set = data_set_validation
+
     if data_set is None:
-        return node_importance_random(layer, data_set)
+        return node_importance_random(layer, data_set, data_set_validation)
 
     weights_jacobean_op, weights_hessian_op = get_first_two_derivatives_op(layer.last_layer.target_loss_op_predict,
                                                                            layer._weights)

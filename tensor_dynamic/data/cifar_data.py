@@ -61,7 +61,7 @@ def get_cifar_10_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True,
         labels_test = dense_to_one_hot(labels_test)
 
     if not validation_size and validation_ratio:
-        validation_size = (len(labels_train) + len(labels_test)) * validation_ratio
+        validation_size = int((len(labels_train) + len(labels_test)) * validation_ratio)
 
     if validation_size:
         features_validation = features_train[validation_size:]
@@ -107,7 +107,7 @@ def get_cifar_100_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True, us
         labels_test = dense_to_one_hot(labels_test, num_classes)
 
     if not validation_size and validation_ratio:
-        validation_size = (len(labels_train) + len(labels_test)) * validation_ratio
+        validation_size = int((len(labels_train) + len(labels_test)) * validation_ratio)
 
     if validation_size:
         features_validation = features_train[validation_size:]

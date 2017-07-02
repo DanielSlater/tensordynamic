@@ -16,7 +16,10 @@ class CategoricalOutputLayer(OutputLayer):
                  layer_noise_std=None,
                  drop_out_prob=None,
                  batch_normalize_input=None,
+                 batch_norm_transform=None,
+                 batch_norm_scale=None,
                  regularizer_weighting=0.01,
+                 regularizer_op=tf.nn.l2_loss,
                  name='CategoricalOutputLayer'):
         super(CategoricalOutputLayer, self).__init__(input_layer, output_nodes,
                                                      session=session,
@@ -28,7 +31,10 @@ class CategoricalOutputLayer(OutputLayer):
                                                      layer_noise_std=layer_noise_std,
                                                      drop_out_prob=drop_out_prob,
                                                      batch_normalize_input=batch_normalize_input,
+                                                     batch_norm_transform=batch_norm_transform,
+                                                     batch_norm_scale=batch_norm_scale,
                                                      regularizer_weighting=regularizer_weighting,
+                                                     regularizer_op=regularizer_op,
                                                      name=name)
 
     def _layer_activation(self, input_activation, is_train):
@@ -36,30 +42,38 @@ class CategoricalOutputLayer(OutputLayer):
 
     @lazyprop
     def _pre_softmax_activation_predict(self):
-        return self._layer_activation(self.input_layer.activation_predict, False)
+        with self.name_scope(is_train=True):
+            input_activation = self._process_input_activation_predict(self.input_layer.activation_predict)
+            return self._layer_activation(input_activation, False)
 
     @lazyprop
     def _pre_softmax_activation_train(self):
-        return self._layer_activation(self.input_layer.activation_train, True)
+        with self.name_scope(is_predict=True):
+            input_activation = self._process_input_activation_predict(self.input_layer.activation_train)
+            return self._layer_activation(input_activation, True)
 
     @lazyprop
     def activation_predict(self):
-        return tf.nn.softmax(self._pre_softmax_activation_predict)
+        with self.name_scope(is_predict=True):
+            return tf.nn.softmax(self._pre_softmax_activation_predict)
 
     @lazyprop
     def activation_train(self):
-        return tf.nn.softmax(self._pre_softmax_activation_train)
+        with self.name_scope(is_train=True):
+            return tf.nn.softmax(self._pre_softmax_activation_train)
 
     @lazyprop
     def target_loss_op_train(self):
-        return self._target_loss_op(self._pre_softmax_activation_train)
+        with self.name_scope(is_train=True):
+            return self._target_loss_op(self._pre_softmax_activation_train)
 
     @lazyprop
     def target_loss_op_predict(self):
-        return self._target_loss_op(self._pre_softmax_activation_predict)
+        with self.name_scope(is_predict=True):
+            return self._target_loss_op(self._pre_softmax_activation_predict)
 
     def _target_loss_op(self, input_tensor):
-        return tf.reduce_mean( # TODO: Change to mean?
+        return tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits(logits=input_tensor, labels=self._target_placeholder),
         )
 
@@ -86,3 +100,7 @@ class CategoricalOutputLayer(OutputLayer):
     @lazyprop
     def log_probability_of_targets_op(self):
         return tf.reduce_sum(tf.log(tf.reduce_sum(tf.nn.softmax(self.activation_predict) * self.target_placeholder, 1)))
+
+    @property
+    def regularizable_variables(self):
+        yield self._weights

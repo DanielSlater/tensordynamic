@@ -10,12 +10,12 @@ from tensor_dynamic.layers.max_pool_layer import MaxPoolLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 
 # data_set_collection = get_cifar_100_data_set_collection()
-data_set_collection = get_mnist_data_set_collection()
+data_set_collection = get_mnist_data_set_collection(validation_ratio=.15)
 
 with tf.Session() as session:
     non_liniarity = tf.nn.relu
 
-    regularizer_coeff = 0.001
+    regularizer_coeff = 0.01
     last_layer = InputLayer(data_set_collection.features_shape,
                             # drop_out_prob=.5,
                             # layer_noise_std=1.
@@ -23,8 +23,8 @@ with tf.Session() as session:
 
     # last_layer = FlattenLayer(last_layer, session)
 
-    for _ in range(1):
-        last_layer = HiddenLayer(last_layer, 100, session, non_liniarity=non_liniarity,
+    for _ in range(2):
+        last_layer = HiddenLayer(last_layer, 256, session, non_liniarity=non_liniarity,
                                  batch_normalize_input=True)
 
     # last_layer = ConvolutionalLayer(last_layer, (5, 5, 32), stride=(1, 1, 1), session=session,
@@ -46,15 +46,19 @@ with tf.Session() as session:
     # last_layer = HiddenLayer(last_layer, 512, session, non_liniarity=non_liniarity)
 
     output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
+                                    batch_normalize_input=True,
                                     regularizer_weighting=regularizer_coeff)
 
-    output.train_till_convergence(data_set_collection.train, data_set_collection.test, learning_rate=0.00001,
-                                  continue_epochs=2)
+    # output.train_till_convergence(data_set_collection.train, data_set_collection.test, learning_rate=0.00001,
+    #                               continue_epochs=2)
 
-    # output.learn_structure_layer_by_layer(data_set_collection.train, data_set_collection.test,
-    #                                       start_learn_rate=0.0001, continue_learn_rate=0.00001)
+    output.learn_structure_layer_by_layer(data_set_collection.train, data_set_collection.validation,
+                                          start_learn_rate=0.0001, continue_learn_rate=0.0001,
+                                          add_layers=True)
 
     train_log_prob, train_acc, train_error = output.evaluation_stats(data_set_collection.train)
+
+    val_log_prob, val_acc, val_error = output.evaluation_stats(data_set_collection.validation)
 
     test_log_prob, test_acc, test_error = output.evaluation_stats(data_set_collection.test)
 
