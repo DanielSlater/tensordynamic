@@ -1,0 +1,11 @@
+data_set=MNIST
+data_set_normalized=True
+optimizer=<class 'tensorflow.python.training.adam.AdamOptimizer'>
+network=flat
+continue_epochs=2
+input_noise_std=None
+regularizer=0.01
+batch_normalize_input=True
+input_layer_noise_std=1.0
+learning_rate=1e-05
+activation_func=<function relu at 0x7f380c08ccf8>

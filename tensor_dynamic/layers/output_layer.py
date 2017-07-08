@@ -98,7 +98,7 @@ class OutputLayer(HiddenLayer):
     @lazyprop
     def loss_op_predict(self):
         if self._regularizer_weighting > 0.:
-            return self.target_loss_op_train * (1. - self._regularizer_weighting) + \
+            return self.target_loss_op_predict * (1. - self._regularizer_weighting) + \
                    self.regularizer_loss_op * self._regularizer_weighting
         else:
             return self.target_loss_op_train
