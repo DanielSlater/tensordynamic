@@ -1,5 +1,6 @@
 import functools
 import logging
+import pickle
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
@@ -425,6 +426,7 @@ class BaseLayer(object):
     @property
     def kwargs(self):
         kwargs = {
+            'output_nodes': self._output_nodes,
             'weight_extender_func': self._weight_extender_func,
             'layer_noise_std': self._layer_noise_std,
             'drop_out_prob': self._drop_out_prob,
@@ -453,7 +455,7 @@ class BaseLayer(object):
             tensorflow_dynamic.BaseLayer: A copy of this layer and all upstream layers
         """
         new_self = self.__class__(self.input_layer.clone(session or self.session),
-                                  self.output_nodes,
+                                  # self.output_nodes,
                                   session=session or self._session,
                                   **self.kwargs)
 
@@ -1055,6 +1057,30 @@ class BaseLayer(object):
     def get_network_state(self):
         return [layer._get_layer_state() for layer in self.all_connected_layers]
 
+    def get_network_pickle(self):
+        return pickle.dumps(self.get_network_state())
+
+    @staticmethod
+    def load_network_from_state(state, session):
+        last_layer = None
+
+        for type, size, kwargs in state:
+            if last_layer is None:
+                if 'session' in type.__init__.__func__.func_code.co_varnames:
+                    last_layer = type(session=session, **kwargs)
+                else:
+                    last_layer = type(**kwargs)
+            else:
+                last_layer = type(last_layer, session=session, **kwargs)
+
+        return last_layer
+
+    @staticmethod
+    def load_network_from_pickle(data, session):
+        state = pickle.loads(data)
+
+        return BaseLayer.load_network_from_state(state, session)
+
     def set_network_state(self, state):
         all_current_layers = list(self.all_connected_layers)
 
@@ -1078,3 +1104,26 @@ class BaseLayer(object):
 
                 next_current_layer.remove_layer_from_network()
                 layer_after._set_layer_state(next_state)
+
+    @lazyprop
+    def gradients_with_respect_to_error_op(self):
+        clear_lazyprop_on_lazyprop_cleared(self, "gradients_with_respect_to_error_op",
+                                           self.last_layer, "target_loss_op_predict")
+
+        gradients_ops = []
+        for variable in self.variables:
+            gradients_ops.append(tf.gradients(self.last_layer.target_loss_op_predict, variable)[0])
+
+        return gradients_ops
+
+    @lazyprop
+    def hessien_with_respect_to_error_op(self):
+        clear_lazyprop_on_lazyprop_cleared(self, "hessien_with_respect_to_error_op",
+                                           self, "gradients_with_respect_to_error_op")
+
+        hessian_ops = []
+        for variable, gradients in zip(self.variables, self.gradients_with_respect_to_error_op):
+            hessian_ops.append(tf.gradients(gradients, variable)[0])
+
+        # TODO: use tf.hessian in tensorflow 1. also use tf.diag_part
+        return hessian_ops

@@ -1,8 +1,10 @@
+import pickle
 import unittest
 
 import numpy as np
 import tensorflow as tf
 
+from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
@@ -85,3 +87,30 @@ class TestNet(BaseTfTestCase):
         accuracy = outputs.accuracy(data.test)
         self.assertLessEqual(accuracy, 100.)
         self.assertGreaterEqual(accuracy, 0.)
+
+    def test_save_load_network(self):
+        net1 = InputLayer(784)
+        net2 = HiddenLayer(net1, 20, self.session)
+        output_net = CategoricalOutputLayer(net2, 10, self.session)
+
+        data = output_net.get_network_pickle()
+
+        new_net = BaseLayer.load_network_from_pickle(data, self.session)
+
+        print new_net
+
+    def test_save_load_network(self):
+        net1 = InputLayer(784)
+        net2 = HiddenLayer(net1, 20, self.session)
+        output_net = CategoricalOutputLayer(net2, 10, self.session)
+
+        data = output_net.get_network_pickle()
+
+        with open("temp", "w") as f:
+            f.write(data)
+
+        new_data = pickle.load(open("temp", "r"))
+
+        new_net = BaseLayer.load_network_from_state(new_data, self.session)
+
+        print new_net

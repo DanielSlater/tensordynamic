@@ -21,6 +21,7 @@ class EDataType(Enum):
 
 
 def create_flat_network(data_set_collection, hidden_layers, session, regularizer_coeff=0.001,
+                        batch_normalize_input=False,
                         activation_func=tf.nn.relu,
                         input_layer_noise_std=None,
                         input_noise_std=None):
@@ -41,10 +42,12 @@ def create_flat_network(data_set_collection, hidden_layers, session, regularizer
 
     for hidden_nodes in hidden_layers:
         last_layer = HiddenLayer(last_layer, hidden_nodes, session, non_liniarity=activation_func,
-                                 layer_noise_std=input_noise_std)
+                                 layer_noise_std=input_noise_std,
+                                 batch_normalize_input=batch_normalize_input)
 
     output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
-                                    regularizer_weighting=regularizer_coeff)
+                                    regularizer_weighting=regularizer_coeff,
+                                    batch_normalize_input=batch_normalize_input)
     return output
 
 

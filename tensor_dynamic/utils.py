@@ -44,7 +44,7 @@ def weight_init(shape, constant=1.0):
                              dtype=tf.float32)
 
 
-def bias_init(shape, constant=0.01):
+def bias_init(shape, constant=0.1):
     if isinstance(shape, int):
         shape = (shape,)
     return tf.constant(constant, shape=shape, dtype=tf.float32)

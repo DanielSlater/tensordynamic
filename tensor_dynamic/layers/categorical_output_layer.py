@@ -81,7 +81,7 @@ class CategoricalOutputLayer(OutputLayer):
             return self._target_loss_op(self._pre_softmax_activation_predict)
 
     def _target_loss_op(self, input_tensor):
-        return tf.reduce_mean(
+        return tf.reduce_sum(
             tf.nn.softmax_cross_entropy_with_logits(logits=input_tensor, labels=self._target_placeholder),
         )
 
@@ -114,3 +114,13 @@ class CategoricalOutputLayer(OutputLayer):
     @property
     def regularizable_variables(self):
         yield self._weights
+
+    @property
+    def kwargs(self):
+        kwargs = super(OutputLayer, self).kwargs
+
+        del kwargs['bactivate']
+        del kwargs['bactivation_loss_func']
+        del kwargs['non_liniarity']
+
+        return kwargs

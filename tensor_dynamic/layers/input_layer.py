@@ -71,7 +71,7 @@ class InputLayer(BaseLayer):
         return True
 
     def clone(self, session=None):
-        return self.__class__(self.output_nodes, **self.kwargs)
+        return self.__class__(**self.kwargs)
 
     @property
     def variables(self):
@@ -86,6 +86,7 @@ class InputLayer(BaseLayer):
     @property
     def kwargs(self):
         kwargs = {
+            'input_nodes': self.output_nodes,
             'name': self._name,
             'layer_noise_std': self._layer_noise_std,
             'drop_out_prob': self._drop_out_prob}

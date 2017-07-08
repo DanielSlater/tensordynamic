@@ -60,3 +60,8 @@ class FlattenLayer(BaseLayer):
                                   name=self._name)
 
         return new_self
+
+    @property
+    def regularizable_variables(self):
+        return
+        yield

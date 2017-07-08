@@ -516,3 +516,18 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
                                       learning_rate=.1)
+
+    def test_hessian(self):
+        layer = InputLayer(self.mnist_data.features_shape, layer_noise_std=1.)
+
+        layer = HiddenLayer(layer, 6, self.session,
+                            batch_normalize_input=True)
+
+        output = CategoricalOutputLayer(layer, self.mnist_data.labels_shape, self.session,
+                                        batch_normalize_input=True)
+
+        hession_op = layer.hessien_with_respect_to_error_op
+
+        result = self.session.run(hession_op, feed_dict={output.input_placeholder:self.mnist_data.train.features,
+                                                         output.target_placeholder: self.mnist_data.train.labels})
+        print result
