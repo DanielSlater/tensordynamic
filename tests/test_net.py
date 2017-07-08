@@ -99,7 +99,7 @@ class TestNet(BaseTfTestCase):
 
         print new_net
 
-    def test_save_load_network(self):
+    def test_save_load_network_to_disk(self):
         net1 = InputLayer(784)
         net2 = HiddenLayer(net1, 20, self.session)
         output_net = CategoricalOutputLayer(net2, 10, self.session)
