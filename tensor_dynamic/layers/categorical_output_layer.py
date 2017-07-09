@@ -21,6 +21,7 @@ class CategoricalOutputLayer(OutputLayer):
                  regularizer_weighting=0.01,
                  regularizer_op=tf.nn.l2_loss,
                  loss_cross_entropy_or_log_prob=True,
+                 save_checkpoints=0,
                  name='CategoricalOutputLayer'):
         super(CategoricalOutputLayer, self).__init__(input_layer, output_nodes,
                                                      session=session,
@@ -36,6 +37,7 @@ class CategoricalOutputLayer(OutputLayer):
                                                      batch_norm_scale=batch_norm_scale,
                                                      regularizer_weighting=regularizer_weighting,
                                                      regularizer_op=regularizer_op,
+                                                     save_checkpoints=save_checkpoints,
                                                      name=name)
         self._loss_cross_entropy_or_log_prob = loss_cross_entropy_or_log_prob
 
