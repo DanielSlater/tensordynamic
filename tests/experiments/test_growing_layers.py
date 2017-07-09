@@ -1,77 +1,71 @@
-"""
-This script tests
-* creating a network with 1 hidden layer
-* training it until convergence
-* then repeating
-    * adding a layer
-    * train till convergence
-
-The results are, you can add a layer and it seems to always improve test error
-
-TODO:   compare to highway layer
-        compare to residule layer
-        compare to network of same size trained from scratch
-"""
-import sys
 import tensorflow as tf
 
-from tensor_dynamic.categorical_trainer import CategoricalTrainer
-from tensor_dynamic.layers.input_layer import InputLayer
+from tensor_dynamic.data.cifar_data import get_cifar_100_data_set_collection
+from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
+from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
-from tests.base_tf_testcase import BaseTfTestCase
+from tensor_dynamic.layers.input_layer import InputLayer
 
-HIDDEN_NOES = 100
-MAX_EPOCHS = 1000
-
-
-def train_until_no_improvement_for_epochs(train_data_set, net, max_epochs_without_improvement, validation_data_set=None):
-    trainer = CategoricalTrainer(net, 0.1)
-    best_error = sys.float_info.max
-    epochs_since_best_error = 0
-
-    for x in range(MAX_EPOCHS):
-        error = trainer.train_one_epoch(train_data_set, 100)
-        print("iteration {0} error {1}".format(x, error))
-
-        if validation_data_set is not None:
-            error = trainer.ac
-
-        trainer.learn_rate *= 0.995
-
-        if error < best_error:
-            best_error = error
-            epochs_since_best_error = 0
-        else:
-            if epochs_since_best_error > max_epochs_without_improvement:
-                break
-            epochs_since_best_error += 1
-
-    return best_error
+data_set_collection = get_cifar_100_data_set_collection(validation_ratio=.15)
 
 
-class TestGrowingLayers(BaseTfTestCase):
-    def test_increase_layers_until_stop_decreasing_test_error(self):
-        data = self.mnist_data
-        input = InputLayer(784)
-        hidden = HiddenLayer(input, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid, bactivate=False)
-        output = HiddenLayer(hidden, 10, self.session, non_liniarity=tf.sigmoid, bactivate=False, supervised_cost=1.)
+def print_stats(data_set_collection, model):
+    train_log_prob, train_acc, train_error = model.evaluation_stats(data_set_collection.train)
+    val_log_prob, val_acc, val_error = model.evaluation_stats(data_set_collection.validation)
+    test_log_prob, test_acc, test_error = model.evaluation_stats(data_set_collection.test)
+    print("%s,%s,%s%s,%s,%s,%s,%s,%s,%s,%s\n" % (train_log_prob, train_error, train_acc,
+                                                 val_log_prob, val_error, val_acc,
+                                                 test_log_prob, test_error, test_acc,
+                                                 str(model.get_resizable_dimension_size_all_layers())
+                                                 .replace(',', '-'),
+                                                 model.get_parameters_all_layers()))
 
-        best_score = train_until_no_improvement_for_epochs(data, output, 3)
 
-        for hidden_layer_count in range(1, 10):
-            print("hidden_layers {0} best_score {1}".format(hidden_layer_count, best_score))
+def try_intermediate_layer(layer_num):
+    print "add layer at pos " + str(layer_num)
+    list(output.all_connected_layers)[layer_num].add_intermediate_layer(
+        lambda x: HiddenLayer(x, nodes_per_layer, session,
+                              non_liniarity=non_liniarity,
+                              batch_normalize_input=True))
+    output.train_till_convergence(data_set_collection.train, data_set_collection.validation,
+                                  learning_rate=0.0001)
+    output.save_checkpoints('cifar-100-layers')
+    print_stats(data_set_collection, output)
+    output.set_network_state(state)
 
-            candidate = output.clone()
-            last_hidden_layer = candidate.last_layer.input_layer
-            last_hidden_layer.add_intermediate_layer(
-                lambda input_layer: HiddenLayer(input_layer, HIDDEN_NOES, self.session, non_liniarity=tf.sigmoid,
-                                                bactivate=False))
 
-            new_best_score = train_until_no_improvement_for_epochs(data, candidate, 3)
-            if new_best_score > best_score:
-                # failed to get improvement
-                print("failed to get improvement with layer {0}".format(hidden_layer_count))
-                break
-            else:
-                best_score = new_best_score
-                output = candidate
+with tf.Session() as session:
+    non_liniarity = tf.nn.relu
+    nodes_per_layer = 400
+
+    regularizer_coeff = 0.01
+    last_layer = InputLayer(data_set_collection.features_shape,
+                            # drop_out_prob=.5,
+                            # layer_noise_std=1.
+                            )
+
+    last_layer = FlattenLayer(last_layer, session)
+
+    for _ in range(3):
+        last_layer = HiddenLayer(last_layer, nodes_per_layer, session, non_liniarity=non_liniarity,
+                                 batch_normalize_input=True)
+
+    output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
+                                    batch_normalize_input=True,
+                                    loss_cross_entropy_or_log_prob=True,
+                                    regularizer_weighting=regularizer_coeff)
+
+    output.train_till_convergence(data_set_collection.train, data_set_collection.validation,
+                                  learning_rate=0.0001)
+
+    state = output.get_network_state()
+
+    output.save_checkpoints('cifar-100-layers')
+
+    print_stats(data_set_collection, output)
+
+    for i in range(3):
+        try_intermediate_layer(3-i)
+
+    # (7508.6528, 0.97310001)
+    # INFO:tensor_dynamic.layers.output_layer:iterations = 23 error = 7508.65

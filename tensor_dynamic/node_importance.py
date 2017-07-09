@@ -100,14 +100,7 @@ def node_importance_optimal_brain_damage(layer, data_set_train, data_set_validat
     if data_set is None:
         return node_importance_random(layer, data_set, data_set_validation)
 
-    # TODO: Use this instead
-    # variable_ops = layer.hessien_with_respect_to_error_op
-
-    weights_hessian_op = create_hessian_variable_op(layer.last_layer.target_loss_op_predict,
-                                                    layer._weights)
-
-    bias_hessian_op = create_hessian_variable_op(layer.last_layer.target_loss_op_predict,
-                                                 layer._bias)
+    weights_hessian_op, bias_hessian_op = layer.hessien_with_respect_to_error_op
 
     weights, bias, weights_hessian, bias_hessian = layer.session.run(
         [layer._weights, layer._bias, weights_hessian_op, bias_hessian_op],
@@ -127,11 +120,8 @@ def node_importance_full_taylor_series(layer, data_set_train, data_set_validatio
     if data_set is None:
         return node_importance_random(layer, data_set, data_set_validation)
 
-    weights_jacobean_op, weights_hessian_op = get_first_two_derivatives_op(layer.last_layer.target_loss_op_predict,
-                                                                           layer._weights)
-
-    bias_jacobean_op, bias_hessian_op = get_first_two_derivatives_op(layer.last_layer.target_loss_op_predict,
-                                                                     layer._bias)
+    weights_jacobean_op, bias_jacobean_op = layer.gradients_with_respect_to_error_op
+    weights_hessian_op, bias_hessian_op = layer.hessien_with_respect_to_error_op
 
     weights, bias, weights_jacobean, bias_jacobean, weights_hessian, bias_hessian = layer.session.run(
         [layer._weights, layer._bias, weights_jacobean_op, bias_jacobean_op, weights_hessian_op, bias_hessian_op],

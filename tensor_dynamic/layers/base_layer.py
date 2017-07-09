@@ -701,7 +701,6 @@ class BaseLayer(object):
                 self._bound_variable_assign_data[name] = (assign_op, placeholder)
 
         assign_op, placeholder = self._bound_variable_assign_data[name]
-
         return lambda value: self.session.run(assign_op, feed_dict={placeholder: value})
 
     def remove_layer_from_network(self):
@@ -764,9 +763,11 @@ class BaseLayer(object):
         old_next_layer = self.detach_output()
         new_next_layer = layer_creation_func(self, *args, **kwargs)
 
+        # make sure sizes are correct going forward
+        new_next_layer.resize(new_next_layer.get_resizable_dimension_size())
+
         new_next_layer._next_layer = old_next_layer
         old_next_layer._input_layer = new_next_layer
-        print("SFASF")
 
     @property
     def assign_op(self):
@@ -1110,13 +1111,17 @@ class BaseLayer(object):
                 next_current_layer.remove_layer_from_network()
                 layer_after._set_layer_state(next_state)
 
+    @property
+    def resizable_variables(self):
+        raise NotImplementedError()
+
     @lazyprop
     def gradients_with_respect_to_error_op(self):
         clear_lazyprop_on_lazyprop_cleared(self, "gradients_with_respect_to_error_op",
                                            self.last_layer, "target_loss_op_predict")
 
         gradients_ops = []
-        for variable in self.variables:
+        for variable in self.resizable_variables:
             gradients_ops.append(tf.gradients(self.last_layer.target_loss_op_predict, variable)[0])
 
         return gradients_ops
@@ -1127,7 +1132,7 @@ class BaseLayer(object):
                                            self, "gradients_with_respect_to_error_op")
 
         hessian_ops = []
-        for variable, gradients in zip(self.variables, self.gradients_with_respect_to_error_op):
+        for variable, gradients in zip(self.resizable_variables, self.gradients_with_respect_to_error_op):
             hessian_ops.append(tf.gradients(gradients, variable)[0])
 
         # TODO: use tf.hessian in tensorflow 1. also use tf.diag_part

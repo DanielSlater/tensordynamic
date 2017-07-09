@@ -110,8 +110,8 @@ def get_cifar_100_data_set_collection(root_path=CIFAR_DATA_DIR, one_hot=True, us
         validation_size = int((len(labels_train) + len(labels_test)) * validation_ratio)
 
     if validation_size:
-        features_validation = features_train[validation_size:]
-        labels_validation = labels_train[validation_size:]
+        features_validation = features_train[:validation_size]
+        labels_validation = labels_train[:validation_size]
 
         features_train = features_train[validation_size:]
         labels_train = labels_train[validation_size:]

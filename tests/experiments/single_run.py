@@ -1,15 +1,13 @@
 import tensorflow as tf
 
-from tensor_dynamic.data.cifar_data import get_cifar_100_data_set_collection
 from tensor_dynamic.data.mnist_data import get_mnist_data_set_collection
-from tensor_dynamic.layers.convolutional_layer import ConvolutionalLayer
-from tensor_dynamic.layers.flatten_layer import FlattenLayer
-from tensor_dynamic.layers.input_layer import InputLayer
-from tensor_dynamic.layers.hidden_layer import HiddenLayer
-from tensor_dynamic.layers.max_pool_layer import MaxPoolLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
+from tensor_dynamic.layers.hidden_layer import HiddenLayer
+from tensor_dynamic.layers.input_layer import InputLayer
 
 # data_set_collection = get_cifar_100_data_set_collection()
+from tensor_dynamic.node_importance import node_importance_optimal_brain_damage
+
 data_set_collection = get_mnist_data_set_collection(validation_ratio=.15)
 
 with tf.Session() as session:
@@ -23,8 +21,9 @@ with tf.Session() as session:
 
     # last_layer = FlattenLayer(last_layer, session)
 
-    for _ in range(2):
-        last_layer = HiddenLayer(last_layer, 256, session, non_liniarity=non_liniarity,
+    for _ in range(1):
+        last_layer = HiddenLayer(last_layer, 10, session, non_liniarity=non_liniarity,
+                                 node_importance_func=node_importance_optimal_brain_damage,
                                  batch_normalize_input=True)
 
     # last_layer = ConvolutionalLayer(last_layer, (5, 5, 32), stride=(1, 1, 1), session=session,
@@ -47,6 +46,7 @@ with tf.Session() as session:
 
     output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
                                     batch_normalize_input=True,
+                                    loss_cross_entropy_or_log_prob=False,
                                     regularizer_weighting=regularizer_coeff)
 
     # output.train_till_convergence(data_set_collection.train, data_set_collection.test, learning_rate=0.00001,

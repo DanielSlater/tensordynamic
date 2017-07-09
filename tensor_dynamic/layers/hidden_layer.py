@@ -149,6 +149,11 @@ class HiddenLayer(BaseLayer):
     def regularizable_variables(self):
         yield self._weights
 
+    @property
+    def resizable_variables(self):
+        yield self._weights
+        yield self._bias
+
 
 if __name__ == '__main__':
     with tf.Session() as session:
