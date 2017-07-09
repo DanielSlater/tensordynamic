@@ -14,6 +14,11 @@ from tensor_dynamic.lazyprop import clear_all_lazyprops, lazyprop, clear_lazypro
 from tensor_dynamic.utils import tf_resize, bias_init, weight_init
 from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 
+# fix for older version of tensorflow
+if not hasattr(tf, 'variables_initializer'):
+    setattr(tf, 'variables_initializer', tf.initialize_variables)
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -747,7 +752,7 @@ class BaseLayer(object):
             kwargs['batch_norm_scale'] = np.ones(shape=kwargs['batch_norm_scale'].shape,
                                                  dtype=kwargs['batch_norm_scale'].dtype)
 
-        self.add_intermediate_layer(lambda x: self.__class__(self, self.output_nodes, session=self.session, **kwargs))
+        self.add_intermediate_layer(lambda x: self.__class__(self, session=self.session, **kwargs))
 
     def add_intermediate_layer(self, layer_creation_func, *args, **kwargs):
         """Adds a layer to the network between this layer and the next one.

@@ -85,7 +85,7 @@ class CategoricalOutputLayer(OutputLayer):
         if self._loss_cross_entropy_or_log_prob:
             loss = tf.nn.softmax_cross_entropy_with_logits(logits=input_tensor, labels=self._target_placeholder)
         else:
-            loss = -tf.log(tf.reduce_sum(tf.nn.softmax(self.activation_predict) * self.target_placeholder, 1))
+            loss = -tf.log(tf.reduce_sum(tf.nn.softmax(input_tensor) * self.target_placeholder, 1))
 
         return tf.reduce_sum(loss)
 

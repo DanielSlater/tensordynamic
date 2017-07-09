@@ -76,7 +76,7 @@ def node_importance_by_removal(layer, data_set_train, data_set_validation):
         new_bias[i] = 0.
 
         new_weights = np.copy(weights)
-        new_weights[None, i] = 0.
+        new_weights[:, i] = 0.
         layer.weights = new_weights
         layer.bias = new_bias
 
@@ -88,8 +88,8 @@ def node_importance_by_removal(layer, data_set_train, data_set_validation):
                                                               data_set.labels})
         errors.append(base_error - error_without_node)
 
-    layer._weights.assign(weights)
-    layer._bias.assign(bias)
+    layer.weights = weights
+    layer.bias = bias
 
     return errors
 
