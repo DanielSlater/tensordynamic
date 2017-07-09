@@ -160,7 +160,7 @@ class OutputLayer(HiddenLayer):
                                                              .replace(',', '_').replace(' ', '_'),))
         train_op = optimizer_instance.minimize(self.loss_op_train)
 
-        self._session.run(tf.initialize_variables(list(get_tf_optimizer_variables(optimizer_instance))))
+        self._session.run(tf.variables_initializer(list(get_tf_optimizer_variables(optimizer_instance))))
         print(optimizer_instance._name)
 
         iterations = [0]

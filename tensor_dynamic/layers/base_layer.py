@@ -662,7 +662,7 @@ class BaseLayer(object):
 
             var = tf.Variable(default_val, trainable=(not self._freeze) and is_trainable, name=name)
 
-            self._session.run(tf.initialize_variables([var]))
+            self._session.run(tf.variables_initializer([var]))
             self._bound_variables[name] = self._BoundVariable(name, bound_dimensions, var, is_kwarg)
             return var
 
