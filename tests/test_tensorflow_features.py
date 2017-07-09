@@ -92,3 +92,24 @@ class TestTensorflowFeatures(BaseTfTestCase):
     #
     #     print(result1)
     #     print(result2)
+
+    def test_gradient_vs_hessian(self):
+        var = tf.placeholder('float', shape=(4))
+        reshaped = tf.reshape(var, (2, 2,))
+        operation = tf.reduce_sum(tf.pow(reshaped, 3))
+
+        jacob = tf.gradients(operation, reshaped)[0]
+        hessian_b = tf.gradients(jacob, reshaped)[0]
+
+        hessian_a = tf.hessians(operation, var)[0]
+        hessian_a_diag = tf.diag_part(hessian_a)
+
+        print hessian_a
+        print hessian_a_diag
+        print hessian_b
+
+        input = np.array([0., 1., 2., 3.])
+
+        print self.session.run(hessian_a, feed_dict={var: input})
+        print self.session.run(hessian_a_diag, feed_dict={var: input})
+        print self.session.run(hessian_b, feed_dict={var: input})
