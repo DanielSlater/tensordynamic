@@ -20,6 +20,8 @@ class CategoricalOutputLayer(OutputLayer):
                  batch_norm_scale=None,
                  regularizer_weighting=0.01,
                  regularizer_op=tf.nn.l2_loss,
+                 loss_cross_entropy_or_log_prob=True,
+                 save_checkpoints=0,
                  name='CategoricalOutputLayer'):
         super(CategoricalOutputLayer, self).__init__(input_layer, output_nodes,
                                                      session=session,
@@ -35,10 +37,9 @@ class CategoricalOutputLayer(OutputLayer):
                                                      batch_norm_scale=batch_norm_scale,
                                                      regularizer_weighting=regularizer_weighting,
                                                      regularizer_op=regularizer_op,
+                                                     save_checkpoints=save_checkpoints,
                                                      name=name)
-
-    # def _layer_activation(self, input_activation, is_train):
-    #     return tf.matmul(input_activation, self._weights) + self._bias
+        self._loss_cross_entropy_or_log_prob = loss_cross_entropy_or_log_prob
 
     @lazyprop
     def _pre_softmax_activation_predict(self):
@@ -81,9 +82,12 @@ class CategoricalOutputLayer(OutputLayer):
             return self._target_loss_op(self._pre_softmax_activation_predict)
 
     def _target_loss_op(self, input_tensor):
-        return tf.reduce_sum(
-            tf.nn.softmax_cross_entropy_with_logits(logits=input_tensor, labels=self._target_placeholder),
-        )
+        if self._loss_cross_entropy_or_log_prob:
+            loss = tf.nn.softmax_cross_entropy_with_logits(logits=input_tensor, labels=self._target_placeholder)
+        else:
+            loss = -tf.log(tf.reduce_sum(tf.nn.softmax(self.activation_predict) * self.target_placeholder, 1))
+
+        return tf.reduce_sum(loss)
 
     @lazyprop
     def accuracy_op(self):
@@ -122,5 +126,7 @@ class CategoricalOutputLayer(OutputLayer):
         del kwargs['bactivate']
         del kwargs['bactivation_loss_func']
         del kwargs['non_liniarity']
+
+        kwargs['loss_cross_entropy_or_log_prob'] = self._loss_cross_entropy_or_log_prob
 
         return kwargs

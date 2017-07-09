@@ -100,6 +100,9 @@ def node_importance_optimal_brain_damage(layer, data_set_train, data_set_validat
     if data_set is None:
         return node_importance_random(layer, data_set, data_set_validation)
 
+    # TODO: Use this instead
+    # variable_ops = layer.hessien_with_respect_to_error_op
+
     weights_hessian_op = create_hessian_variable_op(layer.last_layer.target_loss_op_predict,
                                                     layer._weights)
 
