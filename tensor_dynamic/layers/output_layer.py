@@ -47,6 +47,7 @@ class OutputLayer(HiddenLayer):
                  batch_norm_scale=None,
                  regularizer_weighting=0.01,
                  regularizer_op=tf.nn.l2_loss,
+                 save_checkpoints=0,
                  name='OutputLayer'):
         super(OutputLayer, self).__init__(input_layer, output_nodes,
                                           session=session,
@@ -66,6 +67,8 @@ class OutputLayer(HiddenLayer):
                                           name=name)
         self._regularizer_weighting = regularizer_weighting
         self._regularizer_op = regularizer_op
+        self._save_checkpoints = save_checkpoints
+
 
         with self.name_scope():
             self._target_placeholder = tf.placeholder('float', shape=(None,) + self.output_nodes, name='target')
@@ -234,19 +237,25 @@ class OutputLayer(HiddenLayer):
 
         kwargs['regularizer_weighting'] = self._regularizer_weighting
         kwargs['regularizer_op'] = self._regularizer_op
+        kwargs['save_checkpoints'] = self._save_checkpoints
 
         return kwargs
 
     def learn_structure_layer_by_layer(self, data_set_train, data_set_validation, start_learn_rate=0.001,
                                        continue_learn_rate=0.0001,
                                        model_evaluation_function=bayesian_model_comparison_evaluation,
-                                       add_layers=False):
+                                       add_layers=False,
+                                       save_checkpoint_path=None):
         self.train_till_convergence(data_set_train, data_set_validation, learning_rate=start_learn_rate)
         best_score = model_evaluation_function(self, data_set_validation)
 
+        if save_checkpoint_path:
+            self.save_checkpoints(save_checkpoint_path)
+
         while True:
             best_score = self._best_sizes_for_current_layer_number(best_score, continue_learn_rate, data_set_train,
-                                                                   data_set_validation, model_evaluation_function)
+                                                                   data_set_validation, model_evaluation_function,
+                                                                   save_checkpoint_path)
 
             if add_layers:
                 state = self.get_network_state()
@@ -256,6 +265,9 @@ class OutputLayer(HiddenLayer):
                 result = model_evaluation_function(self, data_set_validation)
                 if result > best_score:
                     best_score = result
+
+                    if save_checkpoint_path:
+                        self.save_checkpoints(save_checkpoint_path)
                 else:
                     # adding a layer didn't help, so reset
                     self.set_network_state(state)
@@ -264,7 +276,8 @@ class OutputLayer(HiddenLayer):
                 return
 
     def _best_sizes_for_current_layer_number(self, best_score, continue_learn_rate, data_set_train, data_set_validation,
-                                             model_evaluation_function):
+                                             model_evaluation_function,
+                                             save_checkpoint_path):
         layers = list(self.get_all_resizable_layers())
         index = 0
         attempts_with_out_resize = 0
@@ -275,6 +288,8 @@ class OutputLayer(HiddenLayer):
                                                                tuning_learning_rate=continue_learn_rate)
             if resized:
                 attempts_with_out_resize = 1
+                if save_checkpoint_path:
+                    self.save_checkpoints(save_checkpoint_path)
             else:
                 attempts_with_out_resize += 1
             index += 1
@@ -282,11 +297,23 @@ class OutputLayer(HiddenLayer):
                 index = 0
         return best_score
 
+    def save_checkpoints(self, checkpoint_path):
+        self._save_checkpoints += 1
+        with open(checkpoint_path + "_" + str(self._save_checkpoints) + ".tdc", "w") as f:
+            pkl = self.get_network_pickle()
+            f.write(pkl)
+
     def learn_structure_random(self, data_set_train, data_set_validate, start_learn_rate=0.01,
                                continue_learn_rate=0.0001,
-                               evaluation_method=bayesian_model_comparison_evaluation):
+                               evaluation_method=bayesian_model_comparison_evaluation,
+                               save_checkpoint_path=None):
         rejected_changes = 0
         self.train_till_convergence(data_set_train, data_set_validate, learning_rate=start_learn_rate)
+
+        if save_checkpoint_path:
+            self.save_checkpoints(save_checkpoint_path)
+
+
         number_of_convergences = 1
 
         best_model_weight = evaluation_method(self, data_set_validate)
@@ -337,6 +364,9 @@ class OutputLayer(HiddenLayer):
                 best_model_weight = new_model_weight
 
                 last_change_was_success = True
+
+                if save_checkpoint_path:
+                    self.save_checkpoints(save_checkpoint_path)
 
 
 class BinaryOutputLayer(OutputLayer):
