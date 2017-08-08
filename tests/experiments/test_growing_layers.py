@@ -65,7 +65,7 @@ with tf.Session() as session:
     print_stats(data_set_collection, output)
 
     for i in range(3):
-        try_intermediate_layer(3-i)
+        try_intermediate_layer(4-i)
 
     # (7508.6528, 0.97310001)
     # INFO:tensor_dynamic.layers.output_layer:iterations = 23 error = 7508.65

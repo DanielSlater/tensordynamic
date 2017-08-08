@@ -134,3 +134,20 @@ def node_importance_full_taylor_series(layer, data_set_train, data_set_validatio
 
     return np.sum((weights_squared * weights_hessian) * .5 + weights * weights_jacobean,
                   axis=0) + (bias_squared * bias_hessian) * .5 + bias * bias_jacobean
+
+
+def node_importance_error_derrivative(layer, data_set_train, data_set_validation):
+    data_set = data_set_validation
+
+    if data_set is None:
+        return node_importance_random(layer, data_set, data_set_validation)
+
+    weights_jacobean_op, bias_jacobean_op = layer.gradients_with_respect_to_error_op
+
+    weights, bias, weights_jacobean, bias_jacobean = layer.session.run(
+        [layer._weights, layer._bias, weights_jacobean_op, bias_jacobean_op],
+        feed_dict={layer.input_placeholder: data_set.features,
+                   layer.target_placeholder: data_set.labels}
+    )
+
+    return np.sum(weights * weights_jacobean, axis=0) + bias * bias_jacobean

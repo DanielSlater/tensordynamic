@@ -9,10 +9,11 @@ from tensor_dynamic.layers.hidden_layer import node_importance_by_square_sum, Hi
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.node_importance import node_importance_by_dummy_activation_from_input_layer, node_importance_random, \
     node_importance_optimal_brain_damage, node_importance_full_taylor_series, \
-    node_importance_by_real_activation_from_input_layer_variance
+    node_importance_by_real_activation_from_input_layer_variance, node_importance_by_removal, \
+    node_importance_error_derrivative
 from tensor_dynamic.node_importance import node_importance_by_real_activation_from_input_layer
 
-NUM_TRIES = 5
+NUM_TRIES = 15
 
 
 def dummy_random_weights():
@@ -25,11 +26,12 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
     methods = [node_importance_by_dummy_activation_from_input_layer,
                node_importance_by_real_activation_from_input_layer,
                node_importance_by_square_sum,
-               # node_importance_by_removal,
+               node_importance_by_removal,
                node_importance_random,
                node_importance_optimal_brain_damage,
                node_importance_full_taylor_series,
                node_importance_by_real_activation_from_input_layer_variance,
+               node_importance_error_derrivative,
                dummy_random_weights
                ]
 
@@ -47,7 +49,7 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
                     if len(data.features_shape) > 1:
                         input_layer = FlattenLayer(input_layer)
 
-                    layer = HiddenLayer(input_layer, 30, session=session,
+                    layer = HiddenLayer(input_layer, 250, session=session,
                                         node_importance_func=None,
                                         non_liniarity=tf.nn.relu,
                                         batch_normalize_input=True)
@@ -70,7 +72,7 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
 
                         no_splitting_or_pruning = method == dummy_random_weights
 
-                        layer.resize(33, data_set_train=data.train,
+                        layer.resize(256, data_set_train=data.train,
                                      data_set_validation=data.validation,
                                      no_splitting_or_pruning=no_splitting_or_pruning)
 
@@ -115,7 +117,7 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
             v_len = float(len(values))
             averages = tuple(sum(x[i] for x in values) / v_len for i in range(len(values[0])))
             averages = averages + (averages[2] - averages[-2],)
-            file_avg.write('%s,%s,%s,%s,%s,%s,%s,%s, %s, %s, %s, %s\n' % ((name,) + averages))
+            file_avg.write('%s,%s,%s,%s,%s,%s,%s,%s, %s, %s, %s, %s, %s\n' % ((name,) + averages))
 
 
 if __name__ == '__main__':
