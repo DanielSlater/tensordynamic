@@ -314,10 +314,6 @@ class BaseLayer(object):
         raise NotImplementedError()
 
     @property
-    def has_bactivation(self):
-        return False
-
-    @property
     def output_shape(self):
         return self.activation_predict.get_shape().as_list()
 
