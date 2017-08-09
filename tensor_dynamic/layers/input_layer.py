@@ -5,7 +5,7 @@ from tensor_dynamic.lazyprop import lazyprop
 
 
 class InputLayer(BaseLayer):
-    def __init__(self, input_nodes, layer_noise_std=None, drop_out_prob=None, name='Input'):
+    def __init__(self, input_nodes, session=None, layer_noise_std=None, drop_out_prob=None, name='Input'):
         """Input layer to a neural network
 
         Args:
@@ -30,6 +30,7 @@ class InputLayer(BaseLayer):
         self._input_layer = None
         self._layer_noise_std = layer_noise_std
         self._drop_out_prob = drop_out_prob
+        self._session = session
 
     @property
     def activation(self):
