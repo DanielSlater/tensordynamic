@@ -69,7 +69,6 @@ class OutputLayer(HiddenLayer):
         self._regularizer_op = regularizer_op
         self._save_checkpoints = save_checkpoints
 
-
         with self.name_scope():
             self._target_placeholder = tf.placeholder('float', shape=(None,) + self.output_nodes, name='target')
 
@@ -312,7 +311,6 @@ class OutputLayer(HiddenLayer):
 
         if save_checkpoint_path:
             self.save_checkpoints(save_checkpoint_path)
-
 
         number_of_convergences = 1
 
