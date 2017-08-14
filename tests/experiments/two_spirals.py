@@ -7,7 +7,8 @@ from tensor_dynamic.layers.flatten_layer import FlattenLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.layers.max_pool_layer import MaxPoolLayer
-from tensor_dynamic.layers.output_layer import OutputLayer, BinaryOutputLayer
+from tensor_dynamic.layers.output_layer import OutputLayer
+from tensor_dynamic.layers.binary_output_layer import BinaryOutputLayer
 from tensor_dynamic.layers.categorical_output_layer import CategoricalOutputLayer
 
 data_set_collection = get_two_spirals_data_set_collection()

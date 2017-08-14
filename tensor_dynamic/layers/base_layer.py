@@ -462,7 +462,7 @@ class BaseLayer(object):
 
         return new_self
 
-    def resize_needed(self):
+    def _resize_needed(self):
         """ If there is a mismatch between the input size of this layer and the output size of it's previous layer will
         return True
 
@@ -617,7 +617,7 @@ class BaseLayer(object):
             if has_lazyprop(self, 'bactivation_predict'):
                 tf_resize(self._session, self.bactivation_predict, (None,) + self._input_nodes)
 
-        if self._next_layer and self._next_layer.resize_needed():
+        if self._next_layer and self._next_layer._resize_needed():
             self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes,
                                     no_splitting_or_pruning=no_splitting_or_pruning)
 

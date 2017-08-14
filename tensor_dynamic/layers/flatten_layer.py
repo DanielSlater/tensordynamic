@@ -40,7 +40,7 @@ class FlattenLayer(BaseLayer):
             for layer in self.downstream_layers:
                 clear_all_lazyprops(layer)
 
-            if self.next_layer is not None and self.next_layer.resize_needed():
+            if self.next_layer is not None and self.next_layer._resize_needed():
                 # TODO: D.S make sure resize is consistant, i.e new nodes are not just created on the end...
                 # Must do this at some point
                 self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes)

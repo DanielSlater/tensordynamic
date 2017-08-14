@@ -32,18 +32,25 @@ class DataSet(object):
 
     @property
     def features(self):
+        """Returns np.Array of features for this dataset, the size of the first dimension should match that of the
+        labels property"""
         return self._features
 
     @property
     def labels(self):
+        """Returns np.Array of labels for this dataset, the size of the first dimension should match that of the
+        features property"""
         return self._labels
 
     @property
     def num_examples(self):
+        """Returns int for number of examples in this dataset"""
         return self._num_examples
 
     @property
     def epochs_completed(self):
+        """Returns int for the number of epoch of training we have gone through using either the next_batch or
+        one_iteration in batches methods"""
         return self._epochs_completed
 
     def next_batch(self, batch_size):
@@ -80,6 +87,15 @@ class DataSet(object):
         return self._features[start:end], self._labels[start:end]
 
     def one_iteration_in_batches(self, batch_size):
+        """ This uses the next_batch method, but in contrast to that method this returns a genertor that will terminate
+        after exactly one epoch of batches.
+
+        Args:
+            batch_size (int):
+
+        Returns:
+            Generator of tuple of feautres and labels for each batch
+        """
         self._index_in_epoch = 0
         starting_epoch = self._epochs_completed
 
@@ -87,5 +103,6 @@ class DataSet(object):
             yield self.next_batch(batch_size)
 
     def reset(self):
+        """Reset the epoch count and our position in current epoch"""
         self._index_in_epoch = 0
         self._epochs_completed = 0

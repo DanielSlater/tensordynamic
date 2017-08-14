@@ -19,8 +19,11 @@ NUM_TRIES = 15
 def dummy_random_weights():
     raise Exception()
 
+start = 400
+end = 380
 
-def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_final.csv"):
+
+def main(file_name_all="pruning_tests%s-%s-%s.csv" % ('_noise=.5', start, end), file_name_avg="pruning_tests%s-%s-%s.csv" % ('_noise=.5', start, end)):
     data_set_collections = [get_mnist_data_set_collection(validation_ratio=.15),
                             get_cifar_100_data_set_collection(validation_ratio=.15)]
     methods = [node_importance_by_dummy_activation_from_input_layer,
@@ -49,13 +52,15 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
                     if len(data.features_shape) > 1:
                         input_layer = FlattenLayer(input_layer)
 
-                    layer = HiddenLayer(input_layer, 250, session=session,
+                    layer = HiddenLayer(input_layer, start, session=session,
+                                        layer_noise_std=.5,
                                         node_importance_func=None,
                                         non_liniarity=tf.nn.relu,
                                         batch_normalize_input=True)
                     output = CategoricalOutputLayer(layer, data.labels_shape,
                                                     batch_normalize_input=True,
-                                                    regularizer_weighting=0.01
+                                                    regularizer_weighting=0.01,
+                                                    layer_noise_std=.5
                                                     )
 
                     output.train_till_convergence(data.train, data.validation, learning_rate=0.0001)
@@ -72,7 +77,7 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
 
                         no_splitting_or_pruning = method == dummy_random_weights
 
-                        layer.resize(256, data_set_train=data.train,
+                        layer.resize(end, data_set_train=data.train,
                                      data_set_validation=data.validation,
                                      no_splitting_or_pruning=no_splitting_or_pruning)
 
@@ -117,7 +122,7 @@ def main(file_name_all="growing_tests_all.csv", file_name_avg="growing_tests_fin
             v_len = float(len(values))
             averages = tuple(sum(x[i] for x in values) / v_len for i in range(len(values[0])))
             averages = averages + (averages[2] - averages[-2],)
-            file_avg.write('%s,%s,%s,%s,%s,%s,%s,%s, %s, %s, %s, %s, %s\n' % ((name,) + averages))
+            file_avg.write('%s,%s,%s,%s,%s,%s,%s,%s, %s, %s, %s\n' % ((name,) + averages))
 
 
 if __name__ == '__main__':
