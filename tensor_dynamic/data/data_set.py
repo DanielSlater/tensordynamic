@@ -58,6 +58,9 @@ class DataSet(object):
 
         Args:
             batch_size (int):
+
+        Returns:
+            tuple of feautres and labels for each batch
         """
         assert batch_size <= self._num_examples
 
