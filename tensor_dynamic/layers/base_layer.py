@@ -1050,7 +1050,8 @@ class BaseLayer(object):
             if isinstance(attribute, tf.Variable):
                 self._get_assign_function(name)(value)
             elif type(attribute) == type(value) or isinstance(attribute, type(value)) or isinstance(value,
-                                                                                                    type(attribute)):
+                                                                                                    type(attribute))\
+                    or attribute is None:
                 setattr(self, '_' + name, value)
             else:
                 raise Exception("Mismatch variable type for %s, existing type was %s new type was %s" %
