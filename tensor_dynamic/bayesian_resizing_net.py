@@ -23,7 +23,6 @@ class EDataType(Enum):
 def create_flat_network(data_set_collection, hidden_layers, session, regularizer_coeff=0.001,
                         batch_normalize_input=False,
                         activation_func=tf.nn.relu,
-                        input_layer_noise_std=None,
                         input_noise_std=None):
     """Create a network of connected flat layers with sigmoid activation func
 
@@ -35,7 +34,7 @@ def create_flat_network(data_set_collection, hidden_layers, session, regularizer
     Returns:
         OutputLayer
     """
-    last_layer = InputLayer(data_set_collection.features_shape, layer_noise_std=input_layer_noise_std)
+    last_layer = InputLayer(data_set_collection.features_shape)
 
     if len(last_layer.output_nodes) > 1:
         last_layer = FlattenLayer(last_layer, session)
