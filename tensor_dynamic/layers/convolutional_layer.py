@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensor_dynamic.layers.base_layer import BaseLayer
+from tensor_dynamic.node_importance import node_importance_optimal_brain_damage
 
 
 class ConvolutionalLayer(BaseLayer):
@@ -55,7 +56,7 @@ class ConvolutionalLayer(BaseLayer):
                                            bias)
         self._node_importance_func = self._get_property_or_default(node_importance_func,
                                                                    '_node_importance_func',
-                                                                   )
+                                                                   node_importance_optimal_brain_damage)
         self._stride = stride
         self._padding = padding
         self._non_liniarity = non_liniarity
@@ -75,7 +76,9 @@ class ConvolutionalLayer(BaseLayer):
                input_nodes_to_prune=None,
                split_output_nodes=None,
                split_input_nodes=None,
-               data_set=None,
+               data_set_train=None,
+               data_set_validation=None,
+               no_splitting_or_pruning=False,
                split_nodes_noise_std=.1):
         if isinstance(new_output_nodes, int):
             temp = list(self.output_nodes)
@@ -88,7 +91,9 @@ class ConvolutionalLayer(BaseLayer):
                                                split_output_nodes=split_output_nodes,
                                                split_input_nodes=split_input_nodes,
                                                split_nodes_noise_std=split_nodes_noise_std,
-                                               data_set=data_set)
+                                               data_set_train=data_set_train,
+                                               data_set_validation=data_set_validation,
+                                               no_splitting_or_pruning=no_splitting_or_pruning)
 
     def clone(self, session=None):
         """Produce a clone of this layer AND all connected upstream layers

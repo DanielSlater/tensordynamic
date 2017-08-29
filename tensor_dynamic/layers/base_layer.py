@@ -910,7 +910,8 @@ class BaseLayer(object):
 
     def find_best_size(self, data_set_train, data_set_validation,
                        model_evaluation_function, best_score=None,
-                       initial_learning_rate=0.001, tuning_learning_rate=0.0001):
+                       initial_learning_rate=0.001, tuning_learning_rate=0.0001,
+                       grow_only=False, prune_only=False):
         """Attempts to resize this layer to minimize the loss against the validation dataset by resizing this layer
 
         Args:
@@ -940,23 +941,24 @@ class BaseLayer(object):
 
         resized = False
 
-        # try bigger
-        new_score = self._layer_resize_converge(data_set_train, data_set_validation,
+        # keep getting bigger until we stop improving
+        if not prune_only:
+            # try bigger
+            new_score = self._layer_resize_converge(data_set_train, data_set_validation,
                                                 model_evaluation_function,
                                                 self._get_new_node_count(self.GROWTH_MULTIPLYER),
                                                 tuning_learning_rate)
 
-        # keep getting bigger until we stop improving
-        while new_score > best_score:
-            resized = True
-            best_score = new_score
-            best_state = self.get_network_state()
+            while new_score > best_score:
+                resized = True
+                best_score = new_score
+                best_state = self.get_network_state()
 
-            new_score = self._layer_resize_converge(data_set_train, data_set_validation,
-                                                    model_evaluation_function,
-                                                    self._get_new_node_count(self.GROWTH_MULTIPLYER),
-                                                    tuning_learning_rate)
-        if not resized:
+                new_score = self._layer_resize_converge(data_set_train, data_set_validation,
+                                                        model_evaluation_function,
+                                                        self._get_new_node_count(self.GROWTH_MULTIPLYER),
+                                                        tuning_learning_rate)
+        if not resized and not grow_only:
             logger.info("From start_size %s Bigger failed, trying smaller", start_size)
             self.set_network_state(best_state)
 

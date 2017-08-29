@@ -39,7 +39,7 @@ def weight_init(shape, constant=1.0):
 
     low = -constant * np.sqrt(1.0 / (fan_in + fan_out))
     high = constant * np.sqrt(1.0 / (fan_in + fan_out))
-    return tf.random_uniform((fan_in, fan_out),
+    return tf.random_uniform(shape,
                              minval=low, maxval=high,
                              dtype=tf.float32)
 

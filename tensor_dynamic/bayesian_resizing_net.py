@@ -20,8 +20,8 @@ class EDataType(Enum):
     VALIDATION = 2
 
 
-def create_flat_network(data_set_collection, hidden_layers, session, regularizer_coeff=0.001,
-                        batch_normalize_input=False,
+def create_flat_network(data_set_collection, hidden_layers, session, regularizer_coeff=0.01,
+                        batch_normalize_input=True,
                         activation_func=tf.nn.relu,
                         input_noise_std=None):
     """Create a network of connected flat layers with sigmoid activation func

@@ -69,7 +69,6 @@ class OutputLayer(HiddenLayer):
         self._regularizer_op = regularizer_op
         self._save_checkpoints = save_checkpoints
 
-
         with self.name_scope():
             self._target_placeholder = tf.placeholder('float', shape=(None,) + self.output_nodes, name='target')
 
@@ -245,7 +244,8 @@ class OutputLayer(HiddenLayer):
                                        continue_learn_rate=0.0001,
                                        model_evaluation_function=bayesian_model_comparison_evaluation,
                                        add_layers=False,
-                                       save_checkpoint_path=None):
+                                       save_checkpoint_path=None,
+                                       grow_only=False):
         self.train_till_convergence(data_set_train, data_set_validation, learning_rate=start_learn_rate)
         best_score = model_evaluation_function(self, data_set_validation)
 
@@ -255,7 +255,9 @@ class OutputLayer(HiddenLayer):
         while True:
             best_score = self._best_sizes_for_current_layer_number(best_score, continue_learn_rate, data_set_train,
                                                                    data_set_validation, model_evaluation_function,
-                                                                   save_checkpoint_path)
+                                                                   save_checkpoint_path,
+                                                                   grow_only=grow_only,
+                                                                   prune_only=False)
 
             if add_layers:
                 state = self.get_network_state()
@@ -275,9 +277,39 @@ class OutputLayer(HiddenLayer):
             else:
                 return
 
+    def learn_structure_layer_by_layer_grow_vs_prune(self, data_set_train, data_set_validation, start_learn_rate=0.001,
+                                                     continue_learn_rate=0.0001,
+                                                     model_evaluation_function=bayesian_model_comparison_evaluation,
+                                                     save_checkpoint_path=None):
+        # grow phase
+        self.learn_structure_layer_by_layer(data_set_train,
+                                            data_set_train,
+                                            start_learn_rate=start_learn_rate,
+                                            continue_learn_rate=continue_learn_rate,
+                                            model_evaluation_function=model_evaluation_function,
+                                            add_layers=True,
+                                            save_checkpoint_path=save_checkpoint_path,
+                                            grow_only=True)
+
+        # prune phase
+        best_score = model_evaluation_function(self, data_set_validation)
+
+        if save_checkpoint_path:
+            self.save_checkpoints(save_checkpoint_path)
+
+        # while True:
+        best_score = self._best_sizes_for_current_layer_number(best_score, continue_learn_rate, data_set_train,
+                                                               data_set_validation, model_evaluation_function,
+                                                               save_checkpoint_path, prune_only=True)
+
     def _best_sizes_for_current_layer_number(self, best_score, continue_learn_rate, data_set_train, data_set_validation,
                                              model_evaluation_function,
-                                             save_checkpoint_path):
+                                             save_checkpoint_path,
+                                             grow_only=False,
+                                             prune_only=False):
+        if grow_only and prune_only:
+            raise Exception()
+
         layers = list(self.get_all_resizable_layers())
         index = 0
         attempts_with_out_resize = 0
@@ -285,7 +317,8 @@ class OutputLayer(HiddenLayer):
             resized, best_score = layers[index].find_best_size(data_set_train, data_set_validation,
                                                                model_evaluation_function=model_evaluation_function,
                                                                best_score=best_score,
-                                                               tuning_learning_rate=continue_learn_rate)
+                                                               tuning_learning_rate=continue_learn_rate,
+                                                               grow_only=grow_only, prune_only=prune_only)
             if resized:
                 attempts_with_out_resize = 1
                 if save_checkpoint_path:
@@ -312,7 +345,6 @@ class OutputLayer(HiddenLayer):
 
         if save_checkpoint_path:
             self.save_checkpoints(save_checkpoint_path)
-
 
         number_of_convergences = 1
 
@@ -367,5 +399,3 @@ class OutputLayer(HiddenLayer):
 
                 if save_checkpoint_path:
                     self.save_checkpoints(save_checkpoint_path)
-
-
