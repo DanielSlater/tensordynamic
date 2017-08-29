@@ -1,7 +1,5 @@
 import numpy as np
 
-from tensor_dynamic.utils import create_hessian_variable_op, get_first_two_derivatives_op
-
 
 def node_importance_by_dummy_activation_from_input_layer(layer, data_set_train, data_set_validation):
     shape = (1,) + tuple(int(x) for x in layer.input_placeholder.get_shape()[1:])
@@ -95,6 +93,18 @@ def node_importance_by_removal(layer, data_set_train, data_set_validation):
 
 
 def node_importance_optimal_brain_damage(layer, data_set_train, data_set_validation):
+    """ Determines node importance based on Optimal brain damage algorithm http://yann.lecun.com/exdb/publis/pdf/lecun-90b.pdf this
+    method can be used to determine which nodes should be pruned when reducing the size of a layer, or which should be split when increasing
+    the number of nodes
+
+    Args:
+        layer (BaseLayer): Subclass of base layer that we are ran
+        data_set_train (DataSet): data set used for training
+        data_set_validation (DataSet): data set used for validation
+
+    Returns:
+        np.array : A 1-d array with the same number of elements as there are output nodes for the layer
+    """
     data_set = data_set_train or data_set_validation
 
     if data_set is None:
