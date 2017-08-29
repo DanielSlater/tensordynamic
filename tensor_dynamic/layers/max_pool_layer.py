@@ -30,6 +30,16 @@ class MaxPoolLayer(BaseLayer):
         self._ksize = ksize
         self._padding = padding
 
+    @property
+    def regularizable_variables(self):
+        return
+        yield None
+
+    @property
+    def resizable_variables(self):
+        return
+        yield None
+
     @staticmethod
     def _calculate_output_nodes(input_layer, strides):
         return (int(math.ceil(input_layer.output_nodes[0] / float(strides[0]))),
@@ -81,7 +91,7 @@ class MaxPoolLayer(BaseLayer):
     def kwargs(self):
         kwargs = super(MaxPoolLayer, self).kwargs
 
-        kwargs['stride'] = self._stride
+        kwargs['strides'] = self._strides
         kwargs['padding'] = self._padding
         kwargs['ksize'] = self._ksize
 

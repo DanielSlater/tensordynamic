@@ -71,6 +71,15 @@ class ConvolutionalLayer(BaseLayer):
         x = tf.nn.bias_add(x, self._bias)
         return self._non_liniarity(x)
 
+    @property
+    def regularizable_variables(self):
+        yield self._weights
+
+    @property
+    def resizable_variables(self):
+        yield self._weights
+        yield self._bias
+
     def resize(self, new_output_nodes=None,
                output_nodes_to_prune=None,
                input_nodes_to_prune=None,
