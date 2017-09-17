@@ -22,10 +22,10 @@ class DuelStateReluLayer(HiddenLayer):
                  weights=None,
                  bias=None,
                  width=None,
-                 noise_std=None,
+                 layer_noise_std=None,
+                 batch_normalize_input=False,
+                 drop_out_prob=None,
                  non_liniarity=tf.nn.relu,
-                 supervised_cost=1.,
-                 unsupervised_cost=1.,
                  weight_extender_func=noise_weight_extender,
                  name='DuelStateReluLayer',
                  freeze=False):
@@ -34,9 +34,9 @@ class DuelStateReluLayer(HiddenLayer):
                                                  weights=weights,
                                                  bias=bias,
                                                  bactivate=False,
-                                                 noise_std=noise_std,
-                                                 supervised_cost=supervised_cost,
-                                                 unsupervised_cost=unsupervised_cost,
+                                                 layer_noise_std=layer_noise_std,
+                                                 batch_normalize_input=batch_normalize_input,
+                                                 drop_out_prob=drop_out_prob,
                                                  non_liniarity=non_liniarity,
                                                  name=name,
                                                  freeze=freeze)
@@ -48,8 +48,8 @@ class DuelStateReluLayer(HiddenLayer):
         self._width_binarizer_constant = width_binarizer_constant
         self._inactive_nodes_to_leave = inactive_nodes_to_leave
 
-    def _layer_activation(self, input_activation):
-        activation = super(DuelStateReluLayer, self)._layer_activation(input_activation)
+    def _layer_activation(self, input_activation, is_train):
+        activation = super(DuelStateReluLayer, self)._layer_activation(input_activation, is_train)
         return activation * self._width
 
     def unsupervised_cost_train(self):
@@ -140,7 +140,7 @@ class DuelStateReluLayer(HiddenLayer):
                split_input_nodes=None,
                split_nodes_noise_std=.01):
         width = self.width()
-        output_nodes_increase = (new_output_nodes or self._output_nodes) - self._output_nodes
+        output_nodes_increase = (new_output_nodes or self._output_nodes[0]) - self._output_nodes[0]
 
         super(DuelStateReluLayer, self).resize(new_output_nodes, output_nodes_to_prune, input_nodes_to_prune,
                                                split_output_nodes, split_input_nodes, split_nodes_noise_std)

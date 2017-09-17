@@ -18,7 +18,6 @@ from tensor_dynamic.weight_functions import noise_weight_extender, array_extend
 if not hasattr(tf, 'variables_initializer'):
     setattr(tf, 'variables_initializer', tf.initialize_variables)
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -621,6 +620,57 @@ class BaseLayer(object):
             self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes,
                                     no_splitting_or_pruning=no_splitting_or_pruning)
 
+    def resize_output(self, new_output_nodes,
+                      data_set_train=None,
+                      data_set_validation=None):
+        """Resize this layer by changing the number of output nodes. Will also resize any downstream layers
+
+        Args:
+            data_set_validation (DataSet):Data set used for validating this network
+            data_set_train (DataSet): Data set used for training this network
+            new_output_nodes (int): If passed we change the number of output nodes of this layer to be new_output_nodes
+        """
+        # choose nodes to split or prune
+        output_nodes_to_prune, split_output_nodes = None, None
+
+        if new_output_nodes < self.get_resizable_dimension_size():
+            output_nodes_to_prune = self._choose_nodes_to_prune(new_output_nodes, data_set_train,
+                                                                data_set_validation)
+        elif new_output_nodes > self.get_resizable_dimension_size():
+            split_output_nodes = self._choose_nodes_to_split(new_output_nodes, data_set_train,
+                                                             data_set_validation)
+
+        for name, bound_variable in self._bound_variables.iteritems():
+            if self._bound_dimensions_contains_output(bound_variable.dimensions):
+
+                self._forget_assign_op(name)
+
+                int_dims = self._bound_dimensions_to_ints(bound_variable.dimensions)
+
+                if isinstance(bound_variable.variable, tf.Variable):
+                    new_values = self._session.run(bound_variable.variable)
+                    if output_nodes_to_prune or split_output_nodes:
+                        output_bound_axis = bound_variable.dimensions.index(self.OUTPUT_BOUND_VALUE)
+                        if output_nodes_to_prune:
+                            new_values = np.delete(new_values, output_nodes_to_prune, output_bound_axis)
+                        else:  # split
+                            new_values = array_extend(new_values, {output_bound_axis: split_output_nodes},
+                                                      noise_std=.1)
+
+                    tf_resize(self._session, bound_variable.variable, int_dims,
+                              new_values, self._get_assign_function(name))
+                else:
+                    # this is a tensor, not a variable so has no weights
+                    tf_resize(self._session, bound_variable.variable, int_dims)
+
+        if has_lazyprop(self, 'activation_predict'):
+            tf_resize(self._session, self.activation_predict, (None,) + self._output_nodes)
+        if has_lazyprop(self, 'activation_train'):
+            tf_resize(self._session, self.activation_train, (None,) + self._output_nodes)
+
+        if self._next_layer and self._next_layer._resize_needed():
+            self._next_layer._resize_input(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes)
+
     def _forget_assign_op(self, name):
         if name in self._bound_variable_assign_data:
             del self._bound_variable_assign_data[name]
@@ -1052,7 +1102,7 @@ class BaseLayer(object):
             if isinstance(attribute, tf.Variable):
                 self._get_assign_function(name)(value)
             elif type(attribute) == type(value) or isinstance(attribute, type(value)) or isinstance(value,
-                                                                                                    type(attribute))\
+                                                                                                    type(attribute)) \
                     or attribute is None:
                 setattr(self, '_' + name, value)
             else:

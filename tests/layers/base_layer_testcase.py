@@ -51,11 +51,11 @@ class BaseLayerWrapper(object):
         def test_resize(self):
             layer = self._create_layer_for_test()
 
-            input_noise = np.random.normal(size=[1, layer.input_nodes])
+            input_noise = np.random.normal(0, 1., size=(1,) + layer.input_nodes)
             layer_activation = self.session.run(layer.activation_predict,
                                                 feed_dict={layer.input_placeholder: input_noise})
 
-            layer.resize(layer.output_nodes+1)
+            layer.resize(layer.get_resizable_dimension_size()+1)
 
             layer_activation_post_resize = self.session.run(layer.activation_predict,
                                                             feed_dict={layer.input_placeholder: input_noise})
