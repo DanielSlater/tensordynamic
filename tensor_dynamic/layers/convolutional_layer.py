@@ -71,6 +71,9 @@ class ConvolutionalLayer(BaseLayer):
         x = tf.nn.bias_add(x, self._bias)
         return self._non_liniarity(x)
 
+    def _get_node_importance(self, data_set_train, data_set_validation):
+        return self._node_importance_func(self, data_set_train, data_set_validation)
+
     @property
     def regularizable_variables(self):
         yield self._weights
@@ -127,16 +130,6 @@ class ConvolutionalLayer(BaseLayer):
     def get_resizable_dimension_size(self):
         return self.convolutional_nodes[2]
 
-    def _get_node_importance(self):
-        # simplest way to do this just sum the weights in each convolution
-        weights = self.session.run(self._weights)
-        bias = self.session.run(self._bias)
-
-        # group everything by convolutional output node
-        weights = weights.transpose(3, 0, 1, 2).reshape(self.convolutional_nodes[2], -1)
-        importance = [np.sum(weights[i]) + bias[i] for i in range(self.convolutional_nodes[2])]
-        return importance
-
     def get_resizable_dimension(self):
         return 2
 
@@ -147,5 +140,6 @@ class ConvolutionalLayer(BaseLayer):
         kwargs['stride'] = self._stride
         kwargs['padding'] = self._padding
         kwargs['non_liniarity'] = self._non_liniarity
+        del kwargs['output_nodes']
 
         return kwargs

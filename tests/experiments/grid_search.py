@@ -4,7 +4,8 @@ import tensorflow as tf
 
 from tensor_dynamic.bayesian_resizing_net import create_flat_network
 from tensor_dynamic.data.cifar_data import get_cifar_100_data_set_collection
-from tests.base_tf_testcase import get_mnist_data
+from tensor_dynamic.data.mnist_data import get_mnist_data_set_collection
+# from tests.base_tf_testcase import get_mnist_data
 
 
 def do_grid_search(data_set_collection, model_functions, file_name, learning_rate=0.001,
@@ -53,30 +54,29 @@ def write_parameters_file(data_set_collection, file_name, **kwargs):
             param_file.write("%s=%s\n" % (key, value))
 
 
-def flat_model_functions(data_set_collection, regularizer, activation_func, input_layer_noise_std, input_noise_std):
+def flat_model_functions(data_set_collection, regularizer, activation_func, input_noise_std):
     def get_model(session, parameters):
         return create_flat_network(data_set_collection, parameters, session, regularizer_coeff=regularizer,
                                    activation_func=activation_func,
-                                   input_layer_noise_std=input_layer_noise_std,
                                    input_noise_std=input_noise_std)
-    yield functools.partial(get_model, parameters=(1000, 1000, 1000, 1000, 1000,))
+    # yield functools.partial(get_model, parameters=(1000, 1000, 1000, 1000, 1000,))
     # 1 layer
-    # for layer_1 in [300, 500, 1000]:
-    #     yield functools.partial(get_model, parameters=(layer_1,))
-    #
-    #     for layer_2 in [300, 500, 1000]:
-    #         if layer_2 <= layer_1:
-    #             yield functools.partial(get_model, parameters=(layer_1, layer_2))
-    #
-    #             for layer_3 in [300, 500]:
-    #
-    #                 if layer_3 <= layer_2:
-    #                     yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3))
-    #
-    #                     for layer_4 in [500]:
-    #
-    #                         if layer_4 <= layer_4:
-    #                             yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3, layer_4))
+    for layer_1 in [200, 500, 1000]:
+        yield functools.partial(get_model, parameters=(layer_1,))
+
+        for layer_2 in [100, 200]:
+            if layer_2 <= layer_1:
+                yield functools.partial(get_model, parameters=(layer_1, layer_2))
+
+                for layer_3 in [100, 200]:
+
+                    if layer_3 <= layer_2:
+                        yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3))
+
+                        for layer_4 in [100]:
+
+                            if layer_4 <= layer_3:
+                                yield functools.partial(get_model, parameters=(layer_1, layer_2, layer_3, layer_4))
 
 
 if __name__ == '__main__':
@@ -89,11 +89,10 @@ if __name__ == '__main__':
                    functools.partial(flat_model_functions,
                                      regularizer=regularizer,
                                      activation_func=tf.nn.relu,
-                                     input_layer_noise_std=input_layer_noise_std,
                                      input_noise_std=input_noise_std),
-                   'cifar-100_noise-all-layer-another.csv',
+                   'mnist_noise-all-layer-another.csv',
                    regularizer=regularizer,
-                   learning_rate=0.00001,
+                   learning_rate=0.0001,
                    input_layer_noise_std=input_layer_noise_std,
                    input_noise_std=input_noise_std,
                    activation_func=tf.nn.relu,

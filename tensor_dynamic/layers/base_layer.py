@@ -544,14 +544,16 @@ class BaseLayer(object):
                 if isinstance(bound_variable.variable, tf.Variable):
                     old_values = self._session.run(bound_variable.variable)
                     if output_nodes_to_prune or split_output_nodes:
-                        output_bound_axis = bound_variable.dimensions.index(self.OUTPUT_BOUND_VALUE)
+                        output_bound_axis = self._get_axis(bound_variable.dimensions,
+                                                           self.OUTPUT_BOUND_VALUE, self.OUTPUT_DIM_3_BOUND_VALUE)
                         if output_nodes_to_prune:
                             old_values = np.delete(old_values, output_nodes_to_prune, output_bound_axis)
                         else:  # split
                             old_values = array_extend(old_values, {output_bound_axis: split_output_nodes},
                                                       noise_std=split_nodes_noise_std)
                     if input_nodes_to_prune or split_input_nodes:
-                        input_bound_axis = bound_variable.dimensions.index(self.INPUT_BOUND_VALUE)
+                        input_bound_axis = self._get_axis(bound_variable.dimensions,
+                                                          self.INPUT_BOUND_VALUE, self.INPUT_DIM_3_BOUND_VALUE)
                         if input_nodes_to_prune:
                             old_values = np.delete(old_values, input_nodes_to_prune, input_bound_axis)
                         else:  # split
@@ -620,6 +622,9 @@ class BaseLayer(object):
         if self._next_layer and self._next_layer._resize_needed():
             self._next_layer.resize(input_nodes_to_prune=output_nodes_to_prune, split_input_nodes=split_output_nodes,
                                     no_splitting_or_pruning=no_splitting_or_pruning)
+
+    def _get_output_axis(self, bound_variable):
+        return bound_variable.dimensions.index(self.OUTPUT_BOUND_VALUE)
 
     def _forget_assign_op(self, name):
         if name in self._bound_variable_assign_data:
@@ -1136,3 +1141,12 @@ class BaseLayer(object):
 
         # TODO: use tf.hessian in tensorflow 1. also use tf.diag_part
         return hessian_ops
+
+    @staticmethod
+    def _get_axis(dimension_tuple, axis_a, axis_b):
+        if axis_a in dimension_tuple:
+            return dimension_tuple.index(axis_a)
+        if axis_b in dimension_tuple:
+            return dimension_tuple.index(axis_b)
+
+        raise Exception("No index")

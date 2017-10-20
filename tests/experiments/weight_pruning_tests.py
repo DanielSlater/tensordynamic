@@ -13,17 +13,19 @@ from tensor_dynamic.node_importance import node_importance_by_dummy_activation_f
     node_importance_error_derrivative
 from tensor_dynamic.node_importance import node_importance_by_real_activation_from_input_layer
 
+LAYER_NOISE_STD = 1.
+
 NUM_TRIES = 15
 
 
 def dummy_random_weights():
     raise Exception()
 
-start = 400
-end = 380
+start = 300
+end = 290
 
 
-def main(file_name_all="pruning_tests%s-%s-%s.csv" % ('_noise=.5', start, end), file_name_avg="pruning_tests%s-%s-%s.csv" % ('_noise=.5', start, end)):
+def main(file_name_all="pruning_tests_noise_%s-%s-%s.csv" % (LAYER_NOISE_STD, start, end), file_name_avg="pruning_tests_avg_noise_%s-%s-%s.csv" % (LAYER_NOISE_STD, start, end)):
     data_set_collections = [get_mnist_data_set_collection(validation_ratio=.15),
                             get_cifar_100_data_set_collection(validation_ratio=.15)]
     methods = [node_importance_by_dummy_activation_from_input_layer,
@@ -53,14 +55,14 @@ def main(file_name_all="pruning_tests%s-%s-%s.csv" % ('_noise=.5', start, end), 
                         input_layer = FlattenLayer(input_layer)
 
                     layer = HiddenLayer(input_layer, start, session=session,
-                                        layer_noise_std=.5,
+                                        layer_noise_std=LAYER_NOISE_STD,
                                         node_importance_func=None,
                                         non_liniarity=tf.nn.relu,
                                         batch_normalize_input=True)
                     output = CategoricalOutputLayer(layer, data.labels_shape,
                                                     batch_normalize_input=True,
                                                     regularizer_weighting=0.01,
-                                                    layer_noise_std=.5
+                                                    layer_noise_std=LAYER_NOISE_STD
                                                     )
 
                     output.train_till_convergence(data.train, data.validation, learning_rate=0.0001)

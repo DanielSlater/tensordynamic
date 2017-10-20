@@ -7,21 +7,22 @@ from tensor_dynamic.layers.hidden_layer import HiddenLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 
 data_set_collection = get_cifar_100_data_set_collection(validation_ratio=.15)
-ITERATIONS = 10
+ITERATIONS = 15
+NOISE = 1.
 
 
 def print_stats(data_set_collection, model, layer_num):
     train_log_prob, train_acc, train_error = model.evaluation_stats(data_set_collection.train)
     val_log_prob, val_acc, val_error = model.evaluation_stats(data_set_collection.validation)
     test_log_prob, test_acc, test_error = model.evaluation_stats(data_set_collection.test)
-    text = "%s,%s,%s%s,%s,%s,%s,%s,%s,%s,%s, %s\n" % (train_log_prob, train_error, train_acc,
-                                                 val_log_prob, val_error, val_acc,
-                                                 test_log_prob, test_error, test_acc,
+    text = "%s,%s,%s,%s,%s,%s,%s,%s, %s\n" % (train_error, train_acc,
+                                                 val_error, val_acc,
+                                                 test_error, test_acc,
                                                  str(model.get_resizable_dimension_size_all_layers())
                                                  .replace(',', '-'),
                                                  model.get_parameters_all_layers(), layer_num)
     print(text)
-    with open('adding_layers.csv', "w") as file_avg:
+    with open('adding_layers_noise_1.csv', "a") as file_avg:
         file_avg.write(text)
 
 
@@ -53,11 +54,13 @@ for _ in range(ITERATIONS):
 
         for _ in range(3):
             last_layer = HiddenLayer(last_layer, nodes_per_layer, session, non_liniarity=non_liniarity,
+                                     layer_noise_std=NOISE,
                                      batch_normalize_input=True)
 
         output = CategoricalOutputLayer(last_layer, data_set_collection.labels_shape, session,
                                         batch_normalize_input=True,
                                         loss_cross_entropy_or_log_prob=True,
+                                        layer_noise_std=NOISE,
                                         regularizer_weighting=regularizer_coeff)
 
         output.train_till_convergence(data_set_collection.train, data_set_collection.validation,
