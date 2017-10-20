@@ -1,7 +1,6 @@
 import numpy as np
 
 from tensor_dynamic.categorical_trainer import CategoricalTrainer
-from tensor_dynamic.layers.batch_norm_layer import BatchNormLayer
 from tensor_dynamic.layers.duel_state_relu_layer import DuelStateReluLayer
 from tensor_dynamic.layers.input_layer import InputLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
@@ -92,10 +91,8 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
         input = InputLayer(self.MNIST_INPUT_NODES)
         d_1 = DuelStateReluLayer(input, 3, width_regularizer_constant=1e-7, width_binarizer_constant=1e-10,
                                  session=self.session)
-        # when we add in batch norm layers we find that no active nodes are created, width is always less than 0.5?
-        # bn_1 = BatchNormLayer(d_1)
+
         d_2 = DuelStateReluLayer(d_1, 3, width_regularizer_constant=1e-7, width_binarizer_constant=1e-10, )
-        # bn_2 = BatchNormLayer(d_2)
         output = HiddenLayer(d_2, self.MNIST_OUTPUT_NODES)
 
         trainer = CategoricalTrainer(output, 0.1)
@@ -109,17 +106,3 @@ class TestDuelStateReluLayer(BaseLayerWrapper.BaseLayerTestCase):
         print(accuracy, cost)
         print("active nodes ", d_1.active_nodes())
         self.assertGreater(accuracy, 70.)
-
-    def test_with_train_policy(self):
-        data = self.mnist_data
-        input = InputLayer(self.MNIST_INPUT_NODES)
-        d_1 = DuelStateReluLayer(input, 1, width_regularizer_constant=1e-7, width_binarizer_constant=1e-9,
-                                 session=self.session)
-        bn_1 = BatchNormLayer(d_1)
-        d_2 = DuelStateReluLayer(bn_1, 1, width_regularizer_constant=1e-7, width_binarizer_constant=1e-9, )
-        bn_2 = BatchNormLayer(d_2)
-        output = HiddenLayer(bn_2, self.MNIST_OUTPUT_NODES)
-        trainer = CategoricalTrainer(output, 0.1)
-        trainer = DuelStateReluTrainPolicy(trainer, data, 100, max_iterations=300, stop_accuracy=90.,
-                                           grow_after_turns_without_improvement=1,)
-        trainer.run_full(True)

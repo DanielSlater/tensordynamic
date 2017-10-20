@@ -1,10 +1,11 @@
+import math
+
 import operator
-
-import numpy as np
 import tensorflow as tf
-
+import numpy as np
 from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
+from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
 
@@ -27,18 +28,25 @@ class DuelStateReluLayer(HiddenLayer):
                  non_liniarity=tf.nn.relu,
                  weight_extender_func=noise_weight_extender,
                  name='DuelStateReluLayer',
+                 batch_norm_transform=None,
+                 batch_norm_scale=None,
                  freeze=False):
         super(DuelStateReluLayer, self).__init__(input_layer, output_nodes,
-                                                 session=session, weight_extender_func=weight_extender_func,
-                                                 weights=weights,
+                                                 session=session,
                                                  bias=bias,
-                                                 bactivate=False,
-                                                 layer_noise_std=layer_noise_std,
-                                                 batch_normalize_input=batch_normalize_input,
-                                                 drop_out_prob=drop_out_prob,
+                                                 weights=weights,
+                                                 back_bias=None,
+                                                 bactivate=None,
+                                                 freeze=freeze,
                                                  non_liniarity=non_liniarity,
-                                                 name=name,
-                                                 freeze=freeze)
+                                                 weight_extender_func=weight_extender_func,
+                                                 bactivation_loss_func=None,
+                                                 layer_noise_std=layer_noise_std,
+                                                 drop_out_prob=drop_out_prob,
+                                                 batch_normalize_input=batch_normalize_input,
+                                                 batch_norm_transform=batch_norm_transform,
+                                                 batch_norm_scale=batch_norm_scale,
+                                                 name=name)
         self._width = self._create_variable("width",
                                             (BaseLayer.OUTPUT_BOUND_VALUE,),
                                             width if width is not None else np.ones(self.output_nodes,
@@ -146,7 +154,7 @@ class DuelStateReluLayer(HiddenLayer):
 
         if output_nodes_increase > 0:
             # set newly created node to active
-            width = np.append(width, [1.0]*output_nodes_increase)
+            width = np.append(width, [1.0] * output_nodes_increase)
             self.session.run(tf.assign(self._width, width, validate_shape=False))
 
     @property
