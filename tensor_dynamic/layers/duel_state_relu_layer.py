@@ -1,11 +1,10 @@
-import math
-
 import operator
-import tensorflow as tf
+
 import numpy as np
+import tensorflow as tf
+
 from tensor_dynamic.layers.base_layer import BaseLayer
 from tensor_dynamic.layers.hidden_layer import HiddenLayer
-from tensor_dynamic.lazyprop import lazyprop
 from tensor_dynamic.weight_functions import noise_weight_extender
 
 
