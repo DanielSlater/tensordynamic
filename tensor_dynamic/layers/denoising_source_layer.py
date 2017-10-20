@@ -13,8 +13,6 @@ class DenoisingSourceLayer(HiddenLayer):
                  session=None,
                  bias=None,
                  weights=None,
-                 back_bias=None,
-                 back_weights=None,
                  freeze=False,
                  a1=None,
                  a2=None,
@@ -29,8 +27,6 @@ class DenoisingSourceLayer(HiddenLayer):
                  non_liniarity=tf.nn.relu,
                  bactivation_loss_func=squared_loss,
                  weight_extender_func=noise_weight_extender,
-                 unsupervised_cost=1.,
-                 supervised_cost=1.,
                  noise_std=None,
                  name='BackWeightLayer'):
         super(DenoisingSourceLayer, self).__init__(input_layer, output_nodes,
@@ -42,9 +38,7 @@ class DenoisingSourceLayer(HiddenLayer):
                                                    non_liniarity=non_liniarity,
                                                    weight_extender_func=weight_extender_func,
                                                    bactivation_loss_func=bactivation_loss_func,
-                                                   unsupervised_cost=unsupervised_cost,
-                                                   supervised_cost=supervised_cost,
-                                                   noise_std=noise_std,
+                                                   layer_noise_std=noise_std,
                                                    name=name)
         assert len(self.input_nodes) == 1
         assert len(self.output_nodes) == 1
