@@ -7,7 +7,6 @@ setup(
     description='Library for dynamicly learning network topology',
     url='https://github.com/DanielSlater/tensordynamic',
     packages=(find_packages(exclude=['*tests*'])),
-    namespace_packages=['tensor_dynamic'],
     install_requires=[
         'tensorflow>=1.0.1',
     ]
