@@ -443,7 +443,7 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
                          feed_dict={output.input_placeholder: self.mnist_data.train.features[:3],
                                     output.target_placeholder: self.mnist_data.train.labels[:3]})
 
-    def test_bug_issue(self):
+    def test_bug_issue_1(self):
         non_liniarity = tf.nn.relu
         regularizer_coeff = 0.01
         last_layer = InputLayer(self.mnist_data.features_shape,
@@ -470,6 +470,20 @@ class TestHiddenLayer(BaseLayerWrapper.BaseLayerTestCase):
 
         output.train_till_convergence(self.mnist_data.train, self.mnist_data.validation,
                                       learning_rate=.1)
+
+    def test_bug_issue_2(self):
+        last_layer = InputLayer((1,))
+        last_layer = HiddenLayer(last_layer, 2, self.session,
+                                 batch_normalize_input=True)
+
+        output = CategoricalOutputLayer(last_layer, (1,), self.session,
+                                        batch_normalize_input=True)
+
+        print output.activate_predict([[0.]])
+
+        last_layer.resize(4)
+
+        print output.activate_predict([[0.]])
 
     def test_adding_hidden_layer_with_resize(self):
         non_liniarity = tf.nn.relu

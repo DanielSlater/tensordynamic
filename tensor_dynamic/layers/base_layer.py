@@ -581,6 +581,9 @@ class BaseLayer(object):
                 tf_resize(self._session, self._normalized_train, (None,) + self._input_nodes)
             if self._normalized_predict is not None:
                 tf_resize(self._session, self._normalized_predict, (None,) + self._input_nodes)
+                tf_resize(self.session, self._normalized_predict.op.inputs[0].op.inputs[1].op.inputs[1], self._input_nodes)
+            # THIS needs fixing -> self._normalized_predict.op.inputs[0].op.inputs[1].op.inputs[1]
+            # self._normalized_predict.op.inputs[0].op.inputs[1].op.inputs[1].op.inputs[1] returns [2] and should be [4]
 
             # This line fixed the issue, this is all very hacky...
             # self._mat_mul.op.inputs[0]._shape = TensorShape((None,) + self._input_nodes)

@@ -113,3 +113,12 @@ class TestTensorflowFeatures(BaseTfTestCase):
         print self.session.run(hessian_a, feed_dict={var: input})
         print self.session.run(hessian_a_diag, feed_dict={var: input})
         print self.session.run(hessian_b, feed_dict={var: input})
+
+    def test_reshape_tensor(self):
+        input = tf.placeholder('float', shape=(4,))
+        output = tf.reshape(input, (2, 2))
+        print self.session.run(output, feed_dict={input: [1, 2, 3, 4]})
+
+        tf_resize(self.session, output, new_dimensions=(1, 4))
+
+        assert self.session.run(output, feed_dict={input: [1, 2, 3, 4]}) == [[1, 2, 3, 4]]
