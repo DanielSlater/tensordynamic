@@ -4,5 +4,3 @@ deep neural network as part of training.
 
 A write up of the project can be found [here](MRes.pdf) and some slides 
 can be found [here](Seminar.pptx).
-
-# Usage
